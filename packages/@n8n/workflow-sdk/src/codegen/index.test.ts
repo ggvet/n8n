@@ -77,7 +77,7 @@ describe('codegen index', () => {
 
 			const code = generateWorkflowCode(json);
 
-			expect(code).toContain('ifElse(iF, { true:');
+			expect(code).toContain('iF.onTrue(true_node).onFalse(false_node)');
 		});
 
 		it('generates code with merge', () => {
@@ -118,8 +118,10 @@ describe('codegen index', () => {
 
 			const code = generateWorkflowCode(json);
 
-			expect(code).toContain('merge(node({');
-			expect(code).toContain('{ input0:');
+			// Should use .input(n) syntax for connecting branches to merge
+			expect(code).toContain('.input(0)');
+			expect(code).toContain('.input(1)');
+			expect(code).toContain('merge_node'); // The merge node variable
 		});
 
 		it('handles empty workflow', () => {
