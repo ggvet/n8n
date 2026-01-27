@@ -47,8 +47,6 @@ export type {
 	StickyNoteConfig,
 	// Split in batches types
 	SplitInBatchesBuilder,
-	SplitInBatchesDoneChain,
-	SplitInBatchesEachChain,
 	// Other types
 	PlaceholderValue,
 	NewCredentialValue,
@@ -119,36 +117,24 @@ export {
 	textSplitter,
 } from './subnode-builders';
 
-// Merge composite
-export {
-	merge,
-	isMergeNamedInputSyntax,
-	type MergeInputSource,
-	type MergeNamedInputs,
-} from './merge';
+// Merge composite - use .input(n) syntax instead of merge() function
+// The merge() function is internal only (used by code generator)
+// Export only the type guard needed by workflow-builder
 
-// IF else composite
-export {
-	ifElse,
-	isIfElseNamedSyntax,
-	type IfElseTarget,
-	type IfElseNamedInputs,
-} from './if-else';
+// IF else types - use .onTrue()/.onFalse() fluent syntax
+export type { IfElseTarget } from './if-else';
 
-// Switch case composite
-export {
-	switchCase,
-	isSwitchCaseNamedSyntax,
-	type SwitchCaseTarget,
-	type SwitchCaseNamedInputs,
-} from './switch-case';
+// Switch case types - use .onCase() fluent syntax
+export type { SwitchCaseTarget } from './switch-case';
 
 // Split in batches
 export { splitInBatches } from './split-in-batches';
 
-// Fan-out / Fan-in helpers for explicit parallel connections
-export { fanOut, isFanOut, type FanOutTargets } from './fan-out';
-export { fanIn, isFanIn, type FanInSources } from './fan-in';
+// Note: fanOut() removed - use plain arrays for parallel connections
+// Note: fanIn() removed - use multiple .then(node.input(n)) calls instead
+
+// Loop-back helper for split in batches
+export { nextBatch, isNextBatch, type NextBatchMarker } from './next-batch';
 
 // Expression utilities
 export {

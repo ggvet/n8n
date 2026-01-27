@@ -18,6 +18,7 @@ import type {
 	SplitInBatchesCompositeNode,
 	FanOutCompositeNode,
 	ExplicitConnectionsNode,
+	MultiOutputNode,
 } from './composite-tree';
 
 /**
@@ -133,8 +134,6 @@ const RESERVED_KEYWORDS = new Set([
 	'trigger',
 	'node',
 	'merge',
-	'ifElse',
-	'switchCase',
 	'splitInBatches',
 	'sticky',
 	'languageModel',
@@ -509,6 +508,11 @@ function generateNodeConfig(node: SemanticNode, ctx: GenerationContext): string 
 		configParts.push(`position: [${pos[0]}, ${pos[1]}]`);
 	}
 
+	// Include onError if set
+	if (node.json.onError) {
+		configParts.push(`onError: '${node.json.onError}'`);
+	}
+
 	// Include subnodes config if this node has AI subnodes
 	// Use variable references if subnodes are declared as variables
 	const subnodesConfig =
@@ -527,58 +531,6 @@ function generateNodeConfig(node: SemanticNode, ctx: GenerationContext): string 
 	}
 
 	return `{\n${parts.join(',\n')}\n${indent}}`;
-}
-
-/**
- * Generate flat config object for composite functions (ifElse, merge, switchCase, splitInBatches).
- * These expect { name?, version?, parameters?, credentials?, position? } directly,
- * not the { type, version, config: { ... } } format used by node().
- */
-function generateFlatNodeConfig(node: SemanticNode): string {
-	const parts: string[] = [];
-
-	// These functions have name, version, parameters, credentials, position at the TOP level
-	// (not nested in a config object like node())
-
-	if (node.json.typeVersion != null) {
-		parts.push(`version: ${node.json.typeVersion}`);
-	}
-
-	// ALWAYS include name for composite nodes (ifElse, merge, switchCase, splitInBatches)
-	// because the parser's hardcoded defaults ("IF", "Merge", "Switch", "Split In Batches")
-	// don't match what generateDefaultNodeName() computes from the node type.
-	// Without this, roundtrip fails with name mismatches.
-	if (node.json.name) {
-		parts.push(`name: '${escapeString(node.json.name)}'`);
-	}
-
-	if (node.json.parameters && Object.keys(node.json.parameters).length > 0) {
-		parts.push(`parameters: ${formatValue(node.json.parameters)}`);
-	}
-
-	if (node.json.credentials) {
-		parts.push(`credentials: ${formatValue(node.json.credentials)}`);
-	}
-
-	// Include position if non-zero
-	const pos = node.json.position;
-	if (pos && (pos[0] !== 0 || pos[1] !== 0)) {
-		parts.push(`position: [${pos[0]}, ${pos[1]}]`);
-	}
-
-	return `{ ${parts.join(', ')} }`;
-}
-
-/**
- * Generate flat node config or variable reference for composite functions.
- * Used by splitInBatches.
- */
-function generateFlatNodeOrVarRef(node: SemanticNode, ctx: GenerationContext): string {
-	const nodeName = node.json.name;
-	if (nodeName && ctx.variableNodes.has(nodeName)) {
-		return getVarName(nodeName, ctx);
-	}
-	return generateFlatNodeConfig(node);
 }
 
 /**
@@ -714,60 +666,83 @@ function generateBranchCode(
 	if (branch === null) return 'null';
 
 	if (Array.isArray(branch)) {
-		// Fan-out within branch - generate as fanOut(branch1, branch2, ...)
+		// Fan-out within branch - generate as plain array [branch1, branch2, ...]
 		const branchesCode = branch.map((b) => generateComposite(b, ctx)).join(', ');
-		return `fanOut(${branchesCode})`;
+		return `[${branchesCode}]`;
 	}
 
 	return generateComposite(branch, ctx);
 }
 
 /**
- * Generate code for an IF branch (named syntax only)
+ * Generate code for an IF branch using fluent API syntax
+ * Generates: ifNode.onTrue(trueHandler).onFalse(falseHandler)
  */
 function generateIfElse(ifElse: IfElseCompositeNode, ctx: GenerationContext): string {
 	const innerCtx = { ...ctx, indent: ctx.indent + 1 };
 
-	const trueBranchCode = generateBranchCode(ifElse.trueBranch, innerCtx);
-	const falseBranchCode = generateBranchCode(ifElse.falseBranch, innerCtx);
-
-	// For named syntax, we need a variable reference to the IF node
+	// For fluent syntax, we need a variable reference to the IF node
 	const ifNodeRef = getVarRefOrInlineNode(ifElse.ifNode, ctx);
 
-	return `ifElse(${ifNodeRef}, { true: ${trueBranchCode}, false: ${falseBranchCode} })`;
+	// Build the fluent chain
+	let code = ifNodeRef;
+
+	// Add onTrue if true branch exists
+	if (ifElse.trueBranch !== null) {
+		const trueBranchCode = generateBranchCode(ifElse.trueBranch, innerCtx);
+		code += `.onTrue(${trueBranchCode})`;
+	}
+
+	// Add onFalse if false branch exists
+	if (ifElse.falseBranch !== null) {
+		const falseBranchCode = generateBranchCode(ifElse.falseBranch, innerCtx);
+		code += `.onFalse(${falseBranchCode})`;
+	}
+
+	return code;
 }
 
 /**
- * Generate code for a switch case (named syntax only)
+ * Generate code for a switch case using fluent API syntax
+ * Generates: switchNode.onCase(0, caseA).onCase(1, caseB)
  */
 function generateSwitchCase(switchCase: SwitchCaseCompositeNode, ctx: GenerationContext): string {
 	const innerCtx = { ...ctx, indent: ctx.indent + 1 };
 
-	// For named syntax, we need a variable reference to the Switch node
+	// For fluent syntax, we need a variable reference to the Switch node
 	const switchNodeRef = getVarRefOrInlineNode(switchCase.switchNode, ctx);
 
-	// If no cases, just return the switch node reference (don't wrap in switchCase())
+	// If no cases, just return the switch node reference
 	if (switchCase.cases.length === 0) {
 		return switchNodeRef;
 	}
 
-	// Generate named case entries: { case0: ..., case1: ..., ... }
-	const caseEntries = switchCase.cases
-		.map((c, i) => `case${i}: ${generateBranchCode(c, innerCtx)}`)
-		.join(', ');
+	// Build the fluent chain with onCase calls
+	let code = switchNodeRef;
+	switchCase.cases.forEach((c, i) => {
+		const caseIndex = switchCase.caseIndices[i] ?? i;
+		const caseCode = generateBranchCode(c, innerCtx);
+		code += `.onCase(${caseIndex}, ${caseCode})`;
+	});
 
-	return `switchCase(${switchNodeRef}, { ${caseEntries} })`;
+	return code;
 }
 
 /**
  * Generate code for a merge (named syntax only)
+ * Note: We keep using the old merge() syntax for merges inside branch handlers
+ * because the .input(n) syntax would create incorrect connections when the merge
+ * is nested inside IF/Switch branches.
  */
 function generateMerge(merge: MergeCompositeNode, ctx: GenerationContext): string {
 	const innerCtx = { ...ctx, indent: ctx.indent + 1 };
 
 	// Generate named input entries: { input0: ..., input1: ..., ... }
 	const inputEntries = merge.branches
-		.map((b, i) => `input${i}: ${generateComposite(b, innerCtx)}`)
+		.map((b, i) => {
+			const inputIndex = merge.inputIndices[i] ?? i;
+			return `input${inputIndex}: ${generateComposite(b, innerCtx)}`;
+		})
 		.join(', ');
 
 	// For named syntax, we need a variable reference to the Merge node
@@ -796,29 +771,94 @@ function branchEndsWithVarRef(branch: CompositeNode | CompositeNode[] | null): b
 }
 
 /**
- * Generate code for split in batches
+ * Strip the trailing varRef from a branch code string.
+ * For example: "process.then(sibVar)" -> "process"
+ * Or just "sibVar" -> null (entire branch is just the varRef)
+ */
+function stripTrailingVarRefFromCode(code: string, varName: string): string | null {
+	// Pattern: ".then(varName)" at end - strip it
+	const thenPattern = new RegExp(`\\.then\\(${escapeRegexChars(varName)}\\)$`);
+	if (thenPattern.test(code)) {
+		return code.replace(thenPattern, '');
+	}
+
+	// Pattern: entire code is just the varName (self-loop with no processing)
+	if (code.trim() === varName) {
+		return null;
+	}
+
+	return code;
+}
+
+/**
+ * Escape special regex characters in a string
+ */
+function escapeRegexChars(str: string): string {
+	return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Generate code for split in batches using fluent API syntax:
+ * splitInBatches(sibVar).onEachBatch(eachCode.then(nextBatch(sibVar))).onDone(doneCode)
  */
 function generateSplitInBatches(sib: SplitInBatchesCompositeNode, ctx: GenerationContext): string {
 	const innerCtx = { ...ctx, indent: ctx.indent + 1 };
-	// Use variable reference if SIB node is already declared as a variable
-	// splitInBatches expects flat config { name?, version?, parameters?, ... }, not { type, config: {...} }
-	const config = generateFlatNodeOrVarRef(sib.sibNode, ctx);
 
-	let code = `splitInBatches(${config})`;
+	// Get the SIB node variable name (it should always be a variable for cycle reference)
+	const sibVarName = getVarName(sib.sibNode.name, ctx);
 
-	if (sib.doneChain) {
-		const doneCode = generateBranchCode(sib.doneChain, innerCtx);
-		code += `\n${getIndent(ctx)}.done().then(${doneCode})`;
+	// Start with splitInBatches(sibVar)
+	let code = `splitInBatches(${sibVarName})`;
+
+	// Add .onEachBatch() if there's a loop chain (output 1)
+	if (sib.loopChain) {
+		let eachCode: string;
+
+		// Handle array (fan-out) case specially - need to process nextBatch for each branch
+		if (Array.isArray(sib.loopChain)) {
+			const transformedBranches = sib.loopChain.map((branch) => {
+				let branchCode = generateComposite(branch, innerCtx);
+
+				// Check if this branch ends with cycle back to SIB
+				if (branchEndsWithVarRef(branch)) {
+					const strippedCode = stripTrailingVarRefFromCode(branchCode, sibVarName);
+					if (strippedCode === null) {
+						// Branch is just the self-loop
+						branchCode = `nextBatch(${sibVarName})`;
+					} else {
+						// Has processing nodes before the loop back
+						branchCode = `${strippedCode}.then(nextBatch(${sibVarName}))`;
+					}
+				}
+
+				return branchCode;
+			});
+			eachCode = `[${transformedBranches.join(', ')}]`;
+		} else {
+			// Single composite case
+			eachCode = generateBranchCode(sib.loopChain, innerCtx);
+
+			// Check if loop chain ends with cycle back to SIB
+			if (branchEndsWithVarRef(sib.loopChain)) {
+				// Strip trailing varRef and replace with nextBatch()
+				const strippedCode = stripTrailingVarRefFromCode(eachCode, sibVarName);
+				if (strippedCode === null) {
+					// Entire each branch is just the self-loop (no processing nodes)
+					eachCode = `nextBatch(${sibVarName})`;
+				} else {
+					// Has processing nodes before the loop back
+					eachCode = `${strippedCode}.then(nextBatch(${sibVarName}))`;
+				}
+			}
+		}
+
+		code += `\n${getIndent(ctx)}.onEachBatch(${eachCode})`;
 	}
 
-	if (sib.loopChain) {
-		const loopCode = generateBranchCode(sib.loopChain, innerCtx);
-		code += `\n${getIndent(ctx)}.each().then(${loopCode})`;
-
-		// Check if loop chain ends with cycle back
-		if (branchEndsWithVarRef(sib.loopChain)) {
-			code += `.loop()`;
-		}
+	// Add .onDone() if there's a done chain (output 0)
+	if (sib.doneChain) {
+		const doneCode = generateBranchCode(sib.doneChain, innerCtx);
+		code += `\n${getIndent(ctx)}.onDone(${doneCode})`;
 	}
 
 	return code;
@@ -833,12 +873,12 @@ function generateFanOut(fanOut: FanOutCompositeNode, ctx: GenerationContext): st
 	// Generate source node code
 	const sourceCode = generateComposite(fanOut.sourceNode, ctx);
 
-	// Generate all target branches
+	// Generate all target branches as plain array
 	const targetsCode = fanOut.targets
 		.map((target) => generateComposite(target, innerCtx))
 		.join(',\n' + getIndent(innerCtx));
 
-	// Return with parallel .then([...]) syntax
+	// Return with plain array syntax for clarity
 	return `${sourceCode}\n${getIndent(ctx)}.then([\n${getIndent(innerCtx)}${targetsCode}])`;
 }
 
@@ -858,6 +898,16 @@ function generateExplicitConnections(
 		return varName;
 	}
 	return '';
+}
+
+/**
+ * Generate code for multi-output node (generates variable reference, actual connections at root level)
+ */
+function generateMultiOutput(multiOutput: MultiOutputNode, ctx: GenerationContext): string {
+	// The multi-output node becomes a variable reference
+	// The actual .output(n).then() calls are generated at the root level via flattenToWorkflowCalls
+	const varName = getVarName(multiOutput.sourceNode.name, ctx);
+	return varName;
 }
 
 /**
@@ -883,6 +933,8 @@ function generateComposite(node: CompositeNode, ctx: GenerationContext): string 
 			return generateFanOut(node, ctx);
 		case 'explicitConnections':
 			return generateExplicitConnections(node, ctx);
+		case 'multiOutput':
+			return generateMultiOutput(node, ctx);
 	}
 }
 
@@ -974,6 +1026,102 @@ function generateVariableDeclarations(
 }
 
 /**
+ * Recursively collect all nested multiOutput nodes from a composite tree.
+ * These need to be extracted and their output connections generated as separate .add() calls.
+ */
+function collectNestedMultiOutputs(node: CompositeNode, collected: MultiOutputNode[]): void {
+	if (!node) return;
+
+	if (node.kind === 'multiOutput') {
+		collected.push(node);
+		// Also check the output targets for nested multiOutput nodes
+		for (const [, target] of node.outputTargets) {
+			collectNestedMultiOutputs(target, collected);
+		}
+	} else if (node.kind === 'chain') {
+		for (const n of node.nodes) {
+			collectNestedMultiOutputs(n, collected);
+		}
+	} else if (node.kind === 'splitInBatches') {
+		const sib = node as SplitInBatchesCompositeNode;
+		if (sib.doneChain) {
+			if (Array.isArray(sib.doneChain)) {
+				for (const b of sib.doneChain) collectNestedMultiOutputs(b, collected);
+			} else {
+				collectNestedMultiOutputs(sib.doneChain, collected);
+			}
+		}
+		if (sib.loopChain) {
+			if (Array.isArray(sib.loopChain)) {
+				for (const b of sib.loopChain) collectNestedMultiOutputs(b, collected);
+			} else {
+				collectNestedMultiOutputs(sib.loopChain, collected);
+			}
+		}
+	} else if (node.kind === 'ifElse') {
+		const ifElse = node as IfElseCompositeNode;
+		if (ifElse.trueBranch) {
+			if (Array.isArray(ifElse.trueBranch)) {
+				for (const b of ifElse.trueBranch) collectNestedMultiOutputs(b, collected);
+			} else {
+				collectNestedMultiOutputs(ifElse.trueBranch, collected);
+			}
+		}
+		if (ifElse.falseBranch) {
+			if (Array.isArray(ifElse.falseBranch)) {
+				for (const b of ifElse.falseBranch) collectNestedMultiOutputs(b, collected);
+			} else {
+				collectNestedMultiOutputs(ifElse.falseBranch, collected);
+			}
+		}
+	} else if (node.kind === 'switchCase') {
+		const switchCase = node as SwitchCaseCompositeNode;
+		for (const c of switchCase.cases) {
+			if (c) {
+				if (Array.isArray(c)) {
+					for (const b of c) collectNestedMultiOutputs(b, collected);
+				} else {
+					collectNestedMultiOutputs(c, collected);
+				}
+			}
+		}
+	} else if (node.kind === 'fanOut') {
+		const fanOut = node as FanOutCompositeNode;
+		collectNestedMultiOutputs(fanOut.sourceNode, collected);
+		for (const t of fanOut.targets) {
+			collectNestedMultiOutputs(t, collected);
+		}
+	} else if (node.kind === 'merge') {
+		const merge = node as MergeCompositeNode;
+		for (const b of merge.branches) {
+			collectNestedMultiOutputs(b, collected);
+		}
+	}
+	// leaf, varRef, explicitConnections don't need recursive checking
+}
+
+/**
+ * Generate the output connections for a multiOutput node as separate .add() calls.
+ */
+function generateMultiOutputConnections(
+	multiOutput: MultiOutputNode,
+	ctx: GenerationContext,
+): Array<[string, string]> {
+	const calls: Array<[string, string]> = [];
+	const sourceVarName = getVarName(multiOutput.sourceNode.name, ctx);
+
+	// Sort by output index for consistent ordering
+	const sortedOutputs = [...multiOutput.outputTargets.entries()].sort((a, b) => a[0] - b[0]);
+
+	for (const [outputIndex, targetComposite] of sortedOutputs) {
+		const targetCode = generateComposite(targetComposite, ctx);
+		calls.push(['add', `${sourceVarName}.output(${outputIndex}).then(${targetCode})`]);
+	}
+
+	return calls;
+}
+
+/**
  * Flatten a composite tree into workflow-level calls.
  * Returns array of [method, code] tuples where method is 'add', 'then', or 'connect'.
  */
@@ -983,7 +1131,23 @@ function flattenToWorkflowCalls(
 ): Array<[string, string]> {
 	const calls: Array<[string, string]> = [];
 
-	if (root.kind === 'explicitConnections') {
+	if (root.kind === 'multiOutput') {
+		// Multi-output node: generate .add(sourceNode) then .add(sourceNode.output(n).then(target)) for each output
+		const multiOutput = root as MultiOutputNode;
+		const sourceVarName = getVarName(multiOutput.sourceNode.name, ctx);
+
+		// First, add the source node itself
+		calls.push(['add', sourceVarName]);
+
+		// Then, for each output with targets, generate sourceNode.output(n).then(target)
+		// Sort by output index for consistent ordering
+		const sortedOutputs = [...multiOutput.outputTargets.entries()].sort((a, b) => a[0] - b[0]);
+
+		for (const [outputIndex, targetComposite] of sortedOutputs) {
+			const targetCode = generateComposite(targetComposite, ctx);
+			calls.push(['add', `${sourceVarName}.output(${outputIndex}).then(${targetCode})`]);
+		}
+	} else if (root.kind === 'explicitConnections') {
 		// Explicit connections pattern: generate .add() for each node, then .connect() for each connection
 		const explicitConns = root as ExplicitConnectionsNode;
 
@@ -1004,15 +1168,58 @@ function flattenToWorkflowCalls(
 		}
 	} else if (root.kind === 'chain') {
 		// Chain: first node is .add(), rest are .then()
+		// Special handling when chain contains a multiOutput node
+		const nestedMultiOutputsInChain: MultiOutputNode[] = [];
+
 		for (let i = 0; i < root.nodes.length; i++) {
 			const node = root.nodes[i];
-			const method = i === 0 ? 'add' : 'then';
-			const code = generateComposite(node, ctx);
-			calls.push([method, code]);
+
+			if (node.kind === 'multiOutput') {
+				// When encountering a multiOutput node in a chain:
+				// 1. Generate .then(sourceNode) to connect the previous node to the multi-output source
+				// 2. Then generate separate .add() calls for each output
+				const multiOutput = node as MultiOutputNode;
+				const sourceVarName = getVarName(multiOutput.sourceNode.name, ctx);
+
+				// Connect to the multi-output source node
+				const method = i === 0 ? 'add' : 'then';
+				calls.push([method, sourceVarName]);
+
+				// Generate .add(sourceNode.output(n).then(target)) for each output
+				const sortedOutputs = [...multiOutput.outputTargets.entries()].sort((a, b) => a[0] - b[0]);
+
+				for (const [outputIndex, targetComposite] of sortedOutputs) {
+					const targetCode = generateComposite(targetComposite, ctx);
+					calls.push(['add', `${sourceVarName}.output(${outputIndex}).then(${targetCode})`]);
+				}
+			} else {
+				const method = i === 0 ? 'add' : 'then';
+				const code = generateComposite(node, ctx);
+				calls.push([method, code]);
+
+				// Check for nested multiOutput nodes inside this composite (e.g., inside splitInBatches)
+				collectNestedMultiOutputs(node, nestedMultiOutputsInChain);
+			}
+		}
+
+		// Generate output connections for any nested multiOutput nodes found in the chain
+		for (const multiOutput of nestedMultiOutputsInChain) {
+			const multiOutputCalls = generateMultiOutputConnections(multiOutput, ctx);
+			calls.push(...multiOutputCalls);
 		}
 	} else {
 		// Single node: just .add()
 		calls.push(['add', generateComposite(root, ctx)]);
+
+		// Check for nested multiOutput nodes inside composites like splitInBatches
+		// These need their output connections generated as separate .add() calls
+		const nestedMultiOutputs: MultiOutputNode[] = [];
+		collectNestedMultiOutputs(root, nestedMultiOutputs);
+
+		for (const multiOutput of nestedMultiOutputs) {
+			const multiOutputCalls = generateMultiOutputConnections(multiOutput, ctx);
+			calls.push(...multiOutputCalls);
+		}
 	}
 
 	return calls;
@@ -1078,6 +1285,35 @@ export function generateCode(
 		const calls = flattenToWorkflowCalls(root, ctx);
 		for (const [method, code] of calls) {
 			workflowCalls.push(`  .${method}(${code})`);
+		}
+	}
+
+	// Generate deferred input connections with .input(n) syntax
+	// These are connections from IF/Switch branches to multi-input nodes (like Merge)
+	// that need to be expressed at root level rather than nested inside branches
+	for (const conn of tree.deferredConnections) {
+		const sourceVarName = getVarName(conn.sourceNodeName, ctx);
+		const targetVarName = getVarName(conn.targetNode.name, ctx);
+
+		// Handle output index if not default (0)
+		const sourceRef =
+			conn.sourceOutputIndex > 0
+				? `${sourceVarName}.output(${conn.sourceOutputIndex})`
+				: sourceVarName;
+
+		// Generate: .add(source.then(target.input(n)))
+		workflowCalls.push(
+			`  .add(${sourceRef}.then(${targetVarName}.input(${conn.targetInputIndex})))`,
+		);
+	}
+
+	// Generate deferred merge downstream chains
+	// These are the output chains from merge nodes that received deferred connections
+	for (const downstream of tree.deferredMergeDownstreams) {
+		const mergeVarName = getVarName(downstream.mergeNode.name, ctx);
+		if (downstream.downstreamChain) {
+			const chainCode = generateComposite(downstream.downstreamChain, ctx);
+			workflowCalls.push(`  .add(${mergeVarName}.then(${chainCode}))`);
 		}
 	}
 

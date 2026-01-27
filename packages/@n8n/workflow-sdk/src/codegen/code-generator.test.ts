@@ -183,8 +183,8 @@ describe('code-generator', () => {
 				expect(code).toContain('const iF = node({');
 				expect(code).toContain('const trueHandler = node({');
 				expect(code).toContain('const falseHandler = node({');
-				// The ifElse should use named syntax with IF node reference
-				expect(code).toContain('ifElse(iF, { true: trueHandler, false: falseHandler })');
+				// The ifElse should use fluent API syntax
+				expect(code).toContain('iF.onTrue(trueHandler).onFalse(falseHandler)');
 			});
 
 			it('handles IF with null branch', () => {
@@ -217,10 +217,10 @@ describe('code-generator', () => {
 
 				const code = generateFromWorkflow(json);
 
-				// Should use named syntax with IF node
-				expect(code).toContain('ifElse(iF, {');
-				expect(code).toContain('true: trueHandler');
-				expect(code).toContain('false: null');
+				// Should use fluent API syntax with only onTrue (no onFalse since false branch is null)
+				expect(code).toContain('iF.onTrue(trueHandler)');
+				// Should not have onFalse since false branch is null
+				expect(code).not.toContain('onFalse');
 			});
 		});
 
@@ -284,7 +284,7 @@ describe('code-generator', () => {
 		});
 
 		describe('SplitInBatches', () => {
-			it('generates splitInBatches composite', () => {
+			it('generates splitInBatches with fluent API syntax (.onEachBatch/.onDone)', () => {
 				const json: WorkflowJSON = {
 					name: 'SplitInBatches Test',
 					nodes: [
@@ -330,9 +330,60 @@ describe('code-generator', () => {
 
 				const code = generateFromWorkflow(json);
 
+				// Should use fluent API syntax: splitInBatches(sibVar).onEachBatch(...).onDone(...)
 				expect(code).toContain('splitInBatches(');
-				expect(code).toContain('.done()');
-				expect(code).toContain('.each()');
+				expect(code).toContain('.onEachBatch(');
+				expect(code).toContain('.onDone(');
+				// Should NOT use old object syntax
+				expect(code).not.toMatch(/splitInBatches\(\w+,\s*\{/);
+				expect(code).not.toContain('done:');
+				expect(code).not.toContain('each:');
+				// Should NOT use old chain API
+				expect(code).not.toContain('.done()');
+				expect(code).not.toContain('.each()');
+			});
+
+			it('generates nextBatch() for loop back connections', () => {
+				const json: WorkflowJSON = {
+					name: 'SplitInBatches Loop Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Trigger',
+							type: 'n8n-nodes-base.manualTrigger',
+							typeVersion: 1,
+							position: [0, 0],
+						},
+						{
+							id: '2',
+							name: 'SplitInBatches',
+							type: 'n8n-nodes-base.splitInBatches',
+							typeVersion: 3,
+							position: [100, 0],
+						},
+						{
+							id: '3',
+							name: 'Process',
+							type: 'n8n-nodes-base.noOp',
+							typeVersion: 1,
+							position: [200, 0],
+						},
+					],
+					connections: {
+						Trigger: { main: [[{ node: 'SplitInBatches', type: 'main', index: 0 }]] },
+						SplitInBatches: {
+							main: [[], [{ node: 'Process', type: 'main', index: 0 }]],
+						},
+						Process: { main: [[{ node: 'SplitInBatches', type: 'main', index: 0 }]] },
+					},
+				};
+
+				const code = generateFromWorkflow(json);
+
+				// Should use nextBatch() for loop back
+				expect(code).toContain('nextBatch(');
+				// Should NOT use .loop()
+				expect(code).not.toContain('.loop()');
 			});
 		});
 
@@ -1450,7 +1501,7 @@ describe('code-generator', () => {
 		});
 
 		describe('fan-out patterns', () => {
-			it('generates .then([...]) for fan-out without merge', () => {
+			it('generates plain array for fan-out without merge', () => {
 				const json: WorkflowJSON = {
 					id: 'fanout-test',
 					name: 'Test',
@@ -1499,7 +1550,7 @@ describe('code-generator', () => {
 
 				const code = generateFromWorkflow(json);
 
-				// Should use array syntax for parallel targets
+				// Should use plain array syntax for parallel targets
 				expect(code).toContain('.then([');
 				expect(code).toContain('Target1');
 				expect(code).toContain('Target2');
@@ -1507,7 +1558,7 @@ describe('code-generator', () => {
 				expect(code).not.toMatch(/Target1.*\.then.*Target2/s);
 			});
 
-			it('generates .then([...]) for fan-out with downstream chains', () => {
+			it('generates plain array for fan-out with downstream chains', () => {
 				const json: WorkflowJSON = {
 					id: 'fanout-chains',
 					name: 'Test',
@@ -1572,7 +1623,7 @@ describe('code-generator', () => {
 
 				const code = generateFromWorkflow(json);
 
-				// Should use array syntax for parallel targets
+				// Should use plain array syntax for parallel targets
 				expect(code).toContain('.then([');
 				// All three branches should be present
 				expect(code).toContain('Instagram');
@@ -1771,9 +1822,7 @@ describe('code-generator', () => {
 				const parsedJson = parseWorkflowCode(code);
 
 				// Find the Animation Completed? node in parsed output
-				const parsedNode = parsedJson.nodes.find(
-					(n: { name: string }) => n.name === 'Animation Completed?',
-				);
+				const parsedNode = parsedJson.nodes.find((n) => n.name === 'Animation Completed?');
 
 				// Verify parameters are preserved
 				expect(parsedNode).toBeDefined();
