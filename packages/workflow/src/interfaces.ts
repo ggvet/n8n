@@ -2119,6 +2119,9 @@ export interface INodeTypeBaseDescription {
 
 	/** Hints for workflow-sdk type generation, including explicit AI input requirements */
 	builderHint?: IBuilderHint;
+
+	/** Path to schema directory relative to nodes-base/dist/nodes/ (e.g., "Google/Drive") */
+	schemaPath?: string;
 }
 
 /**
