@@ -1,4 +1,22 @@
-import type { INodeParameters, INodeProperties, INodeTypeDescription } from 'n8n-workflow';
+import type {
+	IDisplayOptions,
+	INodeParameters,
+	INodeProperties,
+	INodeTypeDescription,
+} from 'n8n-workflow';
+
+/**
+ * Represents a subnode requirement for AI nodes
+ * Extracted from builderHint.inputs on node type descriptions
+ */
+export interface SubnodeRequirement {
+	/** The connection type (e.g., 'ai_languageModel', 'ai_memory') */
+	connectionType: string;
+	/** Whether this subnode is required */
+	required: boolean;
+	/** Conditions under which this subnode is required (e.g., when hasOutputParser is true) */
+	displayOptions?: IDisplayOptions;
+}
 
 /**
  * Detailed information about a node type
@@ -24,6 +42,10 @@ export interface NodeSearchResult {
 	score: number;
 	inputs: INodeTypeDescription['inputs'];
 	outputs: INodeTypeDescription['outputs'];
+	/** General hint message for workflow builders (from builderHint.message) */
+	builderHintMessage?: string;
+	/** Subnode requirements extracted from builderHint.inputs */
+	subnodeRequirements?: SubnodeRequirement[];
 }
 
 /**
