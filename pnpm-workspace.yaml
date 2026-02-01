@@ -137,3 +137,5 @@ minimumReleaseAgeExclude:
   - node-forge
   - vm2
   - tar
+  # Renovate security update: pnpm@10.28.2
+  - pnpm@10.28.2
