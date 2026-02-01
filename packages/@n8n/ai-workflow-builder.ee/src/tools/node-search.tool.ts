@@ -8,7 +8,7 @@ import { ValidationError, ToolExecutionError } from '../errors';
 import { NodeSearchEngine } from './engines/node-search-engine';
 import { createProgressReporter, createBatchProgressReporter } from './helpers/progress';
 import { createSuccessResponse, createErrorResponse } from './helpers/response';
-import type { NodeSearchResult } from '../types/nodes';
+import type { NodeSearchResult, SubnodeRequirement } from '../types/nodes';
 import type { NodeSearchOutput } from '../types/tools';
 
 /**
@@ -86,7 +86,29 @@ function processQuery(
 }
 
 /**
+ * Get the latest version from a node type
+ */
+function getLatestVersion(version: number | number[]): number {
+	return Array.isArray(version) ? Math.max(...version) : version;
+}
+
+/**
+ * Extract subnode requirements from a node type's builderHint.inputs
+ */
+function extractSubnodeRequirements(nodeType: INodeTypeDescription): SubnodeRequirement[] {
+	const inputs = nodeType.builderHint?.inputs;
+	if (!inputs) return [];
+
+	return Object.entries(inputs).map(([connectionType, config]) => ({
+		connectionType,
+		required: config.required,
+		...(config.displayOptions && { displayOptions: config.displayOptions }),
+	}));
+}
+
+/**
  * Build the response message from search results
+ * Includes related subnodes from builderHint.inputs with full formatting
  */
 function buildResponseMessage(
 	results: NodeSearchOutput['results'],
@@ -101,9 +123,61 @@ function buildResponseMessage(
 		if (searchResults.length === 0) {
 			responseContent += `No nodes found matching "${query}"`;
 		} else {
-			responseContent += `Found ${searchResults.length} nodes matching "${query}":${searchResults
-				.map((node) => searchEngine.formatResult(node))
-				.join('')}`;
+			// Track which node IDs have been shown to avoid duplicates
+			const shownNodeIds = new Set(searchResults.map((node) => node.name));
+
+			// Get related subnodes for all search results
+			const relatedSubnodeIds = searchEngine.getRelatedSubnodeIds(
+				searchResults.map((node) => node.name),
+				new Set(), // Don't exclude any initially
+			);
+
+			// Filter out nodes already in search results
+			const newRelatedIds = new Set<string>();
+			for (const id of relatedSubnodeIds) {
+				if (!shownNodeIds.has(id)) {
+					newRelatedIds.add(id);
+				}
+			}
+
+			// Build response with search results
+			let formattedResults = searchResults.map((node) => searchEngine.formatResult(node)).join('');
+
+			// Add related subnodes with [RELATED] tag
+			if (newRelatedIds.size > 0) {
+				for (const relatedId of newRelatedIds) {
+					const relatedNodeType = searchEngine.getNodeType(relatedId);
+					if (relatedNodeType) {
+						// Extract subnode requirements for the related node
+						const subnodeRequirements = extractSubnodeRequirements(relatedNodeType);
+
+						// Create a NodeSearchResult for the related node
+						const relatedResult: NodeSearchResult = {
+							name: relatedNodeType.name,
+							displayName: relatedNodeType.displayName,
+							version: getLatestVersion(relatedNodeType.version),
+							description: relatedNodeType.description ?? 'No description available',
+							inputs: relatedNodeType.inputs,
+							outputs: relatedNodeType.outputs,
+							score: 0,
+							...(relatedNodeType.builderHint?.message && {
+								builderHintMessage: relatedNodeType.builderHint.message,
+							}),
+							...(subnodeRequirements.length > 0 && { subnodeRequirements }),
+						};
+
+						// Format and add [RELATED] indicator
+						formattedResults += searchEngine
+							.formatResult(relatedResult)
+							.replace('<node>', '<node related="true">');
+					}
+				}
+			}
+
+			const relatedCount = newRelatedIds.size;
+			const countSuffix = relatedCount > 0 ? ` (+ ${relatedCount} related)` : '';
+
+			responseContent += `Found ${searchResults.length} nodes${countSuffix} matching "${query}":${formattedResults}`;
 		}
 	}
 

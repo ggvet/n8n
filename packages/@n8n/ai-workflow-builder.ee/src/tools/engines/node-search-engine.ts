@@ -1,8 +1,20 @@
 import { sublimeSearch } from '@n8n/utils';
-import type { INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
+import type { BuilderHintInputs, INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
 
-import type { NodeSearchResult } from '../../types/nodes';
+import type { NodeSearchResult, SubnodeRequirement } from '../../types/nodes';
+
+/**
+ * Default subnodes for each connection type
+ * These are sensible defaults shown in search results
+ */
+const DEFAULT_SUBNODES: Record<string, string[]> = {
+	ai_languageModel: ['@n8n/n8n-nodes-langchain.lmChatOpenAi'],
+	ai_memory: ['@n8n/n8n-nodes-langchain.memoryBufferWindow'],
+	ai_embedding: ['@n8n/n8n-nodes-langchain.embeddingsOpenAi'],
+	ai_vectorStore: ['@n8n/n8n-nodes-langchain.vectorStoreInMemory'],
+	// ai_tool is intentionally excluded - varies by use case
+};
 
 /**
  * Search keys configuration for sublimeSearch
@@ -25,6 +37,19 @@ export const SCORE_WEIGHTS = {
 
 function getLatestVersion(version: number | number[]): number {
 	return Array.isArray(version) ? Math.max(...version) : version;
+}
+
+/**
+ * Extract subnode requirements from builderHint.inputs
+ */
+function extractSubnodeRequirements(inputs?: BuilderHintInputs): SubnodeRequirement[] {
+	if (!inputs) return [];
+
+	return Object.entries(inputs).map(([connectionType, config]) => ({
+		connectionType,
+		required: config.required,
+		...(config.displayOptions && { displayOptions: config.displayOptions }),
+	}));
 }
 
 function dedupeNodes(nodes: INodeTypeDescription[]): INodeTypeDescription[] {
@@ -73,17 +98,22 @@ export class NodeSearchEngine {
 		);
 
 		// Map results to NodeSearchResult format and apply limit
-		return searchResults.slice(0, limit).map(
-			({ item, score }: { item: INodeTypeDescription; score: number }): NodeSearchResult => ({
-				name: item.name,
-				displayName: item.displayName,
-				description: item.description ?? 'No description available',
-				version: getLatestVersion(item.version),
-				inputs: item.inputs,
-				outputs: item.outputs,
-				score,
-			}),
-		);
+		return searchResults
+			.slice(0, limit)
+			.map(({ item, score }: { item: INodeTypeDescription; score: number }): NodeSearchResult => {
+				const subnodeRequirements = extractSubnodeRequirements(item.builderHint?.inputs);
+				return {
+					name: item.name,
+					displayName: item.displayName,
+					description: item.description ?? 'No description available',
+					version: getLatestVersion(item.version),
+					inputs: item.inputs,
+					outputs: item.outputs,
+					score,
+					...(item.builderHint?.message && { builderHintMessage: item.builderHint.message }),
+					...(subnodeRequirements.length > 0 && { subnodeRequirements }),
+				};
+			});
 	}
 
 	/**
@@ -114,15 +144,22 @@ export class NodeSearchEngine {
 			return nodesWithConnectionType
 				.sort((a, b) => b.connectionScore - a.connectionScore)
 				.slice(0, limit)
-				.map(({ nodeType, connectionScore }) => ({
-					name: nodeType.name,
-					displayName: nodeType.displayName,
-					version: getLatestVersion(nodeType.version),
-					description: nodeType.description ?? 'No description available',
-					inputs: nodeType.inputs,
-					outputs: nodeType.outputs,
-					score: connectionScore,
-				}));
+				.map(({ nodeType, connectionScore }) => {
+					const subnodeRequirements = extractSubnodeRequirements(nodeType.builderHint?.inputs);
+					return {
+						name: nodeType.name,
+						displayName: nodeType.displayName,
+						version: getLatestVersion(nodeType.version),
+						description: nodeType.description ?? 'No description available',
+						inputs: nodeType.inputs,
+						outputs: nodeType.outputs,
+						score: connectionScore,
+						...(nodeType.builderHint?.message && {
+							builderHintMessage: nodeType.builderHint.message,
+						}),
+						...(subnodeRequirements.length > 0 && { subnodeRequirements }),
+					};
+				});
 		}
 
 		// Apply name filter using sublimeSearch
@@ -137,6 +174,7 @@ export class NodeSearchEngine {
 					(result) => result.nodeType.name === item.name,
 				);
 				const connectionScore = connectionResult?.connectionScore ?? 0;
+				const subnodeRequirements = extractSubnodeRequirements(item.builderHint?.inputs);
 
 				return {
 					name: item.name,
@@ -146,6 +184,8 @@ export class NodeSearchEngine {
 					inputs: item.inputs,
 					outputs: item.outputs,
 					score: connectionScore + nameScore,
+					...(item.builderHint?.message && { builderHintMessage: item.builderHint.message }),
+					...(subnodeRequirements.length > 0 && { subnodeRequirements }),
 				};
 			});
 	}
@@ -156,14 +196,105 @@ export class NodeSearchEngine {
 	 * @returns XML-formatted string
 	 */
 	formatResult(result: NodeSearchResult): string {
-		return `
-		<node>
-			<node_name>${result.name}</node_name>
-			<node_version>${result.version}</node_version>
-			<node_description>${result.description}</node_description>
-			<node_inputs>${typeof result.inputs === 'object' ? JSON.stringify(result.inputs) : result.inputs}</node_inputs>
-			<node_outputs>${typeof result.outputs === 'object' ? JSON.stringify(result.outputs) : result.outputs}</node_outputs>
-		</node>`;
+		const parts = [
+			`		<node>`,
+			`			<node_name>${result.name}</node_name>`,
+			`			<node_version>${result.version}</node_version>`,
+			`			<node_description>${result.description}</node_description>`,
+			`			<node_inputs>${typeof result.inputs === 'object' ? JSON.stringify(result.inputs) : result.inputs}</node_inputs>`,
+			`			<node_outputs>${typeof result.outputs === 'object' ? JSON.stringify(result.outputs) : result.outputs}</node_outputs>`,
+		];
+
+		// Add builder hint message if present
+		if (result.builderHintMessage) {
+			parts.push(`			<builder_hint>${result.builderHintMessage}</builder_hint>`);
+		}
+
+		// Add subnode requirements if present
+		if (result.subnodeRequirements && result.subnodeRequirements.length > 0) {
+			parts.push(`			<subnode_requirements>`);
+			for (const req of result.subnodeRequirements) {
+				const requiredStr = req.required ? 'required' : 'optional';
+				if (req.displayOptions) {
+					parts.push(
+						`				<requirement type="${req.connectionType}" status="${requiredStr}"><display_options>${JSON.stringify(req.displayOptions)}</display_options></requirement>`,
+					);
+				} else {
+					parts.push(
+						`				<requirement type="${req.connectionType}" status="${requiredStr}" />`,
+					);
+				}
+			}
+			parts.push(`			</subnode_requirements>`);
+		}
+
+		parts.push(`		</node>`);
+
+		return '\n' + parts.join('\n');
+	}
+
+	/**
+	 * Get subnodes that output a specific connection type
+	 * Uses default subnodes for common connection types
+	 * @param connectionType - The connection type to find subnodes for
+	 * @returns Array of node IDs that can satisfy this connection type
+	 */
+	getSubnodesForConnectionType(connectionType: string): string[] {
+		// Return defaults for this connection type if available
+		// ai_tool is excluded - it varies by use case
+		return DEFAULT_SUBNODES[connectionType] ?? [];
+	}
+
+	/**
+	 * Recursively collect related subnode IDs for nodes with builderHint.inputs
+	 * For each connection type requirement, finds default subnodes and their transitive dependencies
+	 * @param nodeIds - Initial node IDs to get related subnodes for
+	 * @param excludeNodeIds - Node IDs to exclude (already shown in results)
+	 * @returns Set of related node IDs
+	 */
+	getRelatedSubnodeIds(nodeIds: string[], excludeNodeIds: Set<string>): Set<string> {
+		const allRelated = new Set<string>();
+		const visited = new Set<string>(excludeNodeIds);
+
+		// Mark initial nodes as visited
+		for (const nodeId of nodeIds) {
+			visited.add(nodeId);
+		}
+
+		// Process queue of nodes to check for subnode requirements
+		const queue = [...nodeIds];
+
+		while (queue.length > 0) {
+			const currentNodeId = queue.shift()!;
+			const nodeType = this.nodeTypes.find((n) => n.name === currentNodeId);
+			if (!nodeType?.builderHint?.inputs) continue;
+
+			// For each connection type in builderHint.inputs, get default subnodes
+			for (const connectionType of Object.keys(nodeType.builderHint.inputs)) {
+				const subnodeIds = this.getSubnodesForConnectionType(connectionType);
+
+				for (const subnodeId of subnodeIds) {
+					if (visited.has(subnodeId)) continue;
+
+					visited.add(subnodeId);
+					allRelated.add(subnodeId);
+
+					// Add to queue for recursive processing
+					queue.push(subnodeId);
+				}
+			}
+		}
+
+		return allRelated;
+	}
+
+	/**
+	 * Get a node type by ID
+	 * @param nodeId - The node ID to look up
+	 * @returns The node type description or undefined
+	 */
+	getNodeType(nodeId: string): INodeTypeDescription | undefined {
+		return this.nodeTypes.find((n) => n.name === nodeId);
 	}
 
 	/**

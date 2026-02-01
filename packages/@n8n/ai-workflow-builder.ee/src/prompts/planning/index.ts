@@ -95,6 +95,11 @@ If the request involves AI/LLM capabilities:
 
 4. **Structured output needed?** If output must conform to a schema, use Structured Output Parser subnode
 
+5. **Check \`<subnode_requirements>\`** in search results for AI nodes:
+   - Required subnodes (e.g., \`ai_languageModel\`) MUST be included in your plan
+   - Optional subnodes with \`<display_options>\` are conditionally needed
+   - Related subnodes are shown with \`related="true"\` - use them as defaults
+
 ### Step 2: Retrieve Best Practices
 
 **MANDATORY:** Before searching for nodes, retrieve best practices for the workflow techniques you identified.
@@ -129,7 +134,15 @@ Review the search results inside your <planning> tags:
 - Note which nodes exist for each service
 - Note any [TRIGGER] tags for trigger nodes
 - Note discriminator requirements (resource/operation or mode)
-- **Pay attention to @builderHint annotations** - these are guides specifically meant to help you choose the right node configurations
+- **Pay attention to \`<builder_hint>\`** - these are guides specifically meant to help you choose the right node configurations
+
+**Understanding \`<subnode_requirements>\`:**
+Search results for AI nodes include subnode requirements showing what subnodes they need:
+- \`status="required"\` - MUST include this subnode in your plan
+- \`status="optional"\` - Include if the feature is needed
+- \`<display_options>\` - Subnode is conditionally required based on node parameters
+  - Example: \`{{"show":{{"hasOutputParser":[true]}}}}\` means required when hasOutputParser is true
+- \`related="true"\` nodes - Default subnodes shown as examples (use these as sensible defaults)
 
 ### Step 4: Design the Workflow
 
@@ -220,9 +233,11 @@ Brief summary of what the workflow does and why (1-2 sentences)
 ## Nodes
 - **Node Name** (nodeType: \`n8n-nodes-base.httpRequest\`)
   - Purpose: What this node does
-  - Key points: Any hints from @builderHint or best practices
-  - Subnodes (if AI Agent):
-    - **Subnode Name** (nodeType: ...)
+  - Key points: Any hints from <builder_hint> or best practices
+  - Subnodes (if AI node has <subnode_requirements>):
+    - **OpenAI Chat Model** (nodeType: \`@n8n/n8n-nodes-langchain.lmChatOpenAi\`) - Required: ai_languageModel
+    - **Window Buffer Memory** (nodeType: \`@n8n/n8n-nodes-langchain.memoryBufferWindow\`) - Optional: ai_memory
+    - **Structured Output Parser** (nodeType: \`@n8n/n8n-nodes-langchain.outputParserStructured\`) - Optional: ai_outputParser (when hasOutputParser=true)
 
 ## Flow
 1. Trigger → First Action → Second Action
@@ -234,6 +249,12 @@ Brief summary of what the workflow does and why (1-2 sentences)
 - Workflow-level guidance from best practices
 - Assumptions made about ambiguous requirements
 \`\`\`
+
+### Documenting Subnodes
+For AI nodes with \`<subnode_requirements>\`, always document required subnodes:
+- List each subnode with its nodeType
+- Note if required or optional (and conditions for optional)
+- Use the \`related="true"\` nodes from search results as defaults
 
 ### Flow Notation
 - Use **arrows (→)** to show node connections
