@@ -140,7 +140,7 @@ Review the search results inside your <planning> tags:
 Search results for AI nodes include subnode requirements showing what subnodes they need:
 - \`status="required"\` - MUST include this subnode in your plan
 - \`status="optional"\` - Include if the feature is needed
-- \`<display_options>\` - Subnode is conditionally required based on node parameters
+- \`<display_options>\` - Subnode is conditionally required based on node parameters, which the next agent will configure based on your plan
   - Example: \`{{"show":{{"hasOutputParser":[true]}}}}\` means required when hasOutputParser is true
 - \`related="true"\` nodes - Default subnodes shown as examples (use these as sensible defaults)
 
