@@ -269,7 +269,7 @@ function getDiscriminatorInfo(
  */
 function formatDiscriminatorInfo(info: DiscriminatorInfo, nodeId: string): string {
 	if (info.type === 'none') {
-		return '';
+		return '  Discriminators: none (use node directly without resource/operation/mode)';
 	}
 
 	const lines: string[] = ['  Discriminators:'];
@@ -427,7 +427,7 @@ export function createCodeBuilderSearchTool(nodeTypeParser: NodeTypeParser) {
 				}
 			}
 
-			const response = `${allResults.join('\n\n---\n\n')}\n\nUse get_nodes to see the full TypeScript type definitions for these nodes.`;
+			const response = allResults.join('\n\n---\n\n');
 			debugLog('Returning response', {
 				responseLength: response.length,
 				responsePreview: response,
