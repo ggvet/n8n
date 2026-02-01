@@ -133,8 +133,22 @@ Search for:
 Review the search results inside your <planning> tags:
 - Note which nodes exist for each service
 - Note any [TRIGGER] tags for trigger nodes
-- Note discriminator requirements (resource/operation or mode)
 - **Pay attention to \`<builder_hint>\`** - these are guides specifically meant to help you choose the right node configurations
+
+**CRITICAL: Select Exact Discriminators**
+Many nodes require discriminators (resource/operation or mode) to function. Search results show these under "Discriminators:":
+
+1. **Resource/operation nodes** (Gmail, Slack, Notion, Google Sheets, etc.):
+   - Search results show: \`resource: [list]\` with \`operations: [list]\` for each
+   - You MUST select the specific resource AND operation based on the user's needs
+   - Example: Gmail sending email → resource="message", operation="send"
+
+2. **Mode nodes** (Code, Vector Store, Document Loader, etc.):
+   - Search results show: \`mode: [list]\` with descriptions
+   - You MUST select the specific mode based on the user's needs
+   - Example: Code node processing all items → mode="runOnceForAllItems"
+
+**Document your selected discriminators in the plan** - the coding agent needs these exact values!
 
 **Understanding \`<subnode_requirements>\`:**
 Search results for AI nodes include subnode requirements showing what subnodes they need:
@@ -216,6 +230,19 @@ When requirements are ambiguous:
   - Better error handling and response parsing
   - Easier to configure and maintain
 - **Example:** If user says "send email via Gmail", use the Gmail node, NOT HTTP Request to Gmail API
+
+### Rule 4: Merge vs Aggregate - Common Confusion
+- **Merge node**: Combines data from MULTIPLE BRANCHES (parallel paths)
+  - Use when: Two or more nodes connect to the same downstream node
+  - Example: Google Docs 1 → Merge ← Google Docs 2
+  - Visual: Two arrows pointing INTO Merge
+
+- **Aggregate node**: Combines ITEMS within a SINGLE BRANCH
+  - Use when: One node outputs multiple items you want to consolidate into one
+  - Example: HTTP Request (returns 10 items) → Aggregate → (returns 1 item with array)
+  - Visual: One arrow into Aggregate
+
+**Quick test:** Are there parallel branches converging? → Use Merge. Is it one branch with multiple items? → Use Aggregate.
 </mandatory_workflow>`;
 
 /**
@@ -250,6 +277,23 @@ Brief summary of what the workflow does and why (1-2 sentences)
 - Assumptions made about ambiguous requirements
 \`\`\`
 
+### Documenting Discriminators (REQUIRED)
+For nodes that have discriminators, you MUST include them in the node documentation:
+
+**Resource/operation nodes:**
+\`\`\`markdown
+- **Gmail** (nodeType: \`n8n-nodes-base.gmail\`, resource: \`message\`, operation: \`send\`)
+  - Purpose: Send email notification to the user
+\`\`\`
+
+**Mode nodes:**
+\`\`\`markdown
+- **Code** (nodeType: \`n8n-nodes-base.code\`, mode: \`runOnceForAllItems\`)
+  - Purpose: Transform all items in a single execution
+\`\`\`
+
+The coding agent uses these exact discriminator values to fetch the correct type definitions.
+
 ### Documenting Subnodes
 For AI nodes with \`<subnode_requirements>\`, always document required subnodes:
 - List each subnode with its nodeType
@@ -263,6 +307,9 @@ For AI nodes with \`<subnode_requirements>\`, always document required subnodes:
   - Switch nodes: \`**case0:**\`, \`**case1:**\`, etc.
   - Split In Batches: \`**loop:**\` and \`**done:**\`
 - Show merge points where branches reconvene
+- For multiple chains/subflows, use **"Flow 1:", "Flow 2:"** naming:
+  - Example: \`**Flow 1: Document Indexing** (Schedule Trigger)\` and \`**Flow 2: Chat Interface** (Webhook Trigger)\`
+  - All flows are part of a single workflow - they represent separate trigger chains
 </plan_format>`;
 
 /**
@@ -339,8 +386,13 @@ Now let me search for the right nodes...
 
 <planning>
 Search results show:
-- n8n-nodes-base.slack for sending messages
-- n8n-nodes-base.scheduleTrigger for scheduling
+- n8n-nodes-base.slack with discriminators:
+  - resource: channel, user, message, etc.
+  - For sending to a channel, I need resource="message", operation="post"
+- n8n-nodes-base.scheduleTrigger (no discriminators needed)
+
+I'll select:
+- Slack: resource="message", operation="post" (to post to a channel)
 Final plan ready.
 </planning>
 
@@ -351,6 +403,8 @@ Workflow that sends Slack notifications on a schedule.
 ## Nodes
 - **Schedule Trigger** (nodeType: \`n8n-nodes-base.scheduleTrigger\`)
   - Purpose: Trigger workflow on schedule
+- **Slack** (nodeType: \`n8n-nodes-base.slack\`, resource: \`message\`, operation: \`post\`)
+  - Purpose: Post notification message to Slack channel
 ...
 </final_plan>
 </output_format>`;
