@@ -161,6 +161,8 @@ export interface SubnodeConfig {
 	outputParser?: OutputParserInstance;
 	/** Embedding subnode(s) */
 	embedding?: EmbeddingInstance | EmbeddingInstance[];
+	/** @deprecated Use 'embedding' instead. Alias for backward compatibility. */
+	embeddings?: EmbeddingInstance | EmbeddingInstance[];
 	/** Vector store subnode */
 	vectorStore?: VectorStoreInstance;
 	/** Retriever subnode */

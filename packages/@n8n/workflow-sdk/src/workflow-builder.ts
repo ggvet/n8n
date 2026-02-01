@@ -2953,8 +2953,8 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			addSubnode(subnodes.outputParser, 'ai_outputParser');
 		}
 
-		// Add embedding subnode(s)
-		addSubnodeOrArray(subnodes.embedding, 'ai_embedding');
+		// Add embedding subnode(s) - accept both 'embedding' and 'embeddings' keys
+		addSubnodeOrArray(subnodes.embedding ?? subnodes.embeddings, 'ai_embedding');
 
 		// Add vector store subnode
 		if (subnodes.vectorStore) {
@@ -3058,7 +3058,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			}
 		}
 		if (subnodes.outputParser) addNestedSubnode(subnodes.outputParser, 'ai_outputParser');
-		addNestedSubnodeOrArray(subnodes.embedding, 'ai_embedding');
+		addNestedSubnodeOrArray(subnodes.embedding ?? subnodes.embeddings, 'ai_embedding');
 		if (subnodes.vectorStore) addNestedSubnode(subnodes.vectorStore, 'ai_vectorStore');
 		if (subnodes.retriever) addNestedSubnode(subnodes.retriever, 'ai_retriever');
 		addNestedSubnodeOrArray(subnodes.documentLoader, 'ai_document');

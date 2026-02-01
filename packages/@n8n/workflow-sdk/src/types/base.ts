@@ -326,6 +326,8 @@ export interface SubnodeConfig {
 	tools?: ToolInstance[];
 	outputParser?: OutputParserInstance;
 	embedding?: EmbeddingInstance | EmbeddingInstance[];
+	/** @deprecated Use 'embedding' instead. Alias for backward compatibility. */
+	embeddings?: EmbeddingInstance | EmbeddingInstance[];
 	vectorStore?: VectorStoreInstance;
 	retriever?: RetrieverInstance;
 	documentLoader?: DocumentLoaderInstance | DocumentLoaderInstance[];
