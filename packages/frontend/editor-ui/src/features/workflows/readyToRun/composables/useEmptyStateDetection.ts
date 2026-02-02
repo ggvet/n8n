@@ -43,31 +43,7 @@ export function useEmptyStateDetection() {
 		);
 	};
 
-	/**
-	 * Returns true if we might show the simplified layout.
-	 * This is used to prevent flashing the wrong layout during loading.
-	 * Unlike isTrulyEmpty, this can return true even before data is fully loaded.
-	 */
-	const mightShowSimplifiedLayout = (currentRoute: RouteLocationNormalized = route) => {
-		const isNotInSpecificFolder = !currentRoute.params?.folderId;
-		const isMainWorkflowsPage = projectPages.isOverviewSubPage;
-
-		// Check for any search or filter parameters
-		const hasSearchQuery = !!currentRoute.query?.search;
-		const hasFilters = !!(
-			currentRoute.query?.status ||
-			currentRoute.query?.tags ||
-			currentRoute.query?.showArchived ||
-			currentRoute.query?.homeProject
-		);
-
-		// If we're on the main page without filters, we might show simplified layout
-		// (depends on whether there are workflows, which we don't know yet during loading)
-		return isNotInSpecificFolder && isMainWorkflowsPage && !hasSearchQuery && !hasFilters;
-	};
-
 	return {
 		isTrulyEmpty,
-		mightShowSimplifiedLayout,
 	};
 }

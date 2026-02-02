@@ -159,14 +159,10 @@ export const useReadyToRunStore = defineStore(STORES.READY_TO_RUN, () => {
 		return userCanClaimOpenAiCredits.value && !readOnlyEnv && canCreate && hasWorkflows;
 	};
 
-	const { isTrulyEmpty, mightShowSimplifiedLayout } = useEmptyStateDetection();
+	const { isTrulyEmpty } = useEmptyStateDetection();
 
 	const getSimplifiedLayoutVisibility = (route: RouteLocationNormalized) => {
 		return isTrulyEmpty(route);
-	};
-
-	const getMightShowSimplifiedLayout = (route: RouteLocationNormalized) => {
-		return mightShowSimplifiedLayout(route);
 	};
 
 	const isReadyToRunTemplateId = (templateId: string | undefined): boolean => {
@@ -182,7 +178,6 @@ export const useReadyToRunStore = defineStore(STORES.READY_TO_RUN, () => {
 		getCardVisibility,
 		getButtonVisibility,
 		getSimplifiedLayoutVisibility,
-		getMightShowSimplifiedLayout,
 		trackExecuteAiWorkflow,
 		trackExecuteAiWorkflowSuccess,
 		isReadyToRunTemplateId,
