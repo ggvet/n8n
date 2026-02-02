@@ -66,7 +66,6 @@ beforeAll(async () => {
 		mock(),
 		mock(),
 		mock(),
-		mock(),
 		globalConfig,
 		mock(),
 		Container.get(WorkflowFinderService),
