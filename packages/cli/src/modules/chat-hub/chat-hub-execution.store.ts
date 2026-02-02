@@ -7,9 +7,9 @@ import { Service } from '@n8n/di';
 import type { Cluster, Redis } from 'ioredis';
 import { InstanceSettings } from 'n8n-core';
 
-import { RedisClientService } from '@/services/redis-client.service';
-
 import type { NonStreamingResponseMode } from './chat-hub.types';
+
+import { RedisClientService } from '@/services/redis-client.service';
 
 /**
  * Context stored for a non-streaming chat hub execution.
@@ -32,7 +32,7 @@ export interface ChatHubExecutionContext {
 	model: ChatHubConversationModel;
 	/** Response mode: 'lastNode' or 'responseNodes' */
 	responseMode: NonStreamingResponseMode;
-	/** True if this execution is being resumed (for workflowExecuteBefore notification) */
+	/** Set true if this execution is resuming now */
 	isResuming: boolean;
 	/** Timestamp when the context was registered */
 	timestamp: number;

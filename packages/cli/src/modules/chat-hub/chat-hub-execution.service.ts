@@ -13,15 +13,12 @@ import {
 	IRunExecutionData,
 	WorkflowExecuteMode,
 	sleep,
+	NodeConnectionTypes,
+	INodeExecutionData,
+	jsonStringify,
+	IRun,
 } from 'n8n-workflow';
 import { v4 as uuidv4 } from 'uuid';
-
-import { ActiveExecutions } from '@/active-executions';
-import { ChatExecutionManager } from '@/chat/chat-execution-manager';
-import { ExecutionNotFoundError } from '@/errors/execution-not-found-error';
-import { BadRequestError } from '@/errors/response-errors/bad-request.error';
-import { ExecutionService } from '@/executions/execution.service';
-import { WorkflowExecutionService } from '@/workflows/workflow-execution.service';
 
 import { ChatHubExecutionStore } from './chat-hub-execution.store';
 import { ChatHubWorkflowService } from './chat-hub-workflow.service';
@@ -34,6 +31,13 @@ import type { NonStreamingResponseMode, ChatTriggerResponseMode } from './chat-h
 import { ChatHubMessageRepository } from './chat-message.repository';
 import { ChatStreamService } from './chat-stream.service';
 import { createStructuredChunkAggregator } from './stream-capturer';
+
+import { ActiveExecutions } from '@/active-executions';
+import { ChatExecutionManager } from '@/chat/chat-execution-manager';
+import { ExecutionNotFoundError } from '@/errors/execution-not-found-error';
+import { BadRequestError } from '@/errors/response-errors/bad-request.error';
+import { ExecutionService } from '@/executions/execution.service';
+import { WorkflowExecutionService } from '@/workflows/workflow-execution.service';
 
 @Service()
 export class ChatHubExecutionService {
@@ -579,15 +583,17 @@ export class ChatHubExecutionService {
 		return errorText;
 	}
 
-	getErrorMessage(execution: IExecutionResponse): string | undefined {
-		if (execution.data.resultData.error) {
-			return execution.data.resultData.error.description ?? execution.data.resultData.error.message;
+	/**
+	 * Extract error message from run data
+	 */
+	getErrorMessage(runData: IRun): string | undefined {
+		if (runData.data.resultData.error) {
+			return runData.data.resultData.error.description ?? runData.data.resultData.error.message;
 		}
-
 		return undefined;
 	}
 
-	getAIOutput(execution: IExecutionResponse, nodeName: string): string | undefined {
+	getAIOutput(execution: IRun, nodeName: string): string | undefined {
 		const agent = execution.data.resultData.runData[nodeName];
 		if (!agent || !Array.isArray(agent) || agent.length === 0) return undefined;
 
@@ -673,5 +679,59 @@ export class ChatHubExecutionService {
 		};
 
 		return { adapter: adapter as unknown as Response, waitForPendingOperations };
+	}
+
+	/**
+	 * Extract message content from run data based on response mode
+	 */
+	getMessageFromRunData(runData: IRun, responseMode: NonStreamingResponseMode): string | undefined {
+		const lastNodeExecuted = runData.data.resultData.lastNodeExecuted;
+		if (typeof lastNodeExecuted !== 'string') return undefined;
+
+		const nodeRunData = runData.data.resultData.runData[lastNodeExecuted];
+		if (!nodeRunData || nodeRunData.length === 0) return undefined;
+
+		const runIndex = nodeRunData.length - 1;
+		const data = nodeRunData[runIndex]?.data;
+		const outputs = data?.main ?? data?.[NodeConnectionTypes.AiTool] ?? [];
+
+		const entry = this.getFirstOutputEntry(outputs);
+		if (!entry) return undefined;
+
+		return this.extractMessageFromEntry(entry, responseMode);
+	}
+
+	/**
+	 * Get the first entry from output branches
+	 */
+	private getFirstOutputEntry(
+		outputs: Array<INodeExecutionData[] | null>,
+	): INodeExecutionData | undefined {
+		for (const branch of outputs) {
+			if (!Array.isArray(branch) || branch.length === 0) continue;
+			return branch[0];
+		}
+		return undefined;
+	}
+
+	/**
+	 * Extract message text from an output entry based on response mode
+	 */
+	private extractMessageFromEntry(
+		entry: INodeExecutionData,
+		responseMode: ChatTriggerResponseMode,
+	): string | undefined {
+		if (responseMode === 'responseNodes') {
+			const sendMessage = entry.sendMessage;
+			return typeof sendMessage === 'string' ? sendMessage : '';
+		}
+
+		if (responseMode === 'lastNode') {
+			const response: Record<string, unknown> = entry.json ?? {};
+			const message = response.output ?? response.text ?? response.message ?? '';
+			return typeof message === 'string' ? message : jsonStringify(message);
+		}
+
+		return undefined;
 	}
 }

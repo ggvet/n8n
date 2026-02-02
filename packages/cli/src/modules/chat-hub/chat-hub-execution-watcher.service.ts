@@ -4,11 +4,10 @@ import { ExecutionRepository, type IExecutionResponse } from '@n8n/db';
 import { OnLifecycleEvent, type WorkflowExecuteAfterContext } from '@n8n/decorators';
 import { Service } from '@n8n/di';
 import { InstanceSettings } from 'n8n-core';
-import { jsonStringify, NodeConnectionTypes, type INodeExecutionData } from 'n8n-workflow';
 import { v4 as uuidv4 } from 'uuid';
 
+import { ChatHubExecutionService } from './chat-hub-execution.service';
 import { ChatHubExecutionStore, type ChatHubExecutionContext } from './chat-hub-execution.store';
-import type { ChatTriggerResponseMode, NonStreamingResponseMode } from './chat-hub.types';
 import { ChatHubMessageRepository } from './chat-message.repository';
 import { ChatStreamService } from './chat-stream.service';
 import { getLastNodeExecuted, shouldResumeImmediately } from '../../chat/utils';
@@ -32,6 +31,7 @@ export class ChatHubExecutionWatcherService {
 		private readonly logger: Logger,
 		private readonly executionStore: ChatHubExecutionStore,
 		private readonly messageRepository: ChatHubMessageRepository,
+		private readonly chatHubExecutionService: ChatHubExecutionService,
 		private readonly executionRepository: ExecutionRepository,
 		private readonly chatStreamService: ChatStreamService,
 		private readonly executionManager: ChatExecutionManager,
@@ -64,14 +64,12 @@ export class ChatHubExecutionWatcherService {
 
 		// Check if this is a tracked chat hub execution
 		const context = await this.executionStore.get(executionId);
-		if (!context) return; // Not a tracked chat hub execution
+		if (!context) return;
 
-		// Only notify if marked as resuming (prevents duplicate notifications)
 		if (!context.isResuming) return;
 
 		this.logger.debug(`Chat hub execution ${executionId} resumed, notifying frontend`);
 
-		// Clear the isResuming flag
 		await this.executionStore.update(executionId, { isResuming: false });
 
 		// Notify frontend that execution is running again
@@ -87,8 +85,8 @@ export class ChatHubExecutionWatcherService {
 	}
 
 	/**
-	 * Called when any workflow execution COMPLETES.
-	 * Handles ALL non-streaming completion scenarios:
+	 * Called when any workflow execution completes.
+	 * Handles all non-streaming completion scenarios:
 	 * - Initial execution completion (success/error)
 	 * - Waiting state with auto-resume (shouldResumeImmediately)
 	 * - Waiting state for external trigger
@@ -101,59 +99,45 @@ export class ChatHubExecutionWatcherService {
 		const isQueueMode = this.executionsConfig.mode === 'queue';
 		const isWorker = this.instanceSettings.isWorker;
 
-		this.logger.debug(
-			`workflowExecuteAfter received for ${executionId}: status=${runData.status}, isQueueMode=${isQueueMode}, isWorker=${isWorker}`,
-		);
-
-		// In queue mode, only the worker should process this event.
-		// Main also receives the event (via lifecycle hooks) but should skip it
+		// In queue mode, only worker should process this event.
+		// Mains also receive the event (via lifecycle hooks) but they should skip it
 		// to prevent race conditions where both instances try to process.
 		if (isQueueMode && !isWorker) {
-			this.logger.debug(
-				`Skipping workflowExecuteAfter for ${executionId} - main instance in queue mode`,
-			);
 			return;
 		}
 
-		this.logger.debug(`Handling workflowExecuteAfter for execution ${executionId}`);
+		this.logger.debug('workflowExecuteAfter received', { executionId });
 
-		// Get stored context for this execution
 		const context = await this.executionStore.get(executionId);
 		if (!context) return; // Not a tracked chat hub execution
 
-		// Check for execution errors first
+		this.logger.debug('Handling workflow execution completition', { executionId });
+
 		if (!['success', 'waiting', 'canceled'].includes(runData.status)) {
-			const errorMessage = this.getErrorMessage(runData) ?? 'Failed to generate a response';
+			const errorMessage =
+				this.chatHubExecutionService.getErrorMessage(runData) ?? 'Failed to generate a response';
 			await this.pushErrorResults(context, errorMessage);
 			await this.executionStore.remove(executionId);
 			return;
 		}
 
-		// Handle canceled execution
 		if (runData.status === 'canceled') {
-			// When messages are cancelled they're already marked cancelled on `stopGeneration`
 			await this.chatStreamService.endExecution(context.userId, context.sessionId, 'cancelled');
 			await this.executionStore.remove(executionId);
 			return;
 		}
 
-		// Extract message from run data
-		const message = this.getMessageFromRunData(runData, context.responseMode);
+		const message = this.chatHubExecutionService.getMessageFromRunData(
+			runData,
+			context.responseMode,
+		);
 
-		// If execution is waiting (paused state)
 		if (runData.status === 'waiting') {
-			this.logger.debug(
-				`Execution ${executionId} entering waiting state, calling handleWaitingExecution`,
-			);
 			await this.handleWaitingExecution(context, executionId, message);
 			return;
 		}
 
 		if (runData.finished) {
-			// Execution completed successfully - push final results
-			this.logger.debug(
-				`Execution ${executionId} completed with status=${runData.status}, calling pushFinalResults`,
-			);
 			await this.pushFinalResults(context, message);
 			await this.executionStore.remove(executionId);
 		}
@@ -173,12 +157,10 @@ export class ChatHubExecutionWatcherService {
 			status: 'waiting',
 		});
 
-		// Send content chunk if any
 		if (message) {
 			await this.chatStreamService.sendChunk(context.sessionId, context.messageId, message);
 		}
 
-		// End the current stream with waiting status
 		await this.chatStreamService.endStream(context.sessionId, context.messageId, 'waiting');
 		await this.chatStreamService.endExecution(context.userId, context.sessionId, 'success');
 
@@ -198,7 +180,7 @@ export class ChatHubExecutionWatcherService {
 			}
 		}
 
-		// Not auto-resuming - mark context as "resuming" for next workflowExecuteBefore
+		// Not auto-resuming - mark context as "resuming"
 		await this.executionStore.markAsResuming(executionId);
 	}
 
@@ -218,7 +200,7 @@ export class ChatHubExecutionWatcherService {
 		const newMessageId = uuidv4();
 		await this.createNextMessage(context, newMessageId, execution.id);
 
-		// Update context with new message ID and mark as resuming
+		// Update context with new message ID and mark as waiting
 		await this.executionStore.update(execution.id, {
 			previousMessageId: context.messageId,
 			messageId: newMessageId,
@@ -297,74 +279,5 @@ export class ChatHubExecutionWatcherService {
 			content: errorMessage,
 			status: 'error',
 		});
-	}
-
-	/**
-	 * Extract message content from run data based on response mode
-	 */
-	private getMessageFromRunData(
-		runData: WorkflowExecuteAfterContext['runData'],
-		responseMode: NonStreamingResponseMode,
-	): string | undefined {
-		const lastNodeExecuted = runData.data.resultData.lastNodeExecuted;
-		if (typeof lastNodeExecuted !== 'string') return undefined;
-
-		const nodeRunData = runData.data.resultData.runData[lastNodeExecuted];
-		if (!nodeRunData || nodeRunData.length === 0) return undefined;
-
-		const runIndex = nodeRunData.length - 1;
-		const data = nodeRunData[runIndex]?.data;
-		const outputs = data?.main ?? data?.[NodeConnectionTypes.AiTool] ?? [];
-
-		const entry = this.getFirstOutputEntry(outputs);
-		if (!entry) return undefined;
-
-		return this.extractMessageFromEntry(entry, responseMode);
-	}
-
-	/**
-	 * Get the first entry from output branches
-	 */
-	private getFirstOutputEntry(
-		outputs: Array<INodeExecutionData[] | null>,
-	): INodeExecutionData | undefined {
-		for (const branch of outputs) {
-			if (!Array.isArray(branch) || branch.length === 0) continue;
-			return branch[0];
-		}
-		return undefined;
-	}
-
-	/**
-	 * Extract message text from an output entry based on response mode
-	 */
-	private extractMessageFromEntry(
-		entry: INodeExecutionData,
-		responseMode: ChatTriggerResponseMode,
-	): string | undefined {
-		if (responseMode === 'responseNodes') {
-			const sendMessage = entry.sendMessage;
-			return typeof sendMessage === 'string' ? sendMessage : '';
-		}
-
-		if (responseMode === 'lastNode') {
-			const response: Record<string, unknown> = entry.json ?? {};
-			const message = response.output ?? response.text ?? response.message ?? '';
-			if (typeof message === 'string') return message;
-			// For non-string values, serialize to JSON
-			return jsonStringify(message);
-		}
-
-		return undefined;
-	}
-
-	/**
-	 * Extract error message from run data
-	 */
-	private getErrorMessage(runData: WorkflowExecuteAfterContext['runData']): string | undefined {
-		if (runData.data.resultData.error) {
-			return runData.data.resultData.error.description ?? runData.data.resultData.error.message;
-		}
-		return undefined;
 	}
 }
