@@ -40,8 +40,84 @@ import {
 	getDefaultTestCaseIds,
 } from './csv-prompt-loader';
 import { sendWebhookNotification } from './webhook';
+import type { EvalLogger } from '../harness/logger';
 import { summarizeIntrospectionResults } from '../summarizers/introspection-summarizer';
-import { setupTestEnvironment } from '../support/environment';
+import { setupTestEnvironment, type ResolvedStageLLMs } from '../support/environment';
+
+/**
+ * Run introspection analysis and save results.
+ */
+async function runIntrospectionAnalysis(params: {
+	results: ExampleResult[];
+	judgeLlm: ResolvedStageLLMs['judge'];
+	outputDir?: string;
+	logger: EvalLogger;
+}): Promise<void> {
+	const { results, judgeLlm, outputDir, logger } = params;
+
+	if (results.length === 0) return;
+
+	logger.info('\n📊 Running introspection analysis...\n');
+
+	const summary = await summarizeIntrospectionResults(results, judgeLlm);
+
+	logger.info('=== Introspection Analysis ===\n');
+	logger.info(`Total events: ${summary.totalEvents}`);
+	logger.info(`Category breakdown: ${JSON.stringify(summary.categoryBreakdown, null, 2)}`);
+	logger.info('\n--- LLM Analysis ---\n');
+	logger.info(summary.llmAnalysis);
+
+	if (outputDir) {
+		const summaryContent = `# Introspection Summary
+
+## Overview
+- **Total Events:** ${summary.totalEvents}
+- **Category Breakdown:** ${JSON.stringify(summary.categoryBreakdown, null, 2)}
+
+## LLM Analysis
+
+${summary.llmAnalysis}
+`;
+		const summaryPath = path.join(outputDir, 'introspection-summary.md');
+		await fs.writeFile(summaryPath, summaryContent);
+		logger.info(`\nSummary saved to: ${summaryPath}`);
+	}
+}
+
+/**
+ * Create evaluators based on suite type.
+ */
+function createEvaluators(params: {
+	suite: string;
+	judgeLlm: ResolvedStageLLMs['judge'];
+	parsedNodeTypes: Parameters<typeof createProgrammaticEvaluator>[0];
+	numJudges: number;
+}): Array<Evaluator<EvaluationContext>> {
+	const { suite, judgeLlm, parsedNodeTypes, numJudges } = params;
+	const evaluators: Array<Evaluator<EvaluationContext>> = [];
+
+	switch (suite) {
+		case 'introspection':
+			evaluators.push(createIntrospectionEvaluator());
+			break;
+		case 'llm-judge':
+			evaluators.push(createLLMJudgeEvaluator(judgeLlm, parsedNodeTypes));
+			evaluators.push(createProgrammaticEvaluator(parsedNodeTypes));
+			break;
+		case 'pairwise':
+			evaluators.push(createPairwiseEvaluator(judgeLlm, { numJudges }));
+			evaluators.push(createProgrammaticEvaluator(parsedNodeTypes));
+			break;
+		case 'programmatic':
+			evaluators.push(createProgrammaticEvaluator(parsedNodeTypes));
+			break;
+		case 'similarity':
+			evaluators.push(createSimilarityEvaluator());
+			break;
+	}
+
+	return evaluators;
+}
 
 /**
  * Load test cases from various sources.
@@ -115,8 +191,13 @@ export async function runV2Evaluation(): Promise<void> {
 		throw new Error('LangSmith client not initialized - check LANGSMITH_API_KEY');
 	}
 
-	// Create evaluators based on mode (using judge LLM for evaluation)
-	const evaluators: Array<Evaluator<EvaluationContext>> = [];
+	// Create evaluators based on suite type
+	const evaluators = createEvaluators({
+		suite: args.suite,
+		judgeLlm: env.llms.judge,
+		parsedNodeTypes: env.parsedNodeTypes,
+		numJudges: args.numJudges,
+	});
 
 	// Create workflow generator (returns workflow + introspection events)
 	const generateWorkflow = createWorkflowGenerator({
@@ -124,32 +205,6 @@ export async function runV2Evaluation(): Promise<void> {
 		llms: env.llms,
 		featureFlags: args.featureFlags,
 	});
-
-	// Handle introspection suite - events are passed via context
-	if (args.suite === 'introspection') {
-		evaluators.push(createIntrospectionEvaluator());
-	} else {
-		switch (args.suite) {
-			case 'llm-judge':
-				evaluators.push(createLLMJudgeEvaluator(env.llms.judge, env.parsedNodeTypes));
-				evaluators.push(createProgrammaticEvaluator(env.parsedNodeTypes));
-				break;
-			case 'pairwise':
-				evaluators.push(
-					createPairwiseEvaluator(env.llms.judge, {
-						numJudges: args.numJudges,
-					}),
-				);
-				evaluators.push(createProgrammaticEvaluator(env.parsedNodeTypes));
-				break;
-			case 'programmatic':
-				evaluators.push(createProgrammaticEvaluator(env.parsedNodeTypes));
-				break;
-			case 'similarity':
-				evaluators.push(createSimilarityEvaluator());
-				break;
-		}
-	}
 
 	const llmCallLimiter = pLimit(args.concurrency);
 
@@ -227,33 +282,13 @@ export async function runV2Evaluation(): Promise<void> {
 	}
 
 	// If introspection suite, run LLM summarization
-	if (args.suite === 'introspection' && collectedResults.length > 0) {
-		logger.info('\n📊 Running introspection analysis...\n');
-
-		const summary = await summarizeIntrospectionResults(collectedResults, env.llms.judge);
-
-		logger.info('=== Introspection Analysis ===\n');
-		logger.info(`Total events: ${summary.totalEvents}`);
-		logger.info(`Category breakdown: ${JSON.stringify(summary.categoryBreakdown, null, 2)}`);
-		logger.info('\n--- LLM Analysis ---\n');
-		logger.info(summary.llmAnalysis);
-
-		// Save to output directory if specified
-		if (args.outputDir) {
-			const summaryContent = `# Introspection Summary
-
-## Overview
-- **Total Events:** ${summary.totalEvents}
-- **Category Breakdown:** ${JSON.stringify(summary.categoryBreakdown, null, 2)}
-
-## LLM Analysis
-
-${summary.llmAnalysis}
-`;
-			const summaryPath = path.join(args.outputDir, 'introspection-summary.md');
-			await fs.writeFile(summaryPath, summaryContent);
-			logger.info(`\nSummary saved to: ${summaryPath}`);
-		}
+	if (args.suite === 'introspection') {
+		await runIntrospectionAnalysis({
+			results: collectedResults,
+			judgeLlm: env.llms.judge,
+			outputDir: args.outputDir,
+			logger,
+		});
 	}
 
 	// Always exit 0 on successful completion - pass/fail is informational, not an error
