@@ -65,6 +65,14 @@ await executeNpmCommand(['install', ...this.getNpmInstallArgs()], { cwd: package
 
 However, the **published version is only used for development**. At runtime, n8n's bundled version is always used, ensuring perfect version alignment.
 
+**Community node publishing:**
+
+Community nodes are published to npm as normal n8n community packages. AI nodes follow the same submission process as regular community nodes with additional validation:
+- Must declare `@n8n/ai-node-sdk` as peer dependency
+- Must output correct connection types (e.g., `NodeConnectionTypes.AiMemory`)
+- Must not import LangChain packages directly
+- Security review includes checking for credential leaks and malicious network calls
+
 ### 3. Minimal Surface Area
 
 Inspired by Vercel AI SDK's approach: expose few, powerful primitives rather than many specific options.
@@ -234,6 +242,12 @@ export interface ToolCall {
   args: Record<string, unknown>;
 }
 
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>; // JSON Schema format
+}
+
 export interface AiMessage extends Message {
   role: 'ai';
   toolCalls?: ToolCall[];
@@ -346,7 +360,8 @@ export interface BufferWindowMemoryOptions extends BaseMemoryOptions {
 export interface TokenBufferMemoryOptions extends BaseMemoryOptions {
   type: 'tokenBuffer';
   maxTokenLimit: number;
-  model: ReturnType<typeof createChatModel>; // For token counting
+  // Note: Token counting uses tiktoken internally for OpenAI models
+  // Custom models fall back to character-based estimation
 }
 ```
 
@@ -357,6 +372,7 @@ All factory functions require the node execution context (`this` from `supplyDat
 ```typescript
 // Opaque return types - avoid exposing LangChain in the public API
 // Internally these are LangChain objects, but the type hides this detail
+// Community developers should treat these as opaque and only pass them via supplyData
 type ChatModelInstance = unknown;
 type MemoryInstance = unknown;
 
@@ -387,14 +403,14 @@ const model = createChatModel(this, {
 return { response: memory };  // Already wrapped - no manual logWrapper needed
 ```
 
-**Why require context and hide `logWrapper`?**
+**Why require context?**
 
 | Concern | Decision |
 |---------|----------|
-| Community devs shouldn't need to know internal logging details | Hide complexity |
-| Forgetting to wrap breaks execution logging | Make context required |
-| Consistent behavior across all community nodes | Factory handles it |
+| Execution logging needed | Context enables automatic `logWrapper` for both models and memory |
+| Consistent error handling and tracing | Context provides hooks |
 | `this` is always available in `supplyData` | No reason to make it optional |
+| Community devs shouldn't need internal details | Factory handles wrapping |
 
 #### Base Classes for Extension
 
@@ -406,12 +422,6 @@ return { response: memory };  // Already wrapped - no manual logWrapper needed
  * Community nodes extend this to implement storage backends.
  */
 export abstract class ChatHistory {
-  /**
-   * Unique namespace for this history implementation.
-   * Used for serialization/deserialization.
-   */
-  abstract readonly namespace: string[];
-
   /**
    * Retrieve all messages from storage.
    */
@@ -466,8 +476,6 @@ import Redis from 'ioredis';
 
 // Step 1: Implement ChatHistory for Redis
 class RedisChatHistory extends ChatHistory {
-  readonly namespace = ['n8n', 'memory', 'redis'];
-  
   private client: Redis;
   private sessionId: string;
   private ttl: number;
