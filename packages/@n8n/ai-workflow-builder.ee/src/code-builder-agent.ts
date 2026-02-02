@@ -1030,6 +1030,7 @@ ${'='.repeat(50)}
 				{
 					type: 'tool',
 					toolName: 'text_editor',
+					displayTitle: 'Crafting workflow',
 					status: 'running',
 					args: toolCall.args,
 				} as ToolProgressChunk,
@@ -1057,7 +1058,12 @@ ${'='.repeat(50)}
 				);
 				yield {
 					messages: [
-						{ type: 'tool', toolName: 'text_editor', status: 'completed' } as ToolProgressChunk,
+						{
+							type: 'tool',
+							toolName: 'text_editor',
+							displayTitle: 'Crafting workflow',
+							status: 'completed',
+						} as ToolProgressChunk,
 					],
 				};
 				return { workflowReady: false };
@@ -1108,7 +1114,12 @@ ${'='.repeat(50)}
 					state.setWorkflow(null);
 					yield {
 						messages: [
-							{ type: 'tool', toolName: 'text_editor', status: 'completed' } as ToolProgressChunk,
+							{
+								type: 'tool',
+								toolName: 'text_editor',
+								displayTitle: 'Crafting workflow',
+								status: 'completed',
+							} as ToolProgressChunk,
 						],
 					};
 					return { workflowReady: false };
@@ -1129,7 +1140,12 @@ ${'='.repeat(50)}
 				});
 				yield {
 					messages: [
-						{ type: 'tool', toolName: 'text_editor', status: 'completed' } as ToolProgressChunk,
+						{
+							type: 'tool',
+							toolName: 'text_editor',
+							displayTitle: 'Crafting workflow',
+							status: 'completed',
+						} as ToolProgressChunk,
 					],
 				};
 				return { workflowReady: true };
@@ -1163,7 +1179,12 @@ ${'='.repeat(50)}
 				);
 				yield {
 					messages: [
-						{ type: 'tool', toolName: 'text_editor', status: 'completed' } as ToolProgressChunk,
+						{
+							type: 'tool',
+							toolName: 'text_editor',
+							displayTitle: 'Crafting workflow',
+							status: 'completed',
+						} as ToolProgressChunk,
 					],
 				};
 				return { workflowReady: false };
@@ -1232,6 +1253,7 @@ ${'='.repeat(50)}
 									{
 										type: 'tool',
 										toolName: 'text_editor',
+										displayTitle: 'Crafting workflow',
 										status: 'completed',
 									} as ToolProgressChunk,
 								],
@@ -1249,7 +1271,12 @@ ${'='.repeat(50)}
 						});
 						yield {
 							messages: [
-								{ type: 'tool', toolName: 'text_editor', status: 'completed' } as ToolProgressChunk,
+								{
+									type: 'tool',
+									toolName: 'text_editor',
+									displayTitle: 'Crafting workflow',
+									status: 'completed',
+								} as ToolProgressChunk,
 							],
 						};
 						return { workflowReady: true };
@@ -1282,7 +1309,12 @@ ${'='.repeat(50)}
 						);
 						yield {
 							messages: [
-								{ type: 'tool', toolName: 'text_editor', status: 'completed' } as ToolProgressChunk,
+								{
+									type: 'tool',
+									toolName: 'text_editor',
+									displayTitle: 'Crafting workflow',
+									status: 'completed',
+								} as ToolProgressChunk,
 							],
 						};
 						return { workflowReady: false };
@@ -1302,7 +1334,12 @@ ${'='.repeat(50)}
 
 		yield {
 			messages: [
-				{ type: 'tool', toolName: 'text_editor', status: 'completed' } as ToolProgressChunk,
+				{
+					type: 'tool',
+					toolName: 'text_editor',
+					displayTitle: 'Crafting workflow',
+					status: 'completed',
+				} as ToolProgressChunk,
 			],
 		};
 		return undefined;
