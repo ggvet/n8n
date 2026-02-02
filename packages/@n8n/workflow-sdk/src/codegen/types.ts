@@ -98,3 +98,15 @@ export interface SemanticGraph {
 	/** Cycle edges discovered during analysis: source → targets */
 	cycleEdges: Map<string, string[]>;
 }
+
+/**
+ * A resolved expression value from frontend execution
+ */
+export interface ExpressionValue {
+	/** The original expression string (e.g., '={{ $json.name }}') */
+	expression: string;
+	/** The resolved value after evaluation */
+	resolvedValue: unknown;
+	/** Optional node type context */
+	nodeType?: string;
+}

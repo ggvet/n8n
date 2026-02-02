@@ -11,15 +11,39 @@
  */
 
 import type { WorkflowJSON } from '../types/base';
+import type { NodeExecutionSchema, Schema, IRunExecutionData } from 'n8n-workflow';
 import { buildSemanticGraph } from './semantic-graph';
 import { annotateGraph } from './graph-annotator';
 import { buildCompositeTree } from './composite-builder';
 import { generateCode } from './code-generator';
+import { buildExpressionAnnotations } from './expression-annotator';
+import { buildNodeExecutionStatus, formatExecutionStatusJSDoc } from './execution-status';
+import type { ExpressionValue } from './types';
 
 // Re-export types
-export type { SemanticGraph, SemanticNode, SemanticConnection, SubnodeConnection } from './types';
+export type {
+	SemanticGraph,
+	SemanticNode,
+	SemanticConnection,
+	SubnodeConnection,
+	ExpressionValue,
+} from './types';
 export type { CompositeTree, CompositeNode } from './composite-tree';
 export type { CompositeType, NodeSemantics } from './semantic-registry';
+
+/**
+ * Options for generateWorkflowCode with execution context
+ */
+export interface GenerateWorkflowCodeOptions {
+	/** The workflow JSON to convert */
+	workflow: WorkflowJSON;
+	/** Node output schemas from previous execution */
+	executionSchema?: NodeExecutionSchema[];
+	/** Expression values resolved from previous execution */
+	expressionValues?: Record<string, ExpressionValue[]>;
+	/** Execution result data for status and error info */
+	executionData?: IRunExecutionData['resultData'];
+}
 
 // Re-export individual functions for testing and extension
 export { buildSemanticGraph } from './semantic-graph';
@@ -35,25 +59,48 @@ export {
 } from './semantic-registry';
 
 /**
+ * Type guard to check if input is options object
+ */
+function isOptionsObject(
+	input: WorkflowJSON | GenerateWorkflowCodeOptions,
+): input is GenerateWorkflowCodeOptions {
+	return 'workflow' in input && input.workflow !== undefined;
+}
+
+/**
  * Generate LLM-friendly SDK code from workflow JSON
  *
- * @param json - The workflow JSON to convert
+ * @param input - Either WorkflowJSON directly (old API) or options object with execution context (new API)
  * @returns Generated SDK code as a string
  *
  * @example
  * ```typescript
+ * // Old API - just WorkflowJSON
  * const json = { name: 'My Workflow', nodes: [...], connections: {...} };
  * const code = generateWorkflowCode(json);
- * // Returns:
- * // workflow('id', 'My Workflow')
- * //   .add(trigger({...}))
- * //   .then(node({...}))
- * //   .toJSON();
+ *
+ * // New API - options object with execution context
+ * const code = generateWorkflowCode({
+ *   workflow: json,
+ *   executionSchema: [...],
+ *   expressionValues: {...},
+ *   executionData: {...}
+ * });
  * ```
  */
-export function generateWorkflowCode(json: WorkflowJSON): string {
+export function generateWorkflowCode(input: WorkflowJSON | GenerateWorkflowCodeOptions): string {
+	// Support both old API (just WorkflowJSON) and new API (options object)
+	const { workflow, executionSchema, expressionValues, executionData } = isOptionsObject(input)
+		? input
+		: {
+				workflow: input,
+				executionSchema: undefined,
+				expressionValues: undefined,
+				executionData: undefined,
+			};
+
 	// Phase 1: Build semantic graph
-	const graph = buildSemanticGraph(json);
+	const graph = buildSemanticGraph(workflow);
 
 	// Phase 2: Annotate graph with cycle and convergence info
 	annotateGraph(graph);
@@ -61,6 +108,26 @@ export function generateWorkflowCode(json: WorkflowJSON): string {
 	// Phase 3: Build composite tree
 	const tree = buildCompositeTree(graph);
 
-	// Phase 4: Generate code
-	return generateCode(tree, json, graph);
+	// Build execution context maps
+	const expressionAnnotations = buildExpressionAnnotations(expressionValues);
+	const nodeExecutionStatus = buildNodeExecutionStatus(executionData);
+
+	// Build schema map for JSDoc generation
+	const nodeSchemas = new Map<string, Schema>();
+	if (executionSchema) {
+		for (const { nodeName, schema } of executionSchema) {
+			nodeSchemas.set(nodeName, schema);
+		}
+	}
+
+	// Build workflow-level execution status JSDoc
+	const workflowStatusJSDoc = formatExecutionStatusJSDoc(executionData);
+
+	// Phase 4: Generate code with execution context
+	return generateCode(tree, workflow, graph, {
+		expressionAnnotations: expressionAnnotations.size > 0 ? expressionAnnotations : undefined,
+		nodeExecutionStatus: nodeExecutionStatus.size > 0 ? nodeExecutionStatus : undefined,
+		nodeSchemas: nodeSchemas.size > 0 ? nodeSchemas : undefined,
+		workflowStatusJSDoc: workflowStatusJSDoc || undefined,
+	});
 }

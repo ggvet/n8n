@@ -2299,6 +2299,148 @@ describe('code-generator', () => {
 			});
 		});
 
+		describe('execution context annotations', () => {
+			it('adds JSDoc with @output schema above nodes with execution schema', () => {
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Fetch Users',
+							type: 'n8n-nodes-base.httpRequest',
+							typeVersion: 4.2,
+							position: [0, 0],
+							parameters: { url: 'https://api.example.com/users' },
+						},
+					],
+					connections: {},
+				};
+
+				const graph = buildSemanticGraph(json);
+				annotateGraph(graph);
+				const tree = buildCompositeTree(graph);
+
+				const nodeSchemas = new Map([
+					[
+						'Fetch Users',
+						{
+							type: 'object' as const,
+							path: '',
+							value: [
+								{ type: 'string' as const, key: 'id', value: 'usr_123', path: 'id' },
+								{ type: 'string' as const, key: 'name', value: 'John', path: 'name' },
+							],
+						},
+					],
+				]);
+
+				const code = generateCode(tree, json, graph, { nodeSchemas });
+
+				expect(code).toContain("@output - access via $('Fetch Users').item.json");
+				expect(code).toContain('id: string');
+				expect(code).toContain('@example "usr_123"');
+				expect(code).toContain('name: string');
+				expect(code).toContain('@example "John"');
+			});
+
+			it('adds @status success/error annotations in JSDoc', () => {
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Success Node',
+							type: 'n8n-nodes-base.noOp',
+							typeVersion: 1,
+							position: [0, 0],
+						},
+						{
+							id: '2',
+							name: 'Error Node',
+							type: 'n8n-nodes-base.noOp',
+							typeVersion: 1,
+							position: [100, 0],
+						},
+					],
+					connections: {},
+				};
+
+				const graph = buildSemanticGraph(json);
+				annotateGraph(graph);
+				const tree = buildCompositeTree(graph);
+
+				const nodeExecutionStatus = new Map([
+					['Success Node', { status: 'success' as const }],
+					['Error Node', { status: 'error' as const, errorMessage: 'Something went wrong' }],
+				]);
+
+				const code = generateCode(tree, json, graph, { nodeExecutionStatus });
+
+				expect(code).toContain('@status success');
+				expect(code).toContain('@status error - Something went wrong');
+			});
+
+			it('adds @example comments for expression values', () => {
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Set',
+							type: 'n8n-nodes-base.set',
+							typeVersion: 3.4,
+							position: [0, 0],
+							parameters: {
+								fields: {
+									values: [{ name: 'greeting', stringValue: '={{ $json.name }}' }],
+								},
+							},
+						},
+					],
+					connections: {},
+				};
+
+				const graph = buildSemanticGraph(json);
+				annotateGraph(graph);
+				const tree = buildCompositeTree(graph);
+
+				const expressionAnnotations = new Map([['={{ $json.name }}', '"John Doe"']]);
+
+				const code = generateCode(tree, json, graph, { expressionAnnotations });
+
+				expect(code).toContain('// @example "John Doe"');
+			});
+
+			it('adds workflow-level execution status JSDoc above return workflow()', () => {
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Trigger',
+							type: 'n8n-nodes-base.manualTrigger',
+							typeVersion: 1,
+							position: [0, 0],
+						},
+					],
+					connections: {},
+				};
+
+				const graph = buildSemanticGraph(json);
+				annotateGraph(graph);
+				const tree = buildCompositeTree(graph);
+
+				const workflowStatusJSDoc = '@lastExecuted "Trigger"\n@status success';
+
+				const code = generateCode(tree, json, graph, { workflowStatusJSDoc });
+
+				// JSDoc should appear before return wf
+				expect(code).toMatch(
+					/\/\*\*[\s\S]*@lastExecuted "Trigger"[\s\S]*@status success[\s\S]*\*\/\s*return wf/,
+				);
+			});
+		});
+
 		describe('reserved keywords', () => {
 			it('appends _node suffix for reserved keyword variable names', () => {
 				const json: WorkflowJSON = {

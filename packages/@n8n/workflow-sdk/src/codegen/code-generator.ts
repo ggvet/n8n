@@ -6,6 +6,9 @@
 
 import type { WorkflowJSON } from '../types/base';
 import type { SemanticGraph, SemanticNode, AiConnectionType } from './types';
+import type { Schema } from 'n8n-workflow';
+import type { NodeExecutionStatus } from './execution-status';
+import { generateSchemaJSDoc } from './execution-schema-jsdoc';
 import type {
 	CompositeTree,
 	CompositeNode,
@@ -22,6 +25,20 @@ import type {
 } from './composite-tree';
 
 /**
+ * Execution context options for code generation
+ */
+export interface ExecutionContextOptions {
+	/** Node output schemas for JSDoc generation */
+	nodeSchemas?: Map<string, Schema>;
+	/** Node execution statuses (@success/@error) */
+	nodeExecutionStatus?: Map<string, NodeExecutionStatus>;
+	/** Expression annotations (expression → formatted value) */
+	expressionAnnotations?: Map<string, string>;
+	/** Workflow-level execution status JSDoc content */
+	workflowStatusJSDoc?: string;
+}
+
+/**
  * Context for code generation
  */
 interface GenerationContext {
@@ -32,6 +49,11 @@ interface GenerationContext {
 	nodeNameToVarName: Map<string, string>; // Maps node names to unique variable names
 	usedVarNames: Set<string>; // Tracks all used variable names to avoid collisions
 	subnodeVariables: Map<string, { node: SemanticNode; builderName: string }>; // Subnodes to declare as variables
+	// Execution context
+	nodeSchemas?: Map<string, Schema>;
+	nodeExecutionStatus?: Map<string, NodeExecutionStatus>;
+	expressionAnnotations?: Map<string, string>;
+	workflowStatusJSDoc?: string;
 }
 
 /**
@@ -184,18 +206,25 @@ function formatKey(key: string): string {
 /**
  * Format a value for code output
  */
-function formatValue(value: unknown): string {
+function formatValue(value: unknown, ctx?: GenerationContext): string {
 	if (value === null) return 'null';
 	if (value === undefined) return 'undefined';
-	if (typeof value === 'string') return `'${escapeString(value)}'`;
+	if (typeof value === 'string') {
+		const formatted = `'${escapeString(value)}'`;
+		// Add expression annotation if available
+		if (ctx?.expressionAnnotations?.has(value)) {
+			return `${formatted}  // @example ${ctx.expressionAnnotations.get(value)}`;
+		}
+		return formatted;
+	}
 	if (typeof value === 'number' || typeof value === 'boolean') return String(value);
 	if (Array.isArray(value)) {
-		return `[${value.map(formatValue).join(', ')}]`;
+		return `[${value.map((v) => formatValue(v, ctx)).join(', ')}]`;
 	}
 	if (typeof value === 'object') {
 		const entries = Object.entries(value as Record<string, unknown>);
 		if (entries.length === 0) return '{}';
-		return `{ ${entries.map(([k, v]) => `${formatKey(k)}: ${formatValue(v)}`).join(', ')} }`;
+		return `{ ${entries.map(([k, v]) => `${formatKey(k)}: ${formatValue(v, ctx)}`).join(', ')} }`;
 	}
 	return String(value);
 }
@@ -271,11 +300,11 @@ function generateSubnodeCall(
 	}
 
 	if (subnodeNode.json.parameters && Object.keys(subnodeNode.json.parameters).length > 0) {
-		configParts.push(`parameters: ${formatValue(subnodeNode.json.parameters)}`);
+		configParts.push(`parameters: ${formatValue(subnodeNode.json.parameters, ctx)}`);
 	}
 
 	if (subnodeNode.json.credentials) {
-		configParts.push(`credentials: ${formatValue(subnodeNode.json.credentials)}`);
+		configParts.push(`credentials: ${formatValue(subnodeNode.json.credentials, ctx)}`);
 	}
 
 	const pos = subnodeNode.json.position;
@@ -400,11 +429,11 @@ function generateSubnodeCallWithVarRefs(
 	}
 
 	if (subnodeNode.json.parameters && Object.keys(subnodeNode.json.parameters).length > 0) {
-		configParts.push(`parameters: ${formatValue(subnodeNode.json.parameters)}`);
+		configParts.push(`parameters: ${formatValue(subnodeNode.json.parameters, ctx)}`);
 	}
 
 	if (subnodeNode.json.credentials) {
-		configParts.push(`credentials: ${formatValue(subnodeNode.json.credentials)}`);
+		configParts.push(`credentials: ${formatValue(subnodeNode.json.credentials, ctx)}`);
 	}
 
 	const pos = subnodeNode.json.position;
@@ -514,11 +543,11 @@ function generateNodeConfig(node: SemanticNode, ctx: GenerationContext): string 
 	}
 
 	if (node.json.parameters && Object.keys(node.json.parameters).length > 0) {
-		configParts.push(`parameters: ${formatValue(node.json.parameters)}`);
+		configParts.push(`parameters: ${formatValue(node.json.parameters, ctx)}`);
 	}
 
 	if (node.json.credentials) {
-		configParts.push(`credentials: ${formatValue(node.json.credentials)}`);
+		configParts.push(`credentials: ${formatValue(node.json.credentials, ctx)}`);
 	}
 
 	// Include position if non-zero
@@ -631,11 +660,11 @@ function generateMergeCall(node: SemanticNode, ctx: GenerationContext): string {
 	}
 
 	if (node.json.parameters && Object.keys(node.json.parameters).length > 0) {
-		configParts.push(`parameters: ${formatValue(node.json.parameters)}`);
+		configParts.push(`parameters: ${formatValue(node.json.parameters, ctx)}`);
 	}
 
 	if (node.json.credentials) {
-		configParts.push(`credentials: ${formatValue(node.json.credentials)}`);
+		configParts.push(`credentials: ${formatValue(node.json.credentials, ctx)}`);
 	}
 
 	// Include position if non-zero
@@ -684,9 +713,20 @@ function generateLeafCode(leaf: LeafNode, ctx: GenerationContext): string {
 	const nodeName = leaf.node.json.name;
 	if (nodeName && ctx.variableNodes.has(nodeName)) {
 		// Use variable reference for nodes that are declared as variables
+		// (JSDoc is already added in variable declaration)
 		return getVarName(nodeName, ctx);
 	}
-	return generateNodeCall(leaf.node, ctx);
+
+	// For inline nodes, prepend JSDoc if execution context is available
+	const nodeCall = generateNodeCall(leaf.node, ctx);
+	if (nodeName) {
+		const jsdoc = generateNodeJSDoc(nodeName, ctx);
+		if (jsdoc) {
+			return `${jsdoc}\n${nodeCall}`;
+		}
+	}
+
+	return nodeCall;
 }
 
 /**
@@ -1082,6 +1122,39 @@ function getUniqueVarName(nodeName: string, ctx: GenerationContext): string {
 }
 
 /**
+ * Generate JSDoc comment for a node based on execution context
+ */
+function generateNodeJSDoc(nodeName: string, ctx: GenerationContext): string | null {
+	const jsdocParts: string[] = [];
+
+	// Add output schema if available
+	const schema = ctx.nodeSchemas?.get(nodeName);
+	if (schema) {
+		jsdocParts.push(generateSchemaJSDoc(nodeName, schema));
+	}
+
+	// Add execution status if available
+	const status = ctx.nodeExecutionStatus?.get(nodeName);
+	if (status?.status === 'error') {
+		jsdocParts.push(`@status error - ${status.errorMessage}`);
+	} else if (status?.status === 'success') {
+		jsdocParts.push('@status success');
+	}
+
+	if (jsdocParts.length === 0) return null;
+
+	const lines: string[] = ['/**'];
+	for (const part of jsdocParts) {
+		for (const line of part.split('\n')) {
+			lines.push(` * ${line}`);
+		}
+	}
+	lines.push(' */');
+
+	return lines.join('\n');
+}
+
+/**
  * Generate variable declarations
  */
 function generateVariableDeclarations(
@@ -1093,11 +1166,19 @@ function generateVariableDeclarations(
 	for (const [nodeName, node] of variables) {
 		const varName = getUniqueVarName(nodeName, ctx);
 		const nodeCall = generateNodeCall(node, ctx);
-		declarations.push(`const ${varName} = ${nodeCall};`);
+
+		// Add JSDoc if execution context is available
+		const jsdoc = generateNodeJSDoc(nodeName, ctx);
+		if (jsdoc) {
+			declarations.push(`${jsdoc}\nconst ${varName} = ${nodeCall};`);
+		} else {
+			declarations.push(`const ${varName} = ${nodeCall};`);
+		}
+
 		ctx.generatedVars.add(nodeName);
 	}
 
-	return declarations.join('\n');
+	return declarations.join('\n\n');
 }
 
 /**
@@ -1305,12 +1386,15 @@ function flattenToWorkflowCalls(
  *
  * @param tree - The composite tree
  * @param json - Original workflow JSON (for metadata)
+ * @param graph - The semantic graph
+ * @param executionContext - Optional execution context for annotations
  * @returns Generated SDK code
  */
 export function generateCode(
 	tree: CompositeTree,
 	json: WorkflowJSON,
 	graph: SemanticGraph,
+	executionContext?: ExecutionContextOptions,
 ): string {
 	const ctx: GenerationContext = {
 		indent: 0,
@@ -1320,6 +1404,11 @@ export function generateCode(
 		nodeNameToVarName: new Map(),
 		usedVarNames: new Set(),
 		subnodeVariables: new Map(),
+		// Execution context
+		nodeSchemas: executionContext?.nodeSchemas,
+		nodeExecutionStatus: executionContext?.nodeExecutionStatus,
+		expressionAnnotations: executionContext?.expressionAnnotations,
+		workflowStatusJSDoc: executionContext?.workflowStatusJSDoc,
 	};
 
 	// Collect all subnodes from all nodes in the graph (not just variable nodes)
@@ -1393,12 +1482,22 @@ export function generateCode(
 	}
 
 	// Add workflow calls and return statement
+	lines.push('');
+
+	// Add workflow-level execution status JSDoc if available
+	if (ctx.workflowStatusJSDoc) {
+		const jsdocLines = ['/**'];
+		for (const line of ctx.workflowStatusJSDoc.split('\n')) {
+			jsdocLines.push(` * ${line}`);
+		}
+		jsdocLines.push(' */');
+		lines.push(jsdocLines.join('\n'));
+	}
+
 	if (workflowCalls.length > 0) {
-		lines.push('');
 		lines.push('return wf');
 		lines.push(...workflowCalls);
 	} else {
-		lines.push('');
 		lines.push('return wf');
 	}
 

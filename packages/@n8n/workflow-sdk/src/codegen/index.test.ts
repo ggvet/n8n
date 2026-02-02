@@ -138,5 +138,121 @@ describe('codegen index', () => {
 			expect(code).toContain('return wf');
 			expect(code).not.toContain('.toJSON();');
 		});
+
+		describe('execution context options', () => {
+			it('accepts options object with execution schema', () => {
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Fetch Users',
+							type: 'n8n-nodes-base.httpRequest',
+							typeVersion: 4.2,
+							position: [0, 0],
+							parameters: { url: 'https://api.example.com/users' },
+						},
+					],
+					connections: {},
+				};
+
+				const executionSchema = [
+					{
+						nodeName: 'Fetch Users',
+						schema: {
+							type: 'object' as const,
+							path: '',
+							value: [
+								{ type: 'string' as const, key: 'id', value: 'usr_123', path: 'id' },
+								{ type: 'string' as const, key: 'name', value: 'John', path: 'name' },
+							],
+						},
+					},
+				];
+
+				const code = generateWorkflowCode({ workflow: json, executionSchema });
+
+				expect(code).toContain("@output - access via $('Fetch Users').item.json");
+				expect(code).toContain('id: string');
+				expect(code).toContain('@example "usr_123"');
+			});
+
+			it('accepts options object with expression values', () => {
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Set',
+							type: 'n8n-nodes-base.set',
+							typeVersion: 3.4,
+							position: [0, 0],
+							parameters: {
+								fields: { values: [{ name: 'greeting', stringValue: '={{ $json.name }}' }] },
+							},
+						},
+					],
+					connections: {},
+				};
+
+				const expressionValues = {
+					Set: [{ expression: '={{ $json.name }}', resolvedValue: 'John Doe' }],
+				};
+
+				const code = generateWorkflowCode({ workflow: json, expressionValues });
+
+				expect(code).toContain('// @example "John Doe"');
+			});
+
+			it('accepts options object with execution data for status', () => {
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Success Node',
+							type: 'n8n-nodes-base.noOp',
+							typeVersion: 1,
+							position: [0, 0],
+						},
+					],
+					connections: {},
+				};
+
+				const executionData = {
+					lastNodeExecuted: 'Success Node',
+					runData: {
+						'Success Node': [{ startTime: 0, executionTime: 100, executionIndex: 0, source: [] }],
+					},
+				};
+
+				const code = generateWorkflowCode({ workflow: json, executionData });
+
+				expect(code).toContain('@status success');
+				expect(code).toContain('@lastExecuted "Success Node"');
+			});
+
+			it('maintains backward compatibility with plain WorkflowJSON', () => {
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Trigger',
+							type: 'n8n-nodes-base.manualTrigger',
+							typeVersion: 1,
+							position: [0, 0],
+						},
+					],
+					connections: {},
+				};
+
+				// Old API - just pass WorkflowJSON directly
+				const code = generateWorkflowCode(json);
+
+				expect(code).toContain("workflow('', 'Test')");
+				expect(code).toContain('trigger(');
+			});
+		});
 	});
 });
