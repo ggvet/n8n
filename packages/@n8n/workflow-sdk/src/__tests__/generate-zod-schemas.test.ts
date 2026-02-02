@@ -548,7 +548,8 @@ describe('generateDiscriminatorSchemaFile with displayOptions', () => {
 			[],
 		);
 
-		expect(code).toContain('resolveSchema,');
+		// CommonJS: resolveSchema is included in the require destructure
+		expect(code).toContain('resolveSchema }');
 	});
 
 	it('uses resolveSchema for properties with remaining displayOptions', () => {
@@ -611,8 +612,8 @@ describe('generateDiscriminatorSchemaFile with displayOptions', () => {
 			[],
 		);
 
-		// All discriminated schemas export factory functions
-		expect(code).toContain('export default function getSchema');
+		// All discriminated schemas export factory functions via CommonJS module.exports
+		expect(code).toContain('module.exports = function getSchema');
 		// But the property uses static schema (no resolveSchema call in body)
 		expect(code).toContain('simpleField: stringOrExpression');
 		expect(code).not.toMatch(/simpleField:.*resolveSchema/);
@@ -646,7 +647,8 @@ describe('generateDiscriminatorSchemaFile with displayOptions', () => {
 			[],
 		);
 
-		expect(code).toContain('export default function getSchema');
+		// CommonJS module.exports for factory function
+		expect(code).toContain('module.exports = function getSchema');
 		expect(code).toContain('{ parameters, resolveSchema }');
 		expect(code).toContain('return z.object({');
 	});
@@ -678,10 +680,11 @@ describe('generateDiscriminatorSchemaFile with displayOptions', () => {
 			[],
 		);
 
-		// Factory function always has resolveSchema in signature
-		expect(code).toContain('export default function getSchema');
+		// Factory function always has resolveSchema in signature (CommonJS)
+		expect(code).toContain('module.exports = function getSchema');
 		// But should not import resolveSchema from base.schema if not used in body
-		expect(code).not.toMatch(/import\s*\{[^}]*resolveSchema[^}]*\}/);
+		// Check that resolveSchema is not in the require import (not in the function signature)
+		expect(code).not.toMatch(/require\([^)]+\).*resolveSchema/);
 	});
 
 	it('strips @version from displayOptions along with resource/operation', () => {
@@ -785,8 +788,8 @@ describe('generateSingleVersionSchemaFile', () => {
 
 		const code = generateSingleVersionSchemaFile(node, 1);
 
-		// Should generate a factory function instead of static schema
-		expect(code).toContain('export function get');
+		// Should generate a factory function instead of static schema (CommonJS)
+		expect(code).toContain('function get');
 		expect(code).toContain('{ parameters, resolveSchema }');
 		expect(code).toContain('return z.object({');
 	});
@@ -805,9 +808,10 @@ describe('generateSingleVersionSchemaFile', () => {
 
 		const code = generateSingleVersionSchemaFile(node, 1);
 
-		// Should generate static schema (export const, not export function)
-		expect(code).toContain('export const');
-		expect(code).not.toContain('export function get');
+		// Should generate static schema (const, not function) with CommonJS export
+		expect(code).toContain('const ');
+		expect(code).toContain('exports.');
+		expect(code).not.toContain('function get');
 	});
 
 	it('imports resolveSchema helper when generating factory function', () => {
@@ -881,9 +885,10 @@ describe('generateSingleVersionSchemaFile', () => {
 
 		const code = generateSingleVersionSchemaFile(node, 1);
 
-		// Should generate static schema (no factory function needed since @version is stripped)
-		expect(code).toContain('export const');
-		expect(code).not.toContain('export function get');
+		// Should generate static schema (no factory function needed since @version is stripped) - CommonJS
+		expect(code).toContain('const ');
+		expect(code).toContain('exports.');
+		expect(code).not.toContain('function get');
 		// Should NOT contain @version anywhere
 		expect(code).not.toContain('@version');
 	});
@@ -934,12 +939,13 @@ describe('generateSingleVersionSchemaFile', () => {
 
 		const code = generateSingleVersionSchemaFile(node, 1);
 
-		// Should generate static schema (no factory function needed since @version is stripped)
-		expect(code).toContain('export const');
-		expect(code).not.toContain('export function get');
+		// Should generate static schema (no factory function needed since @version is stripped) - CommonJS
+		expect(code).toContain('const ');
+		expect(code).toContain('exports.');
+		expect(code).not.toContain('function get');
 		// Should NOT contain @version anywhere
 		expect(code).not.toContain('@version');
-		// Should NOT import resolveSchema
+		// Should NOT require resolveSchema
 		expect(code).not.toContain('resolveSchema');
 	});
 });
@@ -955,10 +961,12 @@ describe('generateSubnodeConfigSchemaCode', () => {
 
 		const code = generateSubnodeConfigSchemaCode(aiInputTypes, 'TestNode');
 
-		expect(code).toContain('export const TestNodeSubnodeConfigSchema = z.object({');
+		// CommonJS exports
+		expect(code).toContain('const TestNodeSubnodeConfigSchema = z.object({');
+		expect(code).toContain('exports.TestNodeSubnodeConfigSchema = TestNodeSubnodeConfigSchema;');
 		expect(code).toContain('model:');
 		expect(code).toContain('tools:');
-		expect(code).not.toContain('export function get');
+		expect(code).not.toContain('function get');
 		expect(code).not.toContain('resolveSchema');
 	});
 
@@ -973,8 +981,11 @@ describe('generateSubnodeConfigSchemaCode', () => {
 
 		const code = generateSubnodeConfigSchemaCode(aiInputTypes, 'TestNode');
 
-		// Should generate factory function, not static schema
-		expect(code).toContain('export function getTestNodeSubnodeConfigSchema(');
+		// Should generate factory function, not static schema (CommonJS)
+		expect(code).toContain('function getTestNodeSubnodeConfigSchema(');
+		expect(code).toContain(
+			'exports.getTestNodeSubnodeConfigSchema = getTestNodeSubnodeConfigSchema;',
+		);
 		expect(code).toContain('{ parameters, resolveSchema }');
 		expect(code).toContain('return z.object({');
 		// Should use resolveSchema for conditional field
@@ -1009,9 +1020,10 @@ describe('generateSubnodeConfigSchemaCode', () => {
 
 		const code = generateSubnodeConfigSchemaCode(aiInputTypes, 'TestNode');
 
-		// Should generate static schema
-		expect(code).toContain('export const TestNodeSubnodeConfigSchema');
-		expect(code).not.toContain('export function get');
+		// Should generate static schema (CommonJS)
+		expect(code).toContain('const TestNodeSubnodeConfigSchema');
+		expect(code).toContain('exports.TestNodeSubnodeConfigSchema = TestNodeSubnodeConfigSchema;');
+		expect(code).not.toContain('function get');
 		// model should NOT be optional
 		expect(code).not.toMatch(/model:.*\.optional\(\)/);
 	});
@@ -1028,8 +1040,11 @@ describe('generateSubnodeConfigSchemaCode', () => {
 
 		const code = generateSubnodeConfigSchemaCode(aiInputTypes, 'TestNode');
 
-		// Should generate factory function because of the conditional field
-		expect(code).toContain('export function getTestNodeSubnodeConfigSchema(');
+		// Should generate factory function because of the conditional field (CommonJS)
+		expect(code).toContain('function getTestNodeSubnodeConfigSchema(');
+		expect(code).toContain(
+			'exports.getTestNodeSubnodeConfigSchema = getTestNodeSubnodeConfigSchema;',
+		);
 		// model uses resolveSchema
 		expect(code).toMatch(/model:.*resolveSchema/);
 		// tools is optional (static)

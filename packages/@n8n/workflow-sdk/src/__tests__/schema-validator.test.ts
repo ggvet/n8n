@@ -25,19 +25,19 @@ describe('schema-validator', () => {
 
 		it('loads schema for flat version structure (e.g., set v2)', () => {
 			// Uses generated schemas at ~/.n8n/generated-types/
-			// SetV2ConfigSchema in nodes/n8n-nodes-base/set/v2.schema.ts
+			// SetV2ConfigSchema in nodes/n8n-nodes-base/set/v2.schema.js
 			const schema = loadSchema('n8n-nodes-base.set', 2);
 			expect(schema).not.toBeNull();
 		});
 
 		it('loads schema for version with decimal (e.g., httpRequest v4.2)', () => {
-			// HttpRequestV42ConfigSchema in nodes/n8n-nodes-base/httpRequest/v42.schema.ts
+			// HttpRequestV42ConfigSchema in nodes/n8n-nodes-base/httpRequest/v42.schema.js
 			const schema = loadSchema('n8n-nodes-base.httpRequest', 4.2);
 			expect(schema).not.toBeNull();
 		});
 
 		it('loads schema for langchain nodes with @n8n prefix', () => {
-			// LcAgentV1ConfigSchema in nodes/n8n-nodes-langchain/agent/v1.schema.ts
+			// LcAgentV1ConfigSchema in nodes/n8n-nodes-langchain/agent/v1.schema.js
 			const schema = loadSchema('@n8n/n8n-nodes-langchain.agent', 1);
 			expect(schema).not.toBeNull();
 		});

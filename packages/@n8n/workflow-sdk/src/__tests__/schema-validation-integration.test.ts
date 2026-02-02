@@ -12,7 +12,7 @@ import { parseWorkflowCode } from '../parse-workflow-code';
 
 describe('Schema Validation Integration', () => {
 	describe('Resource/Operation Discriminated (MS Teams v2 - task/create)', () => {
-		// Schema: ~/.n8n/generated-types/nodes/n8n-nodes-base/microsoftTeams/v2/resource_task/operation_create.schema.ts
+		// Schema: ~/.n8n/generated-types/nodes/n8n-nodes-base/microsoftTeams/v2/resource_task/operation_create.schema.js
 		// Required fields: groupId, planId, bucketId (resourceLocator type), title (no displayOptions)
 		// Optional field: options (no displayOptions)
 
@@ -86,7 +86,7 @@ describe('Schema Validation Integration', () => {
 	});
 
 	describe('Mode Discriminated (Set v3 - manual)', () => {
-		// Schema: ~/.n8n/generated-types/nodes/n8n-nodes-base/set/v3/mode_manual.schema.ts
+		// Schema: ~/.n8n/generated-types/nodes/n8n-nodes-base/set/v3/mode_manual.schema.js
 		// duplicateItem: optional, no displayOptions
 		// duplicateCount: optional, show: { duplicateItem: [true] }
 
@@ -128,7 +128,7 @@ describe('Schema Validation Integration', () => {
 	});
 
 	describe('Webhook v1 (Factory with show/hide)', () => {
-		// Schema: ~/.n8n/generated-types/nodes/n8n-nodes-base/webhook/v1.schema.ts
+		// Schema: ~/.n8n/generated-types/nodes/n8n-nodes-base/webhook/v1.schema.js
 		// responseData: optional, show: { responseMode: ['lastNode'] } - only visible when responseMode is 'lastNode'
 		// responseCode: optional, show: { @version: [1, 1.1] }, hide: { responseMode: ['responseNode'] }
 		// responseBinaryPropertyName: required, show: { responseData: ['firstEntryBinary'] }
@@ -196,7 +196,7 @@ describe('Schema Validation Integration', () => {
 	});
 
 	describe('Twitter v2 (Required + hide)', () => {
-		// Schema: ~/.n8n/generated-types/nodes/n8n-nodes-base/twitter/v2/resource_user/operation_search_user.schema.ts
+		// Schema: ~/.n8n/generated-types/nodes/n8n-nodes-base/twitter/v2/resource_user/operation_search_user.schema.js
 		// user: required, hide: { me: [true] }
 
 		it('returns warning when required user is missing and hide condition is NOT met', () => {
@@ -246,7 +246,7 @@ describe('Schema Validation Integration', () => {
 	});
 
 	describe('Non-Discriminated Static (ChargebeeTrigger v1)', () => {
-		// Schema: ~/.n8n/generated-types/nodes/n8n-nodes-base/chargebeeTrigger/v1.schema.ts
+		// Schema: ~/.n8n/generated-types/nodes/n8n-nodes-base/chargebeeTrigger/v1.schema.js
 		// events: required array (no displayOptions, static schema)
 
 		it('validates when events array is provided', () => {

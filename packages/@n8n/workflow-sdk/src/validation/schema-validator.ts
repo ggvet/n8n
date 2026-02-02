@@ -156,9 +156,9 @@ function tryLoadSchemaForNodeType(nodeType: string, version: number): SchemaOrFa
 	const versionStr = versionToString(version);
 	const isLangchain = pkg === 'n8n-nodes-langchain';
 
-	// Try flat structure first: nodes/{pkg}/{nodeName}/{version}.schema.ts
+	// Try flat structure first: nodes/{pkg}/{nodeName}/{version}.schema.js
 	const flatSchemaPath = path.join(schemaBasePath, 'nodes', pkg, nodeName, `${versionStr}.schema`);
-	// Try split structure: nodes/{pkg}/{nodeName}/{version}/index.schema.ts
+	// Try split structure: nodes/{pkg}/{nodeName}/{version}/index.schema.js
 	const splitSchemaPath = path.join(
 		schemaBasePath,
 		'nodes',
@@ -226,8 +226,8 @@ function tryLoadSchemaForNodeType(nodeType: string, version: number): SchemaOrFa
  * Supports both:
  * - Static schemas: ConfigSchema exports (ZodSchema)
  * - Factory functions: getConfigSchema exports (for nodes with displayOptions)
- * - Flat structure: {version}.schema.ts
- * - Split structure: {version}/index.schema.ts (for discriminated nodes)
+ * - Flat structure: {version}.schema.js
+ * - Split structure: {version}/index.schema.js (for discriminated nodes)
  *
  * For tool variants (e.g., "googleCalendarTool"), falls back to the base node
  * (e.g., "googleCalendar") since tool variants don't have separate schemas.

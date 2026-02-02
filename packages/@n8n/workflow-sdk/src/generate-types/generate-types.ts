@@ -2739,12 +2739,8 @@ export function generateVersionIndexFile(
 		// Both flat files and directories use the same export syntax
 		// TypeScript resolves ./v1 to either ./v1.ts or ./v1/index.ts
 		lines.push(`export * from './${fileName}';`);
-		// Export schemas - split versions have index.schema.ts, flat versions have v1.schema.ts
-		if (splitVersions.has(version)) {
-			lines.push(`export * from './${fileName}/index.schema';`);
-		} else {
-			lines.push(`export * from './${fileName}.schema';`);
-		}
+		// Note: Schema files (.schema.js) are CommonJS JavaScript loaded at runtime via require(),
+		// not TypeScript exports. They are not re-exported from this index file.
 	}
 	lines.push('');
 
@@ -3824,9 +3820,9 @@ async function generateVersionSpecificFiles(
 					generatedFiles++;
 					flatVersions++;
 
-					// Generate corresponding Zod schema file
+					// Generate corresponding Zod schema file (CommonJS JavaScript for runtime loading)
 					const schemaContent = generateSingleVersionSchemaFile(sourceNode, version);
-					const schemaFilePath = path.join(nodeDir, `${fileName}.schema.ts`);
+					const schemaFilePath = path.join(nodeDir, `${fileName}.schema.js`);
 					await fs.promises.writeFile(schemaFilePath, schemaContent);
 					generatedFiles++;
 				}
@@ -3876,10 +3872,10 @@ export async function generateTypes(): Promise<void> {
 	await fs.promises.mkdir(nodesBaseDir, { recursive: true });
 	await fs.promises.mkdir(nodesLangchainDir, { recursive: true });
 
-	// Generate base.schema.ts with common Zod helpers
+	// Generate base.schema.js with common Zod helpers (CommonJS JavaScript for runtime loading)
 	const baseSchemaContent = generateBaseSchemaFile();
-	await fs.promises.writeFile(path.join(OUTPUT_PATH, 'base.schema.ts'), baseSchemaContent);
-	console.log('Generated base.schema.ts with Zod helpers');
+	await fs.promises.writeFile(path.join(OUTPUT_PATH, 'base.schema.js'), baseSchemaContent);
+	console.log('Generated base.schema.js with Zod helpers');
 
 	const allNodes: NodeTypeDescription[] = [];
 
