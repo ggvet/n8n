@@ -69,6 +69,11 @@ export const RESOURCE_CENTER_EXPERIMENT = createExperiment('063_resource_center_
 
 export const DYNAMIC_TEMPLATES_EXPERIMENT = createExperiment('068_dynamic_templates');
 
+export const CODE_WORKFLOW_BUILDER_EXPERIMENT = createExperiment('071_coding_workflow_builder', {
+	control: 'control',
+	test: 'test',
+});
+
 export const EXPERIMENTS_TO_TRACK = [
 	EXTRA_TEMPLATE_LINKS_EXPERIMENT.name,
 	TEMPLATE_ONBOARDING_EXPERIMENT.name,
@@ -83,4 +88,5 @@ export const EXPERIMENTS_TO_TRACK = [
 	TAMPER_PROOF_INVITE_LINKS.name,
 	EMPTY_STATE_BUILDER_PROMPT_EXPERIMENT.name,
 	DYNAMIC_TEMPLATES_EXPERIMENT.name,
+	CODE_WORKFLOW_BUILDER_EXPERIMENT.name,
 ];

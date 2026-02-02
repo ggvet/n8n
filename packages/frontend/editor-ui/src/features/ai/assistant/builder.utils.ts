@@ -5,7 +5,10 @@ import {
 } from '@/features/ai/assistant/assistant.types';
 import { useAIAssistantHelpers } from '@/features/ai/assistant/composables/useAIAssistantHelpers';
 import { usePostHog } from '@/app/stores/posthog.store';
-import { AI_BUILDER_TEMPLATE_EXAMPLES_EXPERIMENT } from '@/app/constants/experiments';
+import {
+	AI_BUILDER_TEMPLATE_EXAMPLES_EXPERIMENT,
+	CODE_WORKFLOW_BUILDER_EXPERIMENT,
+} from '@/app/constants/experiments';
 import type { IRunExecutionData } from 'n8n-workflow';
 import type { IWorkflowDb } from '@/Interface';
 import { getWorkflowVersionsByIds } from '@n8n/rest-api-client/api/workflowHistory';
@@ -67,8 +70,9 @@ export async function createBuilderPayload(
 		templateExamples:
 			posthogStore.getVariant(AI_BUILDER_TEMPLATE_EXAMPLES_EXPERIMENT.name) ===
 			AI_BUILDER_TEMPLATE_EXAMPLES_EXPERIMENT.variant,
-		// One-shot agent: enabled by default (set to false to use old multi-agent system)
-		oneShotAgent: true,
+		codeBuilder:
+			posthogStore.getVariant(CODE_WORKFLOW_BUILDER_EXPERIMENT.name) ===
+			CODE_WORKFLOW_BUILDER_EXPERIMENT.test,
 	};
 
 	return {

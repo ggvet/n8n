@@ -303,5 +303,30 @@ async function onCopyButtonClick(content: string, e: MouseEvent) {
 			padding: var(--spacing--4xs);
 		}
 	}
+
+	:global(.n8n-thinking-section) {
+		margin: var(--spacing--2xs) 0;
+		border: 1px solid var(--color--foreground);
+		border-radius: var(--radius);
+		background-color: var(--color--background--light-2);
+
+		summary {
+			padding: var(--spacing--2xs) var(--spacing--xs);
+			cursor: pointer;
+			font-weight: var(--font-weight--bold);
+			font-size: var(--font-size--2xs);
+			color: var(--color--text--tint-1);
+			user-select: none;
+
+			&:hover {
+				background-color: var(--color--foreground--tint-2);
+			}
+		}
+
+		// Content area when expanded
+		> *:not(summary) {
+			padding: 0 var(--spacing--xs) var(--spacing--xs);
+		}
+	}
 }
 </style>
