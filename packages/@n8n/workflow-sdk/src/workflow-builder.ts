@@ -21,8 +21,6 @@ import type {
 } from './types/base';
 import { isNodeChain } from './types/base';
 import { isInputTarget, isIfElseBuilder, isSwitchCaseBuilder } from './node-builder';
-import { generateFromSchema, type JsonSchema } from './pin-data-generator';
-import { loadOutputSchemas, matchSchema } from './output-schema-resolver';
 
 /**
  * Type guard to check if a MergeComposite uses the old named input syntax.
@@ -1889,7 +1887,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 	}
 
 	generatePinData(options?: GeneratePinDataOptions): WorkflowBuilder {
-		const { nodes: filterNodes, hasNoCredentials, beforeWorkflow, seed } = options ?? {};
+		const { nodes: filterNodes, hasNoCredentials, beforeWorkflow } = options ?? {};
 
 		// Build set of existing node names from beforeWorkflow for quick lookup
 		const existingNodeNames = beforeWorkflow
@@ -1918,42 +1916,19 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			);
 		}
 
-		// Generate pin data for each node (mutate in place)
-		if (!this._pinData) {
-			this._pinData = {};
-		}
-
+		// Generate pin data for each node using output declarations
 		for (const graphNode of nodesToProcess) {
 			const node = graphNode.instance;
-			const outputSchema = this.resolveOutputSchema(node);
 
-			if (!outputSchema) {
-				// Silent skip for nodes without output schemas
-				continue;
+			// Use output declaration directly as pinData
+			const output = node.config?.output;
+			if (output && output.length > 0) {
+				this._pinData = this._pinData ?? {};
+				this._pinData[node.name] = output;
 			}
-
-			const params = (node.config?.parameters as Record<string, unknown>) ?? {};
-			const operation = params.operation;
-			const itemCount = operation === 'getAll' ? 2 : 1;
-
-			const pinData = generateFromSchema(outputSchema, itemCount, { seed });
-			this._pinData[node.name] = pinData;
 		}
 
 		return this;
-	}
-
-	/**
-	 * Resolves the output schema for a node based on its type, version, and parameters
-	 */
-	private resolveOutputSchema(node: NodeInstance<string, string, unknown>): JsonSchema | undefined {
-		const outputSchemas = loadOutputSchemas(node.type, node.version);
-		if (!outputSchemas) {
-			return undefined;
-		}
-
-		const params = (node.config?.parameters as Record<string, unknown>) ?? {};
-		return matchSchema(outputSchemas, params);
 	}
 
 	/**
