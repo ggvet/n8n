@@ -127,6 +127,82 @@ describe('TextEditorHandler', () => {
 			expect(handler.getWorkflowCode()).toBe('const x = 1;\nconst y = 3;');
 		});
 
+		it("should handle special replacement patterns like $' in new_str", () => {
+			// $' is a special pattern in String.prototype.replace() that inserts
+			// the portion of the string that follows the matched substring
+			handler.setWorkflowCode('const pattern = "";\nconst other = "test";');
+
+			handler.execute({
+				command: 'str_replace',
+				path: '/workflow.ts',
+				old_str: 'const pattern = "";',
+				new_str: "const pattern = '^\\\\d{4}-\\\\d{2}-\\\\d{2}$';",
+			});
+
+			// Without fix: $' would cause 'const other = "test";' to be duplicated
+			expect(handler.getWorkflowCode()).toBe(
+				'const pattern = \'^\\\\d{4}-\\\\d{2}-\\\\d{2}$\';\nconst other = "test";',
+			);
+		});
+
+		it('should handle $& replacement pattern in new_str', () => {
+			// $& inserts the matched substring
+			handler.setWorkflowCode('const x = "hello";');
+
+			handler.execute({
+				command: 'str_replace',
+				path: '/workflow.ts',
+				old_str: 'const x = "hello";',
+				new_str: 'const x = "$&world";',
+			});
+
+			expect(handler.getWorkflowCode()).toBe('const x = "$&world";');
+		});
+
+		it('should handle $` replacement pattern in new_str', () => {
+			// $` inserts the portion of the string that precedes the matched substring
+			handler.setWorkflowCode('const prefix = "before";\nconst x = "test";');
+
+			handler.execute({
+				command: 'str_replace',
+				path: '/workflow.ts',
+				old_str: 'const x = "test";',
+				new_str: 'const x = "$`value";',
+			});
+
+			expect(handler.getWorkflowCode()).toBe('const prefix = "before";\nconst x = "$`value";');
+		});
+
+		it('should handle $$ literally in new_str', () => {
+			// $$ is a special pattern in String.prototype.replace() that inserts a literal $
+			// But we want literal replacement, so $$ should remain $$
+			handler.setWorkflowCode('const price = 0;');
+
+			handler.execute({
+				command: 'str_replace',
+				path: '/workflow.ts',
+				old_str: 'const price = 0;',
+				new_str: 'const price = "$$100";',
+			});
+
+			// With literal replacement, $$ should remain $$ in the output
+			expect(handler.getWorkflowCode()).toBe('const price = "$$100";');
+		});
+
+		it('should handle $n (capture group) patterns in new_str', () => {
+			// $1, $2, etc. reference capture groups (which don't exist in literal replacement)
+			handler.setWorkflowCode('const regex = /test/;');
+
+			handler.execute({
+				command: 'str_replace',
+				path: '/workflow.ts',
+				old_str: 'const regex = /test/;',
+				new_str: 'const regex = /($1|$2)/;',
+			});
+
+			expect(handler.getWorkflowCode()).toBe('const regex = /($1|$2)/;');
+		});
+
 		it('should throw NoMatchFoundError when no match found', () => {
 			handler.setWorkflowCode('const x = 1;');
 

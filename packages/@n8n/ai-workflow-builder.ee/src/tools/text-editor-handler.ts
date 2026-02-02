@@ -196,8 +196,11 @@ export class TextEditorHandler {
 		}
 
 		// Replace the single occurrence
+		// Escape $ characters in new_str to prevent special replacement patterns
+		// ($', $&, $`, $1-$9) from being interpreted by String.prototype.replace()
+		const escapedNewStr = new_str.replace(/\$/g, '$$$$');
 		const oldCodeLength = this.code.length;
-		this.code = this.code.replace(old_str, new_str);
+		this.code = this.code.replace(old_str, escapedNewStr);
 		this.debugLog('STR_REPLACE', 'Edit applied successfully', {
 			oldCodeLength,
 			newCodeLength: this.code.length,
