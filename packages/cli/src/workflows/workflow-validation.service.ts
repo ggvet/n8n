@@ -1,6 +1,11 @@
 import { WorkflowRepository } from '@n8n/db';
 import { Service } from '@n8n/di';
-import { validateWorkflowHasTriggerLikeNode, NodeHelpers } from 'n8n-workflow';
+import {
+	validateWorkflowHasTriggerLikeNode,
+	NodeHelpers,
+	ensureError,
+	isNodeConnectionType,
+} from 'n8n-workflow';
 import type { INode, INodes, IConnections, INodeType, NodeConnectionType } from 'n8n-workflow';
 
 import { STARTING_NODES } from '@/constants';
@@ -85,7 +90,7 @@ export class WorkflowValidationService {
 				} catch (nodeError) {
 					issuesFound.push({
 						nodeName: node.name,
-						issues: [`Error validating node: ${(nodeError as Error).message}`],
+						issues: [`Error validating node: ${ensureError(nodeError).message}`],
 					});
 				}
 			}
@@ -110,7 +115,7 @@ export class WorkflowValidationService {
 		} catch (error) {
 			return {
 				isValid: false,
-				error: `Workflow validation failed: ${(error as Error).message}`,
+				error: `Workflow validation failed: ${ensureError(error).message}`,
 			};
 		}
 	}
@@ -148,7 +153,8 @@ export class WorkflowValidationService {
 			for (const [connectionType, connectionArrays] of Object.entries(nodeConnections)) {
 				if (!Array.isArray(connectionArrays)) continue;
 
-				const typedConnectionType = connectionType as NodeConnectionType;
+				if (!isNodeConnectionType(connectionType)) continue;
+				const typedConnectionType: NodeConnectionType = connectionType;
 
 				connectionArrays.forEach((connectionArray, outputIndex) => {
 					if (!Array.isArray(connectionArray)) return;
