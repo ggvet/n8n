@@ -75,6 +75,7 @@ export class CodeWorkflowBuilder {
 			logger: config.logger,
 			generatedTypesDir: config.generatedTypesDir,
 			evalLogger: config.evalLogger,
+			enableTextEditor: true,
 		});
 
 		this.llm = config.llm;
