@@ -18,23 +18,21 @@ const ROLE =
 
 const EXECUTION_SEQUENCE = `Build incrementally in small batches for progressive canvas updates. Users watch the canvas in real-time, so a clean sequence without backtracking creates the best experience.
 
-Batch flow (3-4 nodes per batch):
-1. add_nodes(batch) → configure(batch) → connect(batch) + add_nodes(next batch)
-2. Repeat: configure → connect + add_nodes → until done
-3. Final: configure(last) → connect(last) → validate_structure, validate_configuration
+Parallelization: add_nodes and connect_nodes can be called in the same parallel request. You know node names upfront (you specify them), so connections can be created immediately—no need to wait for nodes to be added first. Maximize parallel tool calls to minimize round trips.
 
-Interleaving: Combine connect_nodes(current) with add_nodes(next) in the same parallel call so users see smooth progressive building.
+Batch pattern: For each batch of 3-4 nodes:
+  add_nodes(batch) + connect(batch) → configure(batch)
 
-Batch size: 3-4 connected nodes per batch.
+Split work efficiently across as few rounds as needed. Small workflows may complete in 2 rounds; larger ones need more. The goal is minimizing rounds while keeping batches manageable (3-4 nodes).
+
+Batch grouping:
 - AI patterns: Agent + sub-nodes (Model, Memory) together, Tools in next batch
 - Parallel branches: Group by logical unit
 
 Example "Webhook → Set → IF → Slack / Email":
-  Round 1: add_nodes(Webhook, Set, IF)
-  Round 2: configure(Webhook, Set, IF)
-  Round 3: connect(Webhook→Set→IF) + add_nodes(Slack, Email)  ← parallel
-  Round 4: configure(Slack, Email)
-  Round 5: connect(IF→Slack, IF→Email), validate_structure, validate_configuration
+  Round 1: add_nodes(Webhook, Set, IF) + connect(Webhook→Set→IF)  ← parallel
+  Round 2: configure(Webhook, Set, IF) + add_nodes(Slack, Email) + connect(IF→Slack, IF→Email)  ← parallel
+  Round 3: configure(Slack, Email), validate_structure, validate_configuration
 
 Validation: Call validate_structure and validate_configuration once at the end. Once both pass, output your summary and stop—the workflow is complete.
 
@@ -42,27 +40,25 @@ Plan all nodes before starting to avoid backtracking.`;
 
 const EXECUTION_SEQUENCE_WITH_EXAMPLES = `Build incrementally in small batches for progressive canvas updates. Users watch the canvas in real-time, so a clean sequence without backtracking creates the best experience.
 
-Batch flow (3-4 nodes per batch):
-1. add_nodes(batch) → configure(batch) → connect(batch) + add_nodes(next batch)
-2. Repeat: configure → connect + add_nodes → until done
-3. Final: configure(last) → connect(last) → validate_structure, validate_configuration
+Parallelization: add_nodes and connect_nodes can be called in the same parallel request. You know node names upfront (you specify them), so connections can be created immediately—no need to wait for nodes to be added first. Maximize parallel tool calls to minimize round trips.
 
 Before configuring nodes, consider using get_node_configuration_examples to see how community templates configure similar nodes. This is especially valuable for complex nodes where parameter structure isn't obvious from the schema alone.
 
 For nodes with non-standard connection patterns (Switch, IF, splitInBatches), get_node_connection_examples shows how experienced users connect these nodes—preventing mistakes like connecting to the wrong output index.
 
-Interleaving: Combine connect_nodes(current) with add_nodes(next) in the same parallel call so users see smooth progressive building.
+Batch pattern: For each batch of 3-4 nodes:
+  add_nodes(batch) + connect(batch) → configure(batch)
 
-Batch size: 3-4 connected nodes per batch.
+Split work efficiently across as few rounds as needed. Small workflows may complete in 2 rounds; larger ones need more. The goal is minimizing rounds while keeping batches manageable (3-4 nodes).
+
+Batch grouping:
 - AI patterns: Agent + sub-nodes (Model, Memory) together, Tools in next batch
 - Parallel branches: Group by logical unit
 
 Example "Webhook → Set → IF → Slack / Email":
-  Round 1: add_nodes(Webhook, Set, IF)
-  Round 2: configure(Webhook, Set, IF)
-  Round 3: connect(Webhook→Set→IF) + add_nodes(Slack, Email)  ← parallel
-  Round 4: configure(Slack, Email)
-  Round 5: connect(IF→Slack, IF→Email), validate_structure, validate_configuration
+  Round 1: add_nodes(Webhook, Set, IF) + connect(Webhook→Set→IF)  ← parallel
+  Round 2: configure(Webhook, Set, IF) + add_nodes(Slack, Email) + connect(IF→Slack, IF→Email)  ← parallel
+  Round 3: configure(Slack, Email), validate_structure, validate_configuration
 
 Validation: Use validate_structure and validate_configuration once at the end. Once both pass, output your summary and stop—the workflow is complete.
 
