@@ -30,7 +30,7 @@ export const useCredentialsAppSelectionStore = defineStore(
 			() => currentVariant.value === CREDENTIALS_APP_SELECTION_EXPERIMENT.variant,
 		);
 
-		const userIsTrialing = computed(() => true || cloudPlanStore.userIsTrialing);
+		const userIsTrialing = computed(() => cloudPlanStore.userIsTrialing);
 
 		const isFeatureEnabled = computed(() => {
 			if (isDismissed.value) {

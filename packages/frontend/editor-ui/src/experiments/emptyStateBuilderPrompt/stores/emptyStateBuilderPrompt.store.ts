@@ -55,9 +55,7 @@ export const useEmptyStateBuilderPromptStore = defineStore(
 			() => currentVariant.value === EMPTY_STATE_EXPERIMENT.variantBuilderPrompt,
 		);
 
-		const isFeatureEnabled = computed(
-			() => true || (cloudPlanStore.userIsTrialing && isVariant.value),
-		);
+		const isFeatureEnabled = computed(() => cloudPlanStore.userIsTrialing && isVariant.value);
 
 		// Create workflow and navigate
 		async function createWorkflowWithPrompt(
