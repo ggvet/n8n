@@ -64,7 +64,6 @@ export interface BatchReporter {
  * Output type for update node parameters tool
  */
 export interface UpdateNodeParametersOutput {
-	nodeId: string;
 	nodeName: string;
 	nodeType: string;
 	updatedParameters: INodeParameters;
@@ -99,7 +98,6 @@ export interface ConnectNodesOutput {
  * Output type for remove node tool
  */
 export interface RemoveNodeOutput {
-	removedNodeId: string;
 	removedNodeName: string;
 	removedNodeType: string;
 	connectionsRemoved: number;
@@ -150,7 +148,6 @@ export interface RemoveConnectionOutput {
  * Output type for rename node tool
  */
 export interface RenameNodeOutput {
-	nodeId: string;
 	oldName: string;
 	newName: string;
 	message: string;

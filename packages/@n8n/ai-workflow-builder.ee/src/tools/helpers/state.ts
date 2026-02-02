@@ -55,20 +55,20 @@ export function addNodesToWorkflow(nodes: INode[]): Partial<typeof WorkflowState
 /**
  * Remove a node from the workflow state
  */
-export function removeNodeFromWorkflow(nodeId: string): Partial<typeof WorkflowState.State> {
+export function removeNodeFromWorkflow(nodeName: string): Partial<typeof WorkflowState.State> {
 	// Return an operation to remove nodes
 	return {
-		workflowOperations: [{ type: 'removeNode', nodeIds: [nodeId] }],
+		workflowOperations: [{ type: 'removeNode', nodeNames: [nodeName] }],
 	};
 }
 
 /**
  * Remove multiple nodes from the workflow state
  */
-export function removeNodesFromWorkflow(nodeIds: string[]): Partial<typeof WorkflowState.State> {
+export function removeNodesFromWorkflow(nodeNames: string[]): Partial<typeof WorkflowState.State> {
 	// Return an operation to remove nodes
 	return {
-		workflowOperations: [{ type: 'removeNode', nodeIds }],
+		workflowOperations: [{ type: 'removeNode', nodeNames }],
 	};
 }
 
@@ -77,17 +77,19 @@ export function removeNodesFromWorkflow(nodeIds: string[]): Partial<typeof Workf
  */
 export function updateNodeInWorkflow(
 	state: typeof WorkflowState.State,
-	nodeId: string,
+	nodeName: string,
 	updates: Partial<INode>,
 ): Partial<typeof WorkflowState.State> {
-	const existingNode = state.workflowJSON.nodes.find((n) => n.id === nodeId);
+	const existingNode = state.workflowJSON.nodes.find(
+		(n) => n.name.toLowerCase() === nodeName.toLowerCase(),
+	);
 	if (!existingNode) {
 		return {};
 	}
 
 	// Return an operation to update the node
 	return {
-		workflowOperations: [{ type: 'updateNode', nodeId, updates }],
+		workflowOperations: [{ type: 'updateNode', nodeName, updates }],
 	};
 }
 
@@ -141,11 +143,10 @@ export function removeConnectionFromWorkflow(
  * Rename a node in the workflow state
  */
 export function renameNodeInWorkflow(
-	nodeId: string,
 	oldName: string,
 	newName: string,
 ): Partial<typeof WorkflowState.State> {
 	return {
-		workflowOperations: [{ type: 'renameNode', nodeId, oldName, newName }],
+		workflowOperations: [{ type: 'renameNode', oldName, newName }],
 	};
 }

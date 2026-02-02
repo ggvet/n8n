@@ -50,7 +50,7 @@ describe('RenameNodeTool', () => {
 
 			const result = await renameNodeTool.invoke(
 				{
-					nodeId: 'node1',
+					nodeName: 'Code',
 					newName: 'Process Data',
 				},
 				mockConfig,
@@ -62,7 +62,6 @@ describe('RenameNodeTool', () => {
 			const operation = content.update.workflowOperations?.[0];
 			expect(operation).toMatchObject({
 				type: 'renameNode',
-				nodeId: 'node1',
 				oldName: 'Code',
 				newName: 'Process Data',
 			});
@@ -107,7 +106,7 @@ describe('RenameNodeTool', () => {
 
 			const result = await renameNodeTool.invoke(
 				{
-					nodeId: 'node1',
+					nodeName: 'Code',
 					newName: 'Process Data',
 				},
 				mockConfig,
@@ -146,7 +145,7 @@ describe('RenameNodeTool', () => {
 
 			const result = await renameNodeTool.invoke(
 				{
-					nodeId: 'node2',
+					nodeName: 'HTTP Request',
 					newName: 'Send Request',
 				},
 				mockConfig,
@@ -189,7 +188,7 @@ describe('RenameNodeTool', () => {
 
 			const result = await renameNodeTool.invoke(
 				{
-					nodeId: 'model1',
+					nodeName: 'OpenAI Chat Model',
 					newName: 'GPT-4 Model',
 				},
 				mockConfig,
@@ -201,7 +200,6 @@ describe('RenameNodeTool', () => {
 			const operation = content.update.workflowOperations?.[0];
 			expect(operation).toMatchObject({
 				type: 'renameNode',
-				nodeId: 'model1',
 				oldName: 'OpenAI Chat Model',
 				newName: 'GPT-4 Model',
 			});
@@ -223,7 +221,7 @@ describe('RenameNodeTool', () => {
 
 			const result = await renameNodeTool.invoke(
 				{
-					nodeId: 'nonexistent',
+					nodeName: 'nonexistent',
 					newName: 'New Name',
 				},
 				mockConfig,
@@ -250,7 +248,7 @@ describe('RenameNodeTool', () => {
 
 			const result = await renameNodeTool.invoke(
 				{
-					nodeId: 'node1',
+					nodeName: 'Code',
 					newName: 'Code',
 				},
 				mockConfig,
@@ -273,7 +271,7 @@ describe('RenameNodeTool', () => {
 
 			const result = await renameNodeTool.invoke(
 				{
-					nodeId: 'node1',
+					nodeName: 'Code',
 					newName: 'HTTP Request', // Conflicts with existing node
 				},
 				mockConfig,
@@ -297,7 +295,7 @@ describe('RenameNodeTool', () => {
 			await expect(
 				renameNodeTool.invoke(
 					{
-						nodeId: 'node1',
+						nodeName: 'Code',
 						newName: '',
 					},
 					mockConfig,
@@ -319,7 +317,7 @@ describe('RenameNodeTool', () => {
 
 			const result = await renameNodeTool.invoke(
 				{
-					nodeId: 'node1',
+					nodeName: 'Code',
 					newName: 'My Custom Code',
 				},
 				mockConfig,
@@ -370,7 +368,7 @@ describe('RenameNodeTool', () => {
 
 			const result = await renameNodeTool.invoke(
 				{
-					nodeId: 'node2',
+					nodeName: 'Code',
 					newName: 'Transform Data',
 				},
 				mockConfig,
@@ -382,7 +380,6 @@ describe('RenameNodeTool', () => {
 			const operation = content.update.workflowOperations?.[0];
 			expect(operation).toMatchObject({
 				type: 'renameNode',
-				nodeId: 'node2',
 				oldName: 'Code',
 				newName: 'Transform Data',
 			});

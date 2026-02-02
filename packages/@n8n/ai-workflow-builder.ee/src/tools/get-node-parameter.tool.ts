@@ -15,7 +15,7 @@ import type { BuilderTool, BuilderToolBase } from '@/utils/stream-processor';
 import { ValidationError, ToolExecutionError } from '../errors';
 import { createProgressReporter, reportProgress } from './helpers/progress';
 import { createSuccessResponse, createErrorResponse } from './helpers/response';
-import { validateNodeExists, createNodeNotFoundError } from './helpers/validation';
+import { findNodeByName, createNodeNotFoundError } from './helpers/validation';
 import type { GetNodeParameterOutput } from '../types/tools';
 
 const DISPLAY_TITLE = 'Getting node parameter';
@@ -24,7 +24,7 @@ const DISPLAY_TITLE = 'Getting node parameter';
  * Schema for getting specific node parameter
  */
 const getNodeParameterSchema = z.object({
-	nodeId: z.string().describe('The ID of the node to extract parameter value'),
+	nodeName: z.string().describe('The name of the node to extract parameter value'),
 	path: z
 		.string()
 		.describe('Path to the specific parameter to extract, e.g., "url" or "options.baseUrl"'),
@@ -77,24 +77,24 @@ export function createGetNodeParameterTool(logger?: Logger): BuilderTool {
 			try {
 				// Validate input using Zod schema
 				const validatedInput = getNodeParameterSchema.parse(input);
-				const { nodeId, path } = validatedInput;
+				const { nodeName, path } = validatedInput;
 
 				// Report tool start
 				reporter.start(validatedInput);
 
 				// Report progress
-				logger?.debug(`Looking up parameter ${path} for ${nodeId}...`);
-				reportProgress(reporter, `Looking up parameter ${path} for ${nodeId}...`);
+				logger?.debug(`Looking up parameter ${path} for "${nodeName}"...`);
+				reportProgress(reporter, `Looking up parameter ${path} for "${nodeName}"...`);
 
 				// Get current state
 				const state = getWorkflowState();
 				const workflow = getCurrentWorkflow(state);
 
-				// Find the node
-				const node = validateNodeExists(nodeId, workflow.nodes);
+				// Find the node by name
+				const node = findNodeByName(nodeName, workflow.nodes);
 				if (!node) {
-					logger?.debug(`Node with ID ${nodeId} not found`);
-					const error = createNodeNotFoundError(nodeId);
+					logger?.debug(`Node "${nodeName}" not found`);
+					const error = createNodeNotFoundError(nodeName);
 					reporter.error(error);
 					return createErrorResponse(config, error);
 				}
@@ -106,7 +106,7 @@ export function createGetNodeParameterTool(logger?: Logger): BuilderTool {
 					const error = new ValidationError(
 						`Parameter path "${path}" not found in node "${node.name}"`,
 						{
-							extra: { nodeId, path },
+							extra: { nodeName, path },
 						},
 					);
 					reporter.error(error);
@@ -119,7 +119,11 @@ export function createGetNodeParameterTool(logger?: Logger): BuilderTool {
 				const formattedParameterValue = formatNodeParameter(path, parameterValue);
 
 				if (formattedParameterValue.length > MAX_PARAMETER_VALUE_LENGTH) {
-					const error = createNodeParameterTooLargeError(nodeId, path, MAX_PARAMETER_VALUE_LENGTH);
+					const error = createNodeParameterTooLargeError(
+						node.name,
+						path,
+						MAX_PARAMETER_VALUE_LENGTH,
+					);
 					reporter.error(error);
 					return createErrorResponse(config, error);
 				}

@@ -118,20 +118,20 @@ export function createNodeTypeNotFoundError(nodeTypeName: string): ToolError {
  * Create a node parameter is too large error
  */
 export function createNodeParameterTooLargeError(
-	nodeId: string,
+	nodeName: string,
 	parameter: string,
 	maxSize: number,
 ): ToolError {
 	const error = new ParameterTooLargeError('Parameter value is too large to retrieve', {
 		parameter,
-		nodeId,
+		nodeName,
 		maxSize,
 	});
 
 	return {
 		message: error.message,
 		code: 'NODE_PARAMETER_TOO_LARGE',
-		details: { nodeId, parameter, maxSize: maxSize.toString() },
+		details: { nodeName, parameter, maxSize: maxSize.toString() },
 	};
 }
 

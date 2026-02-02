@@ -45,32 +45,31 @@ function applyRemoveNodeOperation(
 ): SimpleWorkflow {
 	if (operation.type !== 'removeNode') return workflow;
 
-	const nodesToRemove = new Set(operation.nodeIds);
+	// nodeNames contains the names of nodes to remove
+	const nodeNamesToRemove = new Set(operation.nodeNames);
 
-	// Build a set of node names to remove (connections are keyed by node name in n8n)
-	const nodeNamesToRemove = new Set<string>();
-	for (const node of workflow.nodes) {
-		if (nodesToRemove.has(node.id)) {
-			nodeNamesToRemove.add(node.name);
-		}
-	}
-
-	// Filter out removed nodes
-	const nodes = workflow.nodes.filter((node) => !nodesToRemove.has(node.id));
+	// Filter out removed nodes by name (case-insensitive)
+	const nodes = workflow.nodes.filter(
+		(node) => !nodeNamesToRemove.has(node.name) && !hasMatchingName(node.name, nodeNamesToRemove),
+	);
 
 	// Clean up connections
 	const cleanedConnections: IConnections = {};
 
 	// Copy connections, excluding those from/to removed nodes (using node names)
 	for (const [sourceName, nodeConnections] of Object.entries(workflow.connections)) {
-		if (!nodeNamesToRemove.has(sourceName)) {
+		if (!nodeNamesToRemove.has(sourceName) && !hasMatchingName(sourceName, nodeNamesToRemove)) {
 			cleanedConnections[sourceName] = {};
 
 			for (const [connectionType, outputs] of Object.entries(nodeConnections)) {
 				if (Array.isArray(outputs)) {
 					cleanedConnections[sourceName][connectionType] = outputs.map((outputConnections) => {
 						if (Array.isArray(outputConnections)) {
-							return outputConnections.filter((conn) => !nodeNamesToRemove.has(conn.node));
+							return outputConnections.filter(
+								(conn) =>
+									!nodeNamesToRemove.has(conn.node) &&
+									!hasMatchingName(conn.node, nodeNamesToRemove),
+							);
 						}
 						return outputConnections;
 					});
@@ -84,6 +83,19 @@ function applyRemoveNodeOperation(
 		nodes,
 		connections: cleanedConnections,
 	};
+}
+
+/**
+ * Check if a name matches any name in the set (case-insensitive)
+ */
+function hasMatchingName(name: string, names: Set<string>): boolean {
+	const lowerName = name.toLowerCase();
+	for (const n of names) {
+		if (n.toLowerCase() === lowerName) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
@@ -120,7 +132,8 @@ function applyUpdateNodeOperation(
 	if (operation.type !== 'updateNode') return workflow;
 
 	const nodes = workflow.nodes.map((node) => {
-		if (node.id === operation.nodeId) {
+		// Match by name (case-insensitive)
+		if (node.name.toLowerCase() === operation.nodeName.toLowerCase()) {
 			return { ...node, ...operation.updates };
 		}
 		return node;
@@ -309,6 +322,7 @@ function applyRenameNodeOperation(
 ): SimpleWorkflow {
 	if (operation.type !== 'renameNode') return workflow;
 
+	// Operation now just has oldName and newName (no nodeId needed)
 	const { oldName, newName } = operation;
 
 	// Create a Workflow instance to leverage its renameNode method

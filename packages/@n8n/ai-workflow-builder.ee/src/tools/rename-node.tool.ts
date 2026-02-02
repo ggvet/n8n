@@ -9,13 +9,13 @@ import type { RenameNodeOutput } from '../types/tools';
 import { createProgressReporter, reportProgress } from './helpers/progress';
 import { createSuccessResponse, createErrorResponse } from './helpers/response';
 import { getCurrentWorkflow, getWorkflowState, renameNodeInWorkflow } from './helpers/state';
-import { createNodeNotFoundError, validateNodeExists } from './helpers/validation';
+import { createNodeNotFoundError, findNodeByName } from './helpers/validation';
 
 /**
  * Schema for renaming a node
  */
 export const renameNodeSchema = z.object({
-	nodeId: z.string().describe('The UUID of the node to rename'),
+	nodeName: z.string().describe('The current name of the node to rename'),
 	newName: z.string().min(1).describe('The new name for the node'),
 });
 
@@ -51,10 +51,10 @@ export function createRenameNodeTool(logger?: Logger): BuilderTool {
 				const workflow = getCurrentWorkflow(state);
 
 				reportProgress(reporter, 'Finding node to rename...');
-				const node = validateNodeExists(validatedInput.nodeId, workflow.nodes);
+				const node = findNodeByName(validatedInput.nodeName, workflow.nodes);
 
 				if (!node) {
-					const error = createNodeNotFoundError(validatedInput.nodeId);
+					const error = createNodeNotFoundError(validatedInput.nodeName);
 					reporter.error(error);
 					return createErrorResponse(config, error);
 				}
@@ -71,7 +71,6 @@ export function createRenameNodeTool(logger?: Logger): BuilderTool {
 						message: validationError.message,
 						code: 'SAME_NAME',
 						details: {
-							nodeId: validatedInput.nodeId,
 							currentName: oldName,
 							newName,
 						},
@@ -81,7 +80,7 @@ export function createRenameNodeTool(logger?: Logger): BuilderTool {
 				}
 
 				const existingNode = workflow.nodes.find(
-					(n) => n.name === newName && n.id !== validatedInput.nodeId,
+					(n) => n.name.toLowerCase() === newName.toLowerCase() && n.name !== oldName,
 				);
 				if (existingNode) {
 					const validationError = new ValidationError(
@@ -95,9 +94,8 @@ export function createRenameNodeTool(logger?: Logger): BuilderTool {
 						message: validationError.message,
 						code: 'NAME_CONFLICT',
 						details: {
-							nodeId: validatedInput.nodeId,
 							newName,
-							conflictingNodeId: existingNode.id,
+							conflictingNodeName: existingNode.name,
 						},
 					};
 					reporter.error(error);
@@ -113,13 +111,12 @@ export function createRenameNodeTool(logger?: Logger): BuilderTool {
 
 				logger?.debug('Node will be renamed');
 				const output: RenameNodeOutput = {
-					nodeId: validatedInput.nodeId,
 					oldName,
 					newName,
 					message,
 				};
 
-				const stateUpdates = renameNodeInWorkflow(validatedInput.nodeId, oldName, newName);
+				const stateUpdates = renameNodeInWorkflow(oldName, newName);
 				reporter.complete(output);
 				return createSuccessResponse(config, message, stateUpdates);
 			} catch (error) {
@@ -154,15 +151,15 @@ USAGE:
 Use this tool when you need to give a node a more descriptive or meaningful name.
 
 PARAMETERS:
-- nodeId: The UUID of the node to rename
+- nodeName: The current name of the node to rename
 - newName: The new name for the node (must be unique in the workflow)
 
 EXAMPLES:
 1. Rename a generic node:
-   nodeId: "abc-123", newName: "Process Customer Data"
+   nodeName: "HTTP Request", newName: "Fetch Customer Data"
 
 2. Rename after duplicating:
-   nodeId: "def-456", newName: "Send Welcome Email"
+   nodeName: "Code1", newName: "Process Order"
 
 NOTES:
 - The node must exist in the workflow

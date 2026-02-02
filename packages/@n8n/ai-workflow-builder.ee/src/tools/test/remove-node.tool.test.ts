@@ -52,14 +52,14 @@ describe('RemoveNodeTool', () => {
 
 			const result = await removeNodeTool.invoke(
 				{
-					nodeId: 'node1',
+					nodeName: 'Code',
 				},
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
-			expectNodeRemoved(content, 'node1');
+			expectNodeRemoved(content, 'Code');
 			expectToolSuccess(content, 'Successfully removed node "Code" (n8n-nodes-base.code)');
 
 			// Check progress messages
@@ -69,17 +69,16 @@ describe('RemoveNodeTool', () => {
 			const startMessage = findProgressMessage(progressCalls, 'running', 'input');
 			expect(startMessage).toBeDefined();
 			expect(startMessage?.updates[0]?.data).toMatchObject({
-				nodeId: 'node1',
+				nodeName: 'Code',
 			});
 
 			const progressMessage = findProgressMessage(progressCalls, 'running', 'progress');
 			expect(progressMessage).toBeDefined();
-			expect(progressMessage?.updates[0]?.data?.message).toContain('Removing node node1');
+			expect(progressMessage?.updates[0]?.data?.message).toContain('Removing node "Code"');
 
 			const completeMessage = findProgressMessage(progressCalls, 'completed');
 			expect(completeMessage).toBeDefined();
 			expect(completeMessage?.updates[0]?.data).toMatchObject({
-				removedNodeId: 'node1',
 				removedNodeName: 'Code',
 				removedNodeType: 'n8n-nodes-base.code',
 				connectionsRemoved: 0,
@@ -91,10 +90,10 @@ describe('RemoveNodeTool', () => {
 				createNode({ id: 'node1', name: 'Code' }),
 				createNode({ id: 'node2', name: 'HTTP Request' }),
 			]);
-			// Add connection from node1 to node2
+			// Add connection from Code to HTTP Request (keyed by node name)
 			existingWorkflow.connections = {
-				node1: {
-					main: [[createConnection('node1', 'node2')]],
+				Code: {
+					main: [[createConnection('Code', 'HTTP Request')]],
 				},
 			};
 			setupWorkflowState(mockGetCurrentTaskInput, existingWorkflow);
@@ -103,14 +102,14 @@ describe('RemoveNodeTool', () => {
 
 			const result = await removeNodeTool.invoke(
 				{
-					nodeId: 'node1',
+					nodeName: 'Code',
 				},
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
-			expectNodeRemoved(content, 'node1');
+			expectNodeRemoved(content, 'Code');
 			expectToolSuccess(content, 'Successfully removed node "Code"');
 			expect(content.update.messages[0]?.kwargs.content).toContain('Removed 1 connection');
 		});
@@ -121,13 +120,13 @@ describe('RemoveNodeTool', () => {
 				createNode({ id: 'node2', name: 'HTTP Request' }),
 				createNode({ id: 'node3', name: 'Set' }),
 			]);
-			// Add connections: node1 -> node2, node2 -> node3
+			// Add connections: Code -> HTTP Request, HTTP Request -> Set (keyed by node name)
 			existingWorkflow.connections = {
-				node1: {
-					main: [[createConnection('node1', 'node2')]],
+				Code: {
+					main: [[createConnection('Code', 'HTTP Request')]],
 				},
-				node2: {
-					main: [[createConnection('node2', 'node3')]],
+				'HTTP Request': {
+					main: [[createConnection('HTTP Request', 'Set')]],
 				},
 			};
 			setupWorkflowState(mockGetCurrentTaskInput, existingWorkflow);
@@ -136,14 +135,14 @@ describe('RemoveNodeTool', () => {
 
 			const result = await removeNodeTool.invoke(
 				{
-					nodeId: 'node2',
+					nodeName: 'HTTP Request',
 				},
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
-			expectNodeRemoved(content, 'node2');
+			expectNodeRemoved(content, 'HTTP Request');
 			expectToolSuccess(content, 'Successfully removed node "HTTP Request"');
 			expect(content.update.messages[0]?.kwargs.content).toContain('Removed 2 connections');
 		});
@@ -156,22 +155,22 @@ describe('RemoveNodeTool', () => {
 				createNode({ id: 'node4', name: 'Code2' }),
 				createNode({ id: 'node5', name: 'Set' }),
 			]);
-			// Complex connections: node1 -> node2, node2 has two outputs -> node3 and node4, both converge to node5
+			// Complex connections keyed by node name
 			existingWorkflow.connections = {
-				node1: {
-					main: [[createConnection('node1', 'node2')]],
+				Webhook: {
+					main: [[createConnection('Webhook', 'If')]],
 				},
-				node2: {
+				If: {
 					main: [
-						[createConnection('node2', 'node3')], // true branch
-						[createConnection('node2', 'node4')], // false branch
+						[createConnection('If', 'Code1')], // true branch
+						[createConnection('If', 'Code2')], // false branch
 					],
 				},
-				node3: {
-					main: [[createConnection('node3', 'node5')]],
+				Code1: {
+					main: [[createConnection('Code1', 'Set')]],
 				},
-				node4: {
-					main: [[createConnection('node4', 'node5')]],
+				Code2: {
+					main: [[createConnection('Code2', 'Set')]],
 				},
 			};
 			setupWorkflowState(mockGetCurrentTaskInput, existingWorkflow);
@@ -180,14 +179,14 @@ describe('RemoveNodeTool', () => {
 
 			const result = await removeNodeTool.invoke(
 				{
-					nodeId: 'node2',
+					nodeName: 'If',
 				},
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
-			expectNodeRemoved(content, 'node2');
+			expectNodeRemoved(content, 'If');
 			expectToolSuccess(content, 'Successfully removed node "If"');
 			expect(content.update.messages[0]?.kwargs.content).toContain('Removed 3 connections');
 		});
@@ -200,13 +199,13 @@ describe('RemoveNodeTool', () => {
 
 			const result = await removeNodeTool.invoke(
 				{
-					nodeId: 'non-existent',
+					nodeName: 'Non-existent',
 				},
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
-			expectToolError(content, 'Error: Node with ID "non-existent" not found in workflow');
+			expectToolError(content, 'Error: Node "Non-existent" not found in workflow');
 		});
 
 		it('should handle removing node with AI connections', async () => {
@@ -223,14 +222,16 @@ describe('RemoveNodeTool', () => {
 					type: '@n8n/n8n-nodes-langchain.toolCalculator',
 				}),
 			]);
-			// AI connections: OpenAI -> Agent, Calculator -> Agent
+			// AI connections keyed by node name
 			existingWorkflow.connections = {
-				node1: {
+				'OpenAI Chat Model': {
 					// eslint-disable-next-line @typescript-eslint/naming-convention
-					ai_languageModel: [[createConnection('node1', 'node2', 'ai_languageModel')]],
+					ai_languageModel: [
+						[createConnection('OpenAI Chat Model', 'AI Agent', 'ai_languageModel')],
+					],
 				},
-				node3: {
-					ai_tool: [[createConnection('node3', 'node2', 'ai_tool')]],
+				'Calculator Tool': {
+					ai_tool: [[createConnection('Calculator Tool', 'AI Agent', 'ai_tool')]],
 				},
 			};
 			setupWorkflowState(mockGetCurrentTaskInput, existingWorkflow);
@@ -239,14 +240,14 @@ describe('RemoveNodeTool', () => {
 
 			const result = await removeNodeTool.invoke(
 				{
-					nodeId: 'node2',
+					nodeName: 'AI Agent',
 				},
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
-			expectNodeRemoved(content, 'node2');
+			expectNodeRemoved(content, 'AI Agent');
 			expectToolSuccess(content, 'Successfully removed node "AI Agent"');
 			expect(content.update.messages[0]?.kwargs.content).toContain('Removed 2 connections');
 		});
@@ -259,7 +260,7 @@ describe('RemoveNodeTool', () => {
 			try {
 				await removeNodeTool.invoke(
 					{
-						// Missing nodeId
+						// Missing nodeName
 					} as Parameters<typeof removeNodeTool.invoke>[0],
 					mockConfig,
 				);
@@ -278,13 +279,13 @@ describe('RemoveNodeTool', () => {
 
 			const result = await removeNodeTool.invoke(
 				{
-					nodeId: 'any-node',
+					nodeName: 'Any Node',
 				},
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
-			expectToolError(content, 'Error: Node with ID "any-node" not found in workflow');
+			expectToolError(content, 'Error: Node "Any Node" not found in workflow');
 		});
 
 		it('should count connections correctly for complex workflows', async () => {
@@ -294,16 +295,16 @@ describe('RemoveNodeTool', () => {
 				createNode({ id: 'node3', name: 'Code2' }),
 				createNode({ id: 'node4', name: 'Set' }),
 			]);
-			// Multiple nodes connecting to merge node
+			// Multiple nodes connecting to merge node (keyed by node name)
 			existingWorkflow.connections = {
-				node2: {
-					main: [[createConnection('node2', 'node1', 'main', 0)]], // to input 0
+				Code1: {
+					main: [[createConnection('Code1', 'Merge', 'main', 0)]], // to input 0
 				},
-				node3: {
-					main: [[createConnection('node3', 'node1', 'main', 1)]], // to input 1
+				Code2: {
+					main: [[createConnection('Code2', 'Merge', 'main', 1)]], // to input 1
 				},
-				node1: {
-					main: [[createConnection('node1', 'node4')]],
+				Merge: {
+					main: [[createConnection('Merge', 'Set')]],
 				},
 			};
 			setupWorkflowState(mockGetCurrentTaskInput, existingWorkflow);
@@ -312,14 +313,14 @@ describe('RemoveNodeTool', () => {
 
 			const result = await removeNodeTool.invoke(
 				{
-					nodeId: 'node1',
+					nodeName: 'Merge',
 				},
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
-			expectNodeRemoved(content, 'node1');
+			expectNodeRemoved(content, 'Merge');
 			expectToolSuccess(content, 'Successfully removed node "Merge"');
 			expect(content.update.messages[0]?.kwargs.content).toContain('Removed 3 connections');
 		});
@@ -329,13 +330,13 @@ describe('RemoveNodeTool', () => {
 				createNode({ id: 'node1', name: 'Loop Node' }),
 				createNode({ id: 'node2', name: 'Other Node' }),
 			]);
-			// Node with self-connection (loop) and external connection
+			// Node with self-connection (loop) and external connection (keyed by node name)
 			existingWorkflow.connections = {
-				node1: {
+				'Loop Node': {
 					main: [
 						[
-							createConnection('node1', 'node1'), // self-connection
-							createConnection('node1', 'node2'), // external connection
+							createConnection('Loop Node', 'Loop Node'), // self-connection
+							createConnection('Loop Node', 'Other Node'), // external connection
 						],
 					],
 				},
@@ -346,20 +347,20 @@ describe('RemoveNodeTool', () => {
 
 			const result = await removeNodeTool.invoke(
 				{
-					nodeId: 'node1',
+					nodeName: 'Loop Node',
 				},
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
-			expectNodeRemoved(content, 'node1');
+			expectNodeRemoved(content, 'Loop Node');
 			expectToolSuccess(content, 'Successfully removed node "Loop Node"');
 			// Should count both self-connection and external connection
 			expect(content.update.messages[0]?.kwargs.content).toContain('Removed 3 connections');
 		});
 
-		it('should handle removing node by exact ID match', async () => {
+		it('should handle removing node by exact name match', async () => {
 			const existingWorkflow = createWorkflow([
 				createNode({ id: 'test-uuid-123', name: 'My Node', type: 'n8n-nodes-base.set' }),
 			]);
@@ -369,23 +370,23 @@ describe('RemoveNodeTool', () => {
 
 			const result = await removeNodeTool.invoke(
 				{
-					nodeId: 'test-uuid-123',
+					nodeName: 'My Node',
 				},
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
-			expectNodeRemoved(content, 'test-uuid-123');
+			expectNodeRemoved(content, 'My Node');
 			expectToolSuccess(content, 'Successfully removed node "My Node" (n8n-nodes-base.set)');
 
-			// Verify progress messages contain the exact node ID
+			// Verify progress messages contain the exact node name
 			const progressMessage = findProgressMessage(
 				extractProgressMessages(mockConfig.writer),
 				'running',
 				'progress',
 			);
-			expect(progressMessage?.updates[0]?.data?.message).toBe('Removing node test-uuid-123');
+			expect(progressMessage?.updates[0]?.data?.message).toBe('Removing node "My Node"');
 		});
 
 		it('should handle different connection types', async () => {
@@ -406,13 +407,13 @@ describe('RemoveNodeTool', () => {
 					type: '@n8n/n8n-nodes-langchain.documentLoader',
 				}),
 			]);
-			// Mixed connection types
+			// Mixed connection types keyed by node name
 			existingWorkflow.connections = {
-				node3: {
-					ai_document: [[createConnection('node3', 'node1', 'ai_document')]],
+				'Document Loader': {
+					ai_document: [[createConnection('Document Loader', 'Vector Store', 'ai_document')]],
 				},
-				node2: {
-					ai_embedding: [[createConnection('node2', 'node1', 'ai_embedding')]],
+				Embeddings: {
+					ai_embedding: [[createConnection('Embeddings', 'Vector Store', 'ai_embedding')]],
 				},
 			};
 			setupWorkflowState(mockGetCurrentTaskInput, existingWorkflow);
@@ -421,14 +422,14 @@ describe('RemoveNodeTool', () => {
 
 			const result = await removeNodeTool.invoke(
 				{
-					nodeId: 'node1',
+					nodeName: 'Vector Store',
 				},
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
-			expectNodeRemoved(content, 'node1');
+			expectNodeRemoved(content, 'Vector Store');
 			expectToolSuccess(content, 'Successfully removed node "Vector Store"');
 			expect(content.update.messages[0]?.kwargs.content).toContain('Removed 2 connections');
 		});
@@ -447,7 +448,7 @@ describe('RemoveNodeTool', () => {
 
 			await removeNodeTool.invoke(
 				{
-					nodeId: 'node-to-remove',
+					nodeName: 'Test Node',
 				},
 				mockConfig,
 			);
@@ -458,7 +459,6 @@ describe('RemoveNodeTool', () => {
 				'completed',
 			);
 			expect(completeMessage?.updates[0]?.data).toEqual({
-				removedNodeId: 'node-to-remove',
 				removedNodeName: 'Test Node',
 				removedNodeType: 'n8n-nodes-base.httpRequest',
 				connectionsRemoved: 0,

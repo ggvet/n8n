@@ -13,16 +13,16 @@ import {
 	getWorkflowState,
 	removeConnectionFromWorkflow,
 } from './helpers/state';
-import { validateNodeExists } from './helpers/validation';
+import { findNodeByName } from './helpers/validation';
 
 /**
  * Schema for removing a connection
  */
 export const removeConnectionSchema = z.object({
-	sourceNodeId: z
+	sourceNodeName: z
 		.string()
-		.describe('The UUID of the source node where the connection originates from'),
-	targetNodeId: z.string().describe('The UUID of the target node where the connection goes to'),
+		.describe('The name of the source node where the connection originates from'),
+	targetNodeName: z.string().describe('The name of the target node where the connection goes to'),
 	connectionType: z
 		.string()
 		.optional()
@@ -92,22 +92,22 @@ export function createRemoveConnectionTool(logger?: Logger): BuilderTool {
 				// Report progress
 				reportProgress(reporter, 'Finding nodes to disconnect...');
 
-				// Find source and target nodes
-				const sourceNode = validateNodeExists(validatedInput.sourceNodeId, workflow.nodes);
-				const targetNode = validateNodeExists(validatedInput.targetNodeId, workflow.nodes);
+				// Find source and target nodes by name
+				const sourceNode = findNodeByName(validatedInput.sourceNodeName, workflow.nodes);
+				const targetNode = findNodeByName(validatedInput.targetNodeName, workflow.nodes);
 
 				// Check if both nodes exist
 				if (!sourceNode || !targetNode) {
-					const missingNodeId = !sourceNode
-						? validatedInput.sourceNodeId
-						: validatedInput.targetNodeId;
-					const nodeError = new NodeNotFoundError(missingNodeId);
+					const missingNodeName = !sourceNode
+						? validatedInput.sourceNodeName
+						: validatedInput.targetNodeName;
+					const nodeError = new NodeNotFoundError(missingNodeName);
 					const error = {
 						message: nodeError.message,
 						code: 'NODES_NOT_FOUND',
 						details: {
-							sourceNodeId: validatedInput.sourceNodeId,
-							targetNodeId: validatedInput.targetNodeId,
+							sourceNodeName: validatedInput.sourceNodeName,
+							targetNodeName: validatedInput.targetNodeName,
 							foundSource: !!sourceNode,
 							foundTarget: !!targetNode,
 						},
@@ -296,8 +296,8 @@ USAGE:
 Use this tool when you need to break an existing connection while keeping both nodes in the workflow.
 
 PARAMETERS:
-- sourceNodeId: The UUID of the node that is the source of the connection (where the data comes from)
-- targetNodeId: The UUID of the node that receives the connection (where the data goes to)
+- sourceNodeName: The name of the node that is the source of the connection (where the data comes from)
+- targetNodeName: The name of the node that receives the connection (where the data goes to)
 - connectionType: The type of connection to remove (default: "main")
   * For regular data flow: "main"
   * For AI connections: "ai_languageModel", "ai_tool", "ai_memory", "ai_embedding", "ai_document", etc.
@@ -306,13 +306,13 @@ PARAMETERS:
 
 EXAMPLES:
 1. Remove main data connection:
-   sourceNodeId: "abc-123", targetNodeId: "def-456", connectionType: "main"
+   sourceNodeName: "HTTP Request", targetNodeName: "Set", connectionType: "main"
 
 2. Remove AI model from AI Agent:
-   sourceNodeId: "model-id", targetNodeId: "agent-id", connectionType: "ai_languageModel"
+   sourceNodeName: "OpenAI Chat Model", targetNodeName: "AI Agent", connectionType: "ai_languageModel"
 
 3. Remove specific connection when multiple exist:
-   sourceNodeId: "node-1", targetNodeId: "node-2", connectionType: "main", sourceOutputIndex: 1, targetInputIndex: 0
+   sourceNodeName: "If", targetNodeName: "Code", connectionType: "main", sourceOutputIndex: 1, targetInputIndex: 0
 
 NOTES:
 - Both nodes must exist in the workflow

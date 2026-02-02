@@ -58,8 +58,8 @@ describe('ConnectNodesTool', () => {
 
 			const result = await connectNodesTool.invoke(
 				{
-					sourceNodeId: 'node1',
-					targetNodeId: 'node2',
+					sourceNodeName: 'Code',
+					targetNodeName: 'HTTP Request',
 				},
 				mockConfig,
 			);
@@ -129,8 +129,8 @@ describe('ConnectNodesTool', () => {
 			const result = await connectNodesTool.invoke(
 				buildConnectNodesInput({
 					// Intentionally backwards - tool should be source, agent should be target
-					sourceNodeId: 'agent1',
-					targetNodeId: 'tool1',
+					sourceNodeName: 'AI Agent',
+					targetNodeName: 'Calculator',
 				}),
 				mockConfig,
 			);
@@ -196,8 +196,8 @@ describe('ConnectNodesTool', () => {
 
 			const result = await connectNodesTool.invoke(
 				buildConnectNodesInput({
-					sourceNodeId: 'model1',
-					targetNodeId: 'agent1',
+					sourceNodeName: 'OpenAI Model',
+					targetNodeName: 'AI Agent',
 				}),
 				mockConfig,
 			);
@@ -231,8 +231,8 @@ describe('ConnectNodesTool', () => {
 
 			const result = await connectNodesTool.invoke(
 				{
-					sourceNodeId: 'node1',
-					targetNodeId: 'node2',
+					sourceNodeName: 'Multi Output',
+					targetNodeName: 'Multi Input',
 					sourceOutputIndex: 1,
 					targetInputIndex: 2,
 				},
@@ -260,8 +260,8 @@ describe('ConnectNodesTool', () => {
 			try {
 				await connectNodesTool.invoke(
 					{
-						sourceNodeId: 'node1',
-						// Missing targetNodeId
+						sourceNodeName: 'Code',
+						// Missing targetNodeName
 					} as Parameters<typeof connectNodesTool.invoke>[0],
 					mockConfig,
 				);
@@ -283,14 +283,14 @@ describe('ConnectNodesTool', () => {
 
 			const result = await connectNodesTool.invoke(
 				{
-					sourceNodeId: 'nonexistent',
-					targetNodeId: 'node1',
+					sourceNodeName: 'Nonexistent',
+					targetNodeName: 'Code',
 				},
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
-			expectToolError(content, 'Error: Node with ID "nonexistent" not found in workflow');
+			expectToolError(content, 'Error: Node "Nonexistent" not found in workflow');
 		});
 
 		it('should handle non-existent target node', async () => {
@@ -303,14 +303,14 @@ describe('ConnectNodesTool', () => {
 
 			const result = await connectNodesTool.invoke(
 				{
-					sourceNodeId: 'node1',
-					targetNodeId: 'nonexistent',
+					sourceNodeName: 'Code',
+					targetNodeName: 'Nonexistent',
 				},
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
-			expectToolError(content, 'Error: Node with ID "nonexistent" not found in workflow');
+			expectToolError(content, 'Error: Node "Nonexistent" not found in workflow');
 		});
 
 		it('should handle invalid connection between incompatible nodes', async () => {
@@ -324,8 +324,8 @@ describe('ConnectNodesTool', () => {
 
 			const result = await connectNodesTool.invoke(
 				{
-					sourceNodeId: 'webhook1',
-					targetNodeId: 'webhook2',
+					sourceNodeName: 'Webhook 1',
+					targetNodeName: 'Webhook 2',
 				},
 				mockConfig,
 			);
@@ -341,10 +341,10 @@ describe('ConnectNodesTool', () => {
 				createNode({ id: 'node2', name: 'HTTP Request', type: 'n8n-nodes-base.httpRequest' }),
 			]);
 
-			// Add existing connection
+			// Add existing connection (keyed by node name)
 			existingWorkflow.connections = {
-				node1: {
-					main: [[{ node: 'node2', type: 'main', index: 0 }]],
+				Code: {
+					main: [[{ node: 'HTTP Request', type: 'main', index: 0 }]],
 				},
 			};
 
@@ -354,8 +354,8 @@ describe('ConnectNodesTool', () => {
 
 			const result = await connectNodesTool.invoke(
 				{
-					sourceNodeId: 'node1',
-					targetNodeId: 'node2',
+					sourceNodeName: 'Code',
+					targetNodeName: 'HTTP Request',
 				},
 				mockConfig,
 			);
@@ -386,8 +386,8 @@ describe('ConnectNodesTool', () => {
 
 			const result = await connectNodesTool.invoke(
 				{
-					sourceNodeId: 'multi1',
-					targetNodeId: 'code1',
+					sourceNodeName: 'Multi Output',
+					targetNodeName: 'Code',
 				},
 				mockConfig,
 			);

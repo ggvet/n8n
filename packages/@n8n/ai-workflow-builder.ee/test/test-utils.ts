@@ -468,8 +468,8 @@ export const expectNodeAdded = (content: ParsedToolContent, expectedNode: Partia
 };
 
 // Expect node was removed
-export const expectNodeRemoved = (content: ParsedToolContent, nodeId: string): void => {
-	expectWorkflowOperation(content, 'removeNode', { nodeIds: [nodeId] });
+export const expectNodeRemoved = (content: ParsedToolContent, nodeName: string): void => {
+	expectWorkflowOperation(content, 'removeNode', { nodeNames: [nodeName] });
 };
 
 // Expect connections were added
@@ -487,11 +487,11 @@ export const expectConnectionsAdded = (
 // Expect node was updated
 export const expectNodeUpdated = (
 	content: ParsedToolContent,
-	nodeId: string,
+	nodeName: string,
 	expectedUpdates?: Record<string, unknown>,
 ): void => {
 	expectWorkflowOperation(content, 'updateNode', {
-		nodeId,
+		nodeName,
 		...(expectedUpdates ? { updates: expect.objectContaining(expectedUpdates) } : {}),
 	});
 };
@@ -517,13 +517,13 @@ export const buildAddNodeInput = (overrides: {
 
 // Build connect nodes input
 export const buildConnectNodesInput = (overrides: {
-	sourceNodeId: string;
-	targetNodeId: string;
+	sourceNodeName: string;
+	targetNodeName: string;
 	sourceOutputIndex?: number;
 	targetInputIndex?: number;
 }) => ({
-	sourceNodeId: overrides.sourceNodeId,
-	targetNodeId: overrides.targetNodeId,
+	sourceNodeName: overrides.sourceNodeName,
+	targetNodeName: overrides.targetNodeName,
 	sourceOutputIndex: overrides.sourceOutputIndex ?? 0,
 	targetInputIndex: overrides.targetInputIndex ?? 0,
 });
@@ -540,8 +540,8 @@ export const buildNodeSearchQuery = (
 });
 
 // Build update node parameters input
-export const buildUpdateNodeInput = (nodeId: string, changes: string[]) => ({
-	nodeId,
+export const buildUpdateNodeInput = (nodeName: string, changes: string[]) => ({
+	nodeName,
 	changes,
 });
 

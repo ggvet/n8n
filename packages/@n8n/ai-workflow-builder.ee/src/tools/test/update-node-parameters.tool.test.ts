@@ -100,13 +100,13 @@ describe('UpdateNodeParametersTool', () => {
 			const mockConfig = createToolConfigWithWriter('update_node_parameters', 'test-call-1');
 
 			const result = await updateNodeParametersTool.invoke(
-				buildUpdateNodeInput('node1', ['Change method to POST', 'Add Content-Type header']),
+				buildUpdateNodeInput('HTTP Request', ['Change method to POST', 'Add Content-Type header']),
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
-			expectNodeUpdated(content, 'node1', {
+			expectNodeUpdated(content, 'HTTP Request', {
 				parameters: expect.objectContaining({
 					method: 'POST',
 					url: 'https://api.example.com',
@@ -122,14 +122,13 @@ describe('UpdateNodeParametersTool', () => {
 			const startMessage = findProgressMessage(progressCalls, 'running', 'input');
 			expect(startMessage).toBeDefined();
 			expect(startMessage?.updates[0]?.data).toMatchObject({
-				nodeId: 'node1',
+				nodeName: 'HTTP Request',
 				changes: ['Change method to POST', 'Add Content-Type header'],
 			});
 
 			const completeMessage = findProgressMessage(progressCalls, 'completed');
 			expect(completeMessage).toBeDefined();
 			expect(completeMessage?.updates[0]?.data).toMatchObject({
-				nodeId: 'node1',
 				nodeName: 'HTTP Request',
 				nodeType: 'n8n-nodes-base.httpRequest',
 				appliedChanges: ['Change method to POST', 'Add Content-Type header'],
@@ -165,13 +164,13 @@ describe('UpdateNodeParametersTool', () => {
 			const mockConfig = createToolConfig('update_node_parameters', 'test-call-2');
 
 			const result = await updateNodeParametersTool.invoke(
-				buildUpdateNodeInput('node1', ['Set status field from response']),
+				buildUpdateNodeInput('Set', ['Set status field from response']),
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
-			expectNodeUpdated(content, 'node1', {
+			expectNodeUpdated(content, 'Set', {
 				parameters: expect.objectContaining({
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 					values: expect.objectContaining({
@@ -214,14 +213,17 @@ describe('UpdateNodeParametersTool', () => {
 			const mockConfig = createToolConfig('update_node_parameters', 'test-call-3');
 
 			const result = await updateNodeParametersTool.invoke(
-				buildUpdateNodeInput('node1', ['Update URL to v2 endpoint', 'Remove authentication']),
+				buildUpdateNodeInput('HTTP Request', [
+					'Update URL to v2 endpoint',
+					'Remove authentication',
+				]),
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
 			// Should remove authentication and keep other parameters
-			expectNodeUpdated(content, 'node1', {
+			expectNodeUpdated(content, 'HTTP Request', {
 				parameters: expect.objectContaining({
 					method: 'GET', // preserved
 					url: 'https://api.example.com/v2', // updated
@@ -241,7 +243,7 @@ describe('UpdateNodeParametersTool', () => {
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
-			expectToolError(content, 'Error: Node with ID "non-existent" not found in workflow');
+			expectToolError(content, 'Error: Node "non-existent" not found in workflow');
 		});
 
 		it('should handle unknown node type', async () => {
@@ -253,7 +255,7 @@ describe('UpdateNodeParametersTool', () => {
 			const mockConfig = createToolConfig('update_node_parameters', 'test-call-5');
 
 			const result = await updateNodeParametersTool.invoke(
-				buildUpdateNodeInput('node1', ['Some change']),
+				buildUpdateNodeInput('Unknown', ['Some change']),
 				mockConfig,
 			);
 
@@ -275,7 +277,7 @@ describe('UpdateNodeParametersTool', () => {
 			const mockConfig = createToolConfig('update_node_parameters', 'test-call-6');
 
 			const result = await updateNodeParametersTool.invoke(
-				buildUpdateNodeInput('node1', ['Add code']),
+				buildUpdateNodeInput('Code', ['Add code']),
 				mockConfig,
 			);
 
@@ -291,7 +293,7 @@ describe('UpdateNodeParametersTool', () => {
 			try {
 				await updateNodeParametersTool.invoke(
 					{
-						nodeId: 'node1',
+						nodeName: 'Some Node',
 						// Missing changes array
 					} as Parameters<typeof updateNodeParametersTool.invoke>[0],
 					mockConfig,
@@ -312,7 +314,7 @@ describe('UpdateNodeParametersTool', () => {
 			try {
 				await updateNodeParametersTool.invoke(
 					{
-						nodeId: 'node1',
+						nodeName: 'Some Node',
 						changes: [],
 					},
 					mockConfig,
@@ -354,14 +356,14 @@ describe('UpdateNodeParametersTool', () => {
 			const mockConfig = createToolConfig('update_node_parameters', 'test-call-9');
 
 			const result = await updateNodeParametersTool.invoke(
-				buildUpdateNodeInput('node1', ['Add value from data']),
+				buildUpdateNodeInput('Set', ['Add value from data']),
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
 			// Should fix the expression prefix
-			expectNodeUpdated(content, 'node1', {
+			expectNodeUpdated(content, 'Set', {
 				parameters: expect.objectContaining({
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 					values: expect.objectContaining({
@@ -418,7 +420,7 @@ describe('UpdateNodeParametersTool', () => {
 			const mockConfig = createToolConfig('update_node_parameters', 'test-call-10');
 
 			const result = await updateNodeParametersTool.invoke(
-				buildUpdateNodeInput('node1', [
+				buildUpdateNodeInput('HTTP Request', [
 					'Add authorization header with API key',
 					'Add custom header from webhook',
 					'Set JSON body with user data',
@@ -487,7 +489,7 @@ describe('UpdateNodeParametersTool', () => {
 			const mockConfig = createToolConfigWithWriter('update_node_parameters', 'test-call-11');
 
 			const result = await customTool.invoke(
-				buildUpdateNodeInput('node1', ['Change method to POST and clear URL']),
+				buildUpdateNodeInput('HTTP Request', ['Change method to POST and clear URL']),
 				mockConfig,
 			);
 
@@ -497,7 +499,7 @@ describe('UpdateNodeParametersTool', () => {
 			expectToolSuccess(content, 'Updated');
 
 			// The parameter update should still happen
-			expectNodeUpdated(content, 'node1', {
+			expectNodeUpdated(content, 'HTTP Request', {
 				parameters: expect.objectContaining({
 					method: 'POST',
 				}),
@@ -516,7 +518,7 @@ describe('UpdateNodeParametersTool', () => {
 			const mockConfig = createToolConfig('update_node_parameters', 'test-call-12');
 
 			const result = await updateNodeParametersTool.invoke(
-				buildUpdateNodeInput('node1', ['Add JavaScript code']),
+				buildUpdateNodeInput('Code', ['Add JavaScript code']),
 				mockConfig,
 			);
 
@@ -548,7 +550,7 @@ describe('UpdateNodeParametersTool', () => {
 			);
 
 			const result = await updateNodeParametersTool.invoke(
-				buildUpdateNodeInput('node1', ['Change method to POST']),
+				buildUpdateNodeInput('HTTP Request', ['Change method to POST']),
 				mockConfig,
 			);
 
@@ -594,7 +596,7 @@ describe('UpdateNodeParametersTool', () => {
 			const mockConfig = createToolConfig('update_node_parameters', 'test-call-13');
 
 			await updateNodeParametersTool.invoke(
-				buildUpdateNodeInput('test-node', ['Update URL']),
+				buildUpdateNodeInput('My HTTP Request', ['Update URL']),
 				mockConfig,
 			);
 
@@ -615,7 +617,6 @@ describe('UpdateNodeParametersTool', () => {
 					}),
 					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 					node_definition: expect.any(String),
-					node_id: 'test-node',
 					node_name: 'My HTTP Request',
 					node_type: 'n8n-nodes-base.httpRequest',
 					current_parameters: JSON.stringify(
@@ -673,13 +674,13 @@ describe('UpdateNodeParametersTool', () => {
 			const mockConfig = createToolConfig('update_node_parameters', 'test-call-14');
 
 			const result = await updateNodeParametersTool.invoke(
-				buildUpdateNodeInput('webhook1', ['Change path to api/v2/webhook', 'Accept POST requests']),
+				buildUpdateNodeInput('Webhook', ['Change path to api/v2/webhook', 'Accept POST requests']),
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
-			expectNodeUpdated(content, 'webhook1', {
+			expectNodeUpdated(content, 'Webhook', {
 				parameters: expect.objectContaining({
 					path: 'api/v2/webhook',
 					httpMethod: 'POST',
@@ -701,7 +702,7 @@ describe('UpdateNodeParametersTool', () => {
 			const changes = ['Add console log statement', 'Log the word "test"', 'Use JavaScript syntax'];
 
 			const result = await updateNodeParametersTool.invoke(
-				buildUpdateNodeInput('node1', changes),
+				buildUpdateNodeInput('Code', changes),
 				mockConfig,
 			);
 
@@ -733,7 +734,7 @@ describe('UpdateNodeParametersTool', () => {
 			);
 
 			const result = await updateNodeParametersTool.invoke(
-				buildUpdateNodeInput('test-node', ['Add field mapping']),
+				buildUpdateNodeInput('Set Node', ['Add field mapping']),
 				mockConfig,
 			);
 
@@ -850,7 +851,9 @@ describe('UpdateNodeParametersTool', () => {
 			const mockConfig = createToolConfig('update_node_parameters', 'test-version-match');
 
 			const result = await testTool.invoke(
-				buildUpdateNodeInput('http-node', ['Set authentication to basicAuth and method to POST']),
+				buildUpdateNodeInput('HTTP Request', [
+					'Set authentication to basicAuth and method to POST',
+				]),
 				mockConfig,
 			);
 
@@ -859,7 +862,7 @@ describe('UpdateNodeParametersTool', () => {
 			expectToolSuccess(content, 'Updated "HTTP Request" (n8n-nodes-base.httpRequest)');
 
 			// Verify that the update was successful and used v2 parameters
-			expectNodeUpdated(content, 'http-node', {
+			expectNodeUpdated(content, 'HTTP Request', {
 				parameters: expect.objectContaining({
 					authentication: 'basicAuth',
 					method: 'POST',
@@ -885,7 +888,7 @@ describe('UpdateNodeParametersTool', () => {
 			const mockConfig = createToolConfig('update_node_parameters', 'test-no-version-match');
 
 			const result = await updateNodeParametersTool.invoke(
-				buildUpdateNodeInput('old-node', ['Add new parameter']),
+				buildUpdateNodeInput('Old Code Node', ['Add new parameter']),
 				mockConfig,
 			);
 
@@ -940,14 +943,14 @@ describe('UpdateNodeParametersTool', () => {
 			const mockConfig = createToolConfig('update_node_parameters', 'test-array-version');
 
 			const result = await testTool.invoke(
-				buildUpdateNodeInput('multi-version-node', ['Change mode to Python']),
+				buildUpdateNodeInput('Multi Version Code', ['Change mode to Python']),
 				mockConfig,
 			);
 
 			const content = parseToolResult<ParsedToolContent>(result);
 
 			expectToolSuccess(content, 'Updated "Multi Version Code" (n8n-nodes-base.code)');
-			expectNodeUpdated(content, 'multi-version-node', {
+			expectNodeUpdated(content, 'Multi Version Code', {
 				parameters: expect.objectContaining({
 					mode: 'python',
 				}),

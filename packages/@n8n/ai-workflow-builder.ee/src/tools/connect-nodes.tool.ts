@@ -15,7 +15,7 @@ import type { SimpleWorkflow } from '../types/workflow';
 import { createProgressReporter, reportProgress } from './helpers/progress';
 import { createSuccessResponse, createErrorResponse } from './helpers/response';
 import { getCurrentWorkflow, getWorkflowState, updateWorkflowConnections } from './helpers/state';
-import { validateNodeExists } from './helpers/validation';
+import { findNodeByName } from './helpers/validation';
 import {
 	validateConnection,
 	formatConnectionMessage,
@@ -27,15 +27,15 @@ import type { ConnectNodesOutput } from '../types/tools';
  * Schema for node connection
  */
 export const nodeConnectionSchema = z.object({
-	sourceNodeId: z
+	sourceNodeName: z
 		.string()
 		.describe(
-			'The UUID of the source node. For ai_* connections (ai_languageModel, ai_tool, etc.), use the sub-node (e.g., OpenAI Chat Model). For main connections, this is the node producing the output',
+			'The name of the source node. For ai_* connections (ai_languageModel, ai_tool, etc.), use the sub-node (e.g., OpenAI Chat Model). For main connections, this is the node producing the output',
 		),
-	targetNodeId: z
+	targetNodeName: z
 		.string()
 		.describe(
-			'The UUID of the target node. For ai_* connections, use the main node that accepts the sub-node (e.g., AI Agent, Basic LLM Chain). For main connections, this is the node receiving the input',
+			'The name of the target node. For ai_* connections, use the main node that accepts the sub-node (e.g., AI Agent, Basic LLM Chain). For main connections, this is the node receiving the input',
 		),
 	sourceOutputIndex: z
 		.number()
@@ -82,22 +82,22 @@ export function createConnectNodesTool(
 				// Report progress
 				reportProgress(reporter, 'Finding nodes to connect...');
 
-				// Find source and target nodes
-				let matchedSourceNode = validateNodeExists(validatedInput.sourceNodeId, workflow.nodes);
-				let matchedTargetNode = validateNodeExists(validatedInput.targetNodeId, workflow.nodes);
+				// Find source and target nodes by name
+				let matchedSourceNode = findNodeByName(validatedInput.sourceNodeName, workflow.nodes);
+				let matchedTargetNode = findNodeByName(validatedInput.targetNodeName, workflow.nodes);
 
 				// Check if both nodes exist
 				if (!matchedSourceNode || !matchedTargetNode) {
-					const missingNodeId = !matchedSourceNode
-						? validatedInput.sourceNodeId
-						: validatedInput.targetNodeId;
-					const nodeError = new NodeNotFoundError(missingNodeId);
+					const missingNodeName = !matchedSourceNode
+						? validatedInput.sourceNodeName
+						: validatedInput.targetNodeName;
+					const nodeError = new NodeNotFoundError(missingNodeName);
 					const error = {
 						message: nodeError.message,
 						code: 'NODES_NOT_FOUND',
 						details: {
-							sourceNodeId: validatedInput.sourceNodeId,
-							targetNodeId: validatedInput.targetNodeId,
+							sourceNodeName: validatedInput.sourceNodeName,
+							targetNodeName: validatedInput.targetNodeName,
 							foundSource: !!matchedSourceNode,
 							foundTarget: !!matchedTargetNode,
 						},

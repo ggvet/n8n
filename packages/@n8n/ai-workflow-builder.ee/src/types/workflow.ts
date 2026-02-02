@@ -10,9 +10,9 @@ export type SimpleWorkflow = Pick<IWorkflowBase, 'name' | 'nodes' | 'connections
  */
 export type WorkflowOperation =
 	| { type: 'clear' }
-	| { type: 'removeNode'; nodeIds: string[] }
+	| { type: 'removeNode'; nodeNames: string[] }
 	| { type: 'addNodes'; nodes: INode[] }
-	| { type: 'updateNode'; nodeId: string; updates: Partial<INode> }
+	| { type: 'updateNode'; nodeName: string; updates: Partial<INode> }
 	| { type: 'setConnections'; connections: IConnections }
 	| { type: 'mergeConnections'; connections: IConnections }
 	| {
@@ -24,4 +24,4 @@ export type WorkflowOperation =
 			targetInputIndex: number;
 	  }
 	| { type: 'setName'; name: string }
-	| { type: 'renameNode'; nodeId: string; oldName: string; newName: string };
+	| { type: 'renameNode'; oldName: string; newName: string };

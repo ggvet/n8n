@@ -23,7 +23,7 @@ import { createProgressReporter, reportProgress } from './helpers/progress';
 import { createSuccessResponse, createErrorResponse } from './helpers/response';
 import { getCurrentWorkflow, getWorkflowState, updateNodeInWorkflow } from './helpers/state';
 import {
-	validateNodeExists,
+	findNodeByName,
 	findNodeType,
 	createNodeNotFoundError,
 	createNodeTypeNotFoundError,
@@ -41,7 +41,7 @@ import {
  * (set by Builder via initialParameters) for filtering purposes.
  */
 const updateNodeParametersSchema = z.object({
-	nodeId: z.string().describe('The ID of the node to update'),
+	nodeName: z.string().describe('The name of the node to update'),
 	changes: z
 		.array(z.string())
 		.min(1)
@@ -294,7 +294,7 @@ function buildSuccessMessage(node: INode, _changes: string[]): string {
 async function processParameterUpdates(
 	node: INode,
 	nodeType: INodeTypeDescription,
-	nodeId: string,
+	nodeName: string,
 	changes: string[],
 	state: ReturnType<typeof getWorkflowState>,
 	llm: BaseChatModel,
@@ -320,7 +320,7 @@ async function processParameterUpdates(
 	const filteredPropertiesJson = JSON.stringify(filteredProperties, null, 2);
 
 	logger?.debug('Filtered node properties for LLM context', {
-		nodeId,
+		nodeName,
 		nodeType: node.type,
 		nodeVersion: node.typeVersion,
 		resource: currentValues.resource,
@@ -344,8 +344,7 @@ async function processParameterUpdates(
 		workflow_json: trimWorkflowJSON(workflow),
 		execution_schema: state.workflowContext?.executionSchema ?? 'NO SCHEMA',
 		execution_data: state.workflowContext?.executionData ?? 'NO EXECUTION DATA YET',
-		node_id: nodeId,
-		node_name: node.name,
+		node_name: nodeName,
 		node_type: node.type,
 		current_parameters: JSON.stringify(currentParameters, null, 2),
 		node_definition: filteredPropertiesJson, // Use filtered properties for LLM context
@@ -356,7 +355,7 @@ async function processParameterUpdates(
 	// Ensure newParameters is a valid object
 	if (!newParameters || typeof newParameters !== 'object') {
 		throw new ParameterUpdateError('Invalid parameters returned from LLM', {
-			nodeId,
+			nodeName,
 			nodeType: node.type,
 		});
 	}
@@ -364,7 +363,7 @@ async function processParameterUpdates(
 	// Ensure parameters property exists and is valid
 	if (!newParameters.parameters || typeof newParameters.parameters !== 'object') {
 		throw new ParameterUpdateError('Invalid parameters structure returned from LLM', {
-			nodeId,
+			nodeName,
 			nodeType: node.type,
 		});
 	}
@@ -379,8 +378,10 @@ export const UPDATING_NODE_PARAMETER_TOOL: BuilderToolBase = {
 };
 
 function getCustomNodeTitle(input: Record<string, unknown>, nodes?: INode[]): string {
-	if ('nodeId' in input && typeof input['nodeId'] === 'string') {
-		const targetNode = nodes?.find((node) => node.id === input.nodeId);
+	if ('nodeName' in input && typeof input['nodeName'] === 'string') {
+		const targetNode = nodes?.find(
+			(node) => node.name.toLowerCase() === (input.nodeName as string).toLowerCase(),
+		);
 		if (targetNode) {
 			return `Updating "${targetNode.name}" node parameters`;
 		}
@@ -409,7 +410,7 @@ export function createUpdateNodeParametersTool(
 			try {
 				// Validate input using Zod schema
 				const validatedInput = updateNodeParametersSchema.parse(input);
-				const { nodeId, changes } = validatedInput;
+				const { nodeName, changes } = validatedInput;
 
 				// Get current state
 				const state = getWorkflowState();
@@ -420,10 +421,10 @@ export function createUpdateNodeParametersTool(
 					customDisplayTitle: getCustomNodeTitle(input, workflow.nodes),
 				});
 
-				// Find the node
-				const node = validateNodeExists(nodeId, workflow.nodes);
+				// Find the node by name
+				const node = findNodeByName(nodeName, workflow.nodes);
 				if (!node) {
-					const error = createNodeNotFoundError(nodeId);
+					const error = createNodeNotFoundError(nodeName);
 					reporter.error(error);
 					return createErrorResponse(config, error);
 				}
@@ -438,7 +439,7 @@ export function createUpdateNodeParametersTool(
 
 				// Report progress
 				reportProgress(reporter, `Updating parameters for node "${node.name}"`, {
-					nodeId,
+					nodeName: node.name,
 					changes,
 				});
 
@@ -448,7 +449,7 @@ export function createUpdateNodeParametersTool(
 					const updatedParameters = await processParameterUpdates(
 						node,
 						nodeType,
-						nodeId,
+						node.name,
 						changes,
 						state,
 						llm,
@@ -464,7 +465,6 @@ export function createUpdateNodeParametersTool(
 
 					// Report completion
 					const output: UpdateNodeParametersOutput = {
-						nodeId,
 						nodeName: node.name,
 						nodeType: node.type,
 						updatedParameters,
@@ -473,8 +473,8 @@ export function createUpdateNodeParametersTool(
 					};
 					reporter.complete(output);
 
-					// Return success with state updates
-					const stateUpdates = updateNodeInWorkflow(state, nodeId, updatedNode);
+					// Return success with state updates (use node name)
+					const stateUpdates = updateNodeInWorkflow(state, node.name, updatedNode);
 					return createSuccessResponse(config, message, stateUpdates);
 				} catch (error) {
 					if (error instanceof ParameterUpdateError) {

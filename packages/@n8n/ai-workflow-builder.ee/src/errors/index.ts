@@ -15,12 +15,12 @@ export abstract class AiWorkflowBuilderError extends Error {
  * Error thrown when a node is not found in the workflow
  */
 export class NodeNotFoundError extends OperationalError {
-	constructor(nodeId: string, nodeType?: string, options?: OperationalErrorOptions) {
-		super(`Node with ID "${nodeId}" not found in workflow`, {
+	constructor(nodeIdentifier: string, nodeType?: string, options?: OperationalErrorOptions) {
+		super(`Node "${nodeIdentifier}" not found in workflow`, {
 			...options,
 			tags: {
 				...options?.tags,
-				nodeId,
+				nodeIdentifier,
 				nodeType,
 			},
 			shouldReport: false,
@@ -118,13 +118,13 @@ export class ValidationError extends OperationalError {
 export class ParameterUpdateError extends OperationalError {
 	constructor(
 		message: string,
-		options?: OperationalErrorOptions & { nodeId?: string; nodeType: string; parameter?: string },
+		options?: OperationalErrorOptions & { nodeName?: string; nodeType: string; parameter?: string },
 	) {
 		super(message, {
 			...options,
 			tags: {
 				...options?.tags,
-				nodeId: options?.nodeId,
+				nodeName: options?.nodeName,
 				nodeType: options?.nodeType,
 				parameter: options?.parameter,
 			},
@@ -139,13 +139,13 @@ export class ParameterUpdateError extends OperationalError {
 export class ParameterTooLargeError extends OperationalError {
 	constructor(
 		message: string,
-		options?: OperationalErrorOptions & { nodeId?: string; parameter?: string; maxSize?: number },
+		options?: OperationalErrorOptions & { nodeName?: string; parameter?: string; maxSize?: number },
 	) {
 		super(message, {
 			...options,
 			tags: {
 				...options?.tags,
-				nodeId: options?.nodeId,
+				nodeName: options?.nodeName,
 				parameter: options?.parameter,
 				maxSize: options?.maxSize,
 			},

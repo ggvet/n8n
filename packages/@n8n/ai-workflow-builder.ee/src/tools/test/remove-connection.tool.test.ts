@@ -66,8 +66,8 @@ describe('RemoveConnectionTool', () => {
 
 			const result = await removeConnectionTool.invoke(
 				{
-					sourceNodeId: 'node1',
-					targetNodeId: 'node2',
+					sourceNodeName: 'Code',
+					targetNodeName: 'HTTP Request',
 					connectionType: 'main',
 					sourceOutputIndex: 0,
 					targetInputIndex: 0,
@@ -132,8 +132,8 @@ describe('RemoveConnectionTool', () => {
 
 			const result = await removeConnectionTool.invoke(
 				{
-					sourceNodeId: 'model1',
-					targetNodeId: 'agent1',
+					sourceNodeName: 'OpenAI Chat Model',
+					targetNodeName: 'AI Agent',
 					connectionType: 'ai_languageModel',
 				},
 				mockConfig,
@@ -184,8 +184,8 @@ describe('RemoveConnectionTool', () => {
 
 			const result = await removeConnectionTool.invoke(
 				{
-					sourceNodeId: 'node1',
-					targetNodeId: 'node2',
+					sourceNodeName: 'If',
+					targetNodeName: 'Set',
 					connectionType: 'main',
 					sourceOutputIndex: 1,
 					targetInputIndex: 0,
@@ -238,8 +238,8 @@ describe('RemoveConnectionTool', () => {
 
 			const result = await removeConnectionTool.invoke(
 				{
-					sourceNodeId: 'node1',
-					targetNodeId: 'node2', // Remove only connection to Set 1
+					sourceNodeName: 'Code',
+					targetNodeName: 'Set 1', // Remove only connection to Set 1
 					connectionType: 'main',
 				},
 				mockConfig,
@@ -270,8 +270,8 @@ describe('RemoveConnectionTool', () => {
 
 			const result = await removeConnectionTool.invoke(
 				{
-					sourceNodeId: 'nonexistent',
-					targetNodeId: 'node2',
+					sourceNodeName: 'Nonexistent',
+					targetNodeName: 'HTTP Request',
 				},
 				mockConfig,
 			);
@@ -297,8 +297,8 @@ describe('RemoveConnectionTool', () => {
 
 			const result = await removeConnectionTool.invoke(
 				{
-					sourceNodeId: 'node1',
-					targetNodeId: 'nonexistent',
+					sourceNodeName: 'Code',
+					targetNodeName: 'Nonexistent',
 				},
 				mockConfig,
 			);
@@ -323,8 +323,8 @@ describe('RemoveConnectionTool', () => {
 
 			const result = await removeConnectionTool.invoke(
 				{
-					sourceNodeId: 'node1',
-					targetNodeId: 'node2',
+					sourceNodeName: 'Code',
+					targetNodeName: 'HTTP Request',
 				},
 				mockConfig,
 			);
@@ -361,8 +361,8 @@ describe('RemoveConnectionTool', () => {
 
 			const result = await removeConnectionTool.invoke(
 				{
-					sourceNodeId: 'node1',
-					targetNodeId: 'node2',
+					sourceNodeName: 'Code',
+					targetNodeName: 'HTTP Request',
 					connectionType: 'ai_languageModel', // Wrong type
 				},
 				mockConfig,
@@ -399,8 +399,8 @@ describe('RemoveConnectionTool', () => {
 
 			const result = await removeConnectionTool.invoke(
 				{
-					sourceNodeId: 'node1',
-					targetNodeId: 'node2',
+					sourceNodeName: 'Code',
+					targetNodeName: 'HTTP Request',
 					connectionType: 'main',
 					sourceOutputIndex: 5, // Out of range
 				},
@@ -440,8 +440,8 @@ describe('RemoveConnectionTool', () => {
 
 			const result = await removeConnectionTool.invoke(
 				{
-					sourceNodeId: 'node1',
-					targetNodeId: 'node2', // Trying to remove connection to HTTP Request
+					sourceNodeName: 'Code',
+					targetNodeName: 'HTTP Request', // Trying to remove connection to HTTP Request
 					connectionType: 'main',
 				},
 				mockConfig,
@@ -478,8 +478,8 @@ describe('RemoveConnectionTool', () => {
 
 			const result = await removeConnectionTool.invoke(
 				{
-					sourceNodeId: 'node1',
-					targetNodeId: 'node2',
+					sourceNodeName: 'Code',
+					targetNodeName: 'HTTP Request',
 					// connectionType omitted - should default to 'main'
 				},
 				mockConfig,
@@ -518,8 +518,8 @@ describe('RemoveConnectionTool', () => {
 
 			const result = await removeConnectionTool.invoke(
 				{
-					sourceNodeId: 'node1',
-					targetNodeId: 'node2',
+					sourceNodeName: 'Code',
+					targetNodeName: 'HTTP Request',
 					// indices omitted - should default to 0
 				},
 				mockConfig,

@@ -57,12 +57,12 @@ describe('operations-processor', () => {
 
 		describe('removeNode operation', () => {
 			it('should remove single node and its connections', () => {
-				const operations: WorkflowOperation[] = [{ type: 'removeNode', nodeIds: ['node2'] }];
+				const operations: WorkflowOperation[] = [{ type: 'removeNode', nodeNames: ['Node 2'] }];
 
 				const result = applyOperations(baseWorkflow, operations);
 
 				expect(result.nodes).toHaveLength(2);
-				expect(result.nodes.find((n) => n.id === 'node2')).toBeUndefined();
+				expect(result.nodes.find((n) => n.name === 'Node 2')).toBeUndefined();
 				// Node 1's connection to Node 2 is filtered out, leaving empty array
 				expect(result.connections['Node 1']).toEqual({ main: [[]] });
 				// Node 2 is removed entirely as source
@@ -71,21 +71,23 @@ describe('operations-processor', () => {
 
 			it('should remove multiple nodes', () => {
 				const operations: WorkflowOperation[] = [
-					{ type: 'removeNode', nodeIds: ['node1', 'node3'] },
+					{ type: 'removeNode', nodeNames: ['Node 1', 'Node 3'] },
 				];
 
 				const result = applyOperations(baseWorkflow, operations);
 
 				expect(result.nodes).toHaveLength(1);
-				expect(result.nodes[0].id).toBe('node2');
+				expect(result.nodes[0].name).toBe('Node 2');
 				// Node 2's connection to Node 3 is filtered out, leaving empty array
 				expect(result.connections).toEqual({
 					'Node 2': { main: [[]] },
 				});
 			});
 
-			it('should handle non-existent node IDs gracefully', () => {
-				const operations: WorkflowOperation[] = [{ type: 'removeNode', nodeIds: ['non-existent'] }];
+			it('should handle non-existent node names gracefully', () => {
+				const operations: WorkflowOperation[] = [
+					{ type: 'removeNode', nodeNames: ['non-existent'] },
+				];
 
 				const result = applyOperations(baseWorkflow, operations);
 
@@ -99,7 +101,7 @@ describe('operations-processor', () => {
 					main: [[{ node: 'Node 2', type: 'main', index: 1 }]],
 				};
 
-				const operations: WorkflowOperation[] = [{ type: 'removeNode', nodeIds: ['node2'] }];
+				const operations: WorkflowOperation[] = [{ type: 'removeNode', nodeNames: ['Node 2'] }];
 
 				const result = applyOperations(baseWorkflow, operations);
 
@@ -155,7 +157,7 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'updateNode',
-						nodeId: 'node2',
+						nodeName: 'Node 2',
 						updates: { name: 'Updated Name', position: [350, 150] },
 					},
 				];
@@ -172,7 +174,7 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'updateNode',
-						nodeId: 'non-existent',
+						nodeName: 'non-existent',
 						updates: { name: 'Should not apply' },
 					},
 				];
@@ -186,7 +188,7 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'updateNode',
-						nodeId: 'node1',
+						nodeName: 'Node 1',
 						updates: { disabled: true },
 					},
 				];
@@ -525,7 +527,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node1',
 						oldName: 'Node 1',
 						newName: 'Renamed Node 1',
 					},
@@ -542,7 +543,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node1',
 						oldName: 'Node 1',
 						newName: 'Source Node',
 					},
@@ -564,7 +564,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node2',
 						oldName: 'Node 2',
 						newName: 'Target Node',
 					},
@@ -586,7 +585,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node2',
 						oldName: 'Node 2',
 						newName: 'Middle Node',
 					},
@@ -617,7 +615,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node1',
 						oldName: 'Node 1',
 						newName: 'Isolated Node',
 					},
@@ -633,7 +630,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'non-existent',
 						oldName: 'Non Existent',
 						newName: 'New Name',
 					},
@@ -654,7 +650,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node2',
 						oldName: 'Node 2',
 						newName: 'AI Model',
 					},
@@ -680,7 +675,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node2',
 						oldName: 'Node 2',
 						newName: 'Central Node',
 					},
@@ -714,7 +708,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node1',
 						oldName: 'Node 1',
 						newName: 'Renamed Node',
 					},
@@ -743,7 +736,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node1',
 						oldName: 'Node 1',
 						newName: 'Source Node',
 					},
@@ -772,7 +764,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node1',
 						oldName: 'Node 1',
 						newName: 'Data Node',
 					},
@@ -805,7 +796,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node1',
 						oldName: 'Node 1',
 						newName: 'NewNode',
 					},
@@ -836,7 +826,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node1',
 						oldName: 'Node 1',
 						newName: 'Renamed',
 					},
@@ -866,7 +855,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node1',
 						oldName: 'Node 1',
 						newName: 'Source',
 					},
@@ -898,7 +886,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node1',
 						oldName: 'Node 1',
 						newName: 'Renamed',
 					},
@@ -938,7 +925,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node1',
 						oldName: 'Node 1',
 						newName: 'Data Source',
 					},
@@ -972,7 +958,6 @@ describe('operations-processor', () => {
 				const operations: WorkflowOperation[] = [
 					{
 						type: 'renameNode',
-						nodeId: 'node1',
 						oldName: 'Node 1',
 						newName: 'Input Node',
 					},
@@ -992,10 +977,10 @@ describe('operations-processor', () => {
 				const newNode = createNode({ id: 'node4', name: 'Node 4' });
 				const operations: WorkflowOperation[] = [
 					{ type: 'addNodes', nodes: [newNode] },
-					{ type: 'removeNode', nodeIds: ['node1'] },
+					{ type: 'removeNode', nodeNames: ['Node 1'] },
 					{
 						type: 'updateNode',
-						nodeId: 'node2',
+						nodeName: 'Node 2',
 						updates: { name: 'Updated Node 2' },
 					},
 					{
@@ -1011,8 +996,8 @@ describe('operations-processor', () => {
 				const result = applyOperations(baseWorkflow, operations);
 
 				expect(result.nodes).toHaveLength(3);
-				expect(result.nodes.find((n) => n.id === 'node1')).toBeUndefined();
-				expect(result.nodes.find((n) => n.id === 'node4')).toBeDefined();
+				expect(result.nodes.find((n) => n.name === 'Node 1')).toBeUndefined();
+				expect(result.nodes.find((n) => n.name === 'Node 4')).toBeDefined();
 				expect(result.nodes.find((n) => n.id === 'node2')?.name).toBe('Updated Node 2');
 				expect(result.connections['Node 4']).toBeDefined();
 			});
@@ -1043,8 +1028,8 @@ describe('operations-processor', () => {
 			it('should handle operations on empty workflow', () => {
 				const emptyWorkflow = createWorkflow([]);
 				const operations: WorkflowOperation[] = [
-					{ type: 'removeNode', nodeIds: ['any'] },
-					{ type: 'updateNode', nodeId: 'any', updates: { name: 'test' } },
+					{ type: 'removeNode', nodeNames: ['any'] },
+					{ type: 'updateNode', nodeName: 'any', updates: { name: 'test' } },
 				];
 
 				const result = applyOperations(emptyWorkflow, operations);
