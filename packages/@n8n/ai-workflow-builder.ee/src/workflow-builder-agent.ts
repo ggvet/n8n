@@ -172,10 +172,9 @@ export class WorkflowBuilderAgent {
 		if (useCodeWorkflowBuilder) {
 			this.logger?.debug('Routing to CodeWorkflowBuilder', { userId });
 
-			// Use CodeWorkflowBuilder (planning + coding agents)
+			// Use CodeWorkflowBuilder (unified code builder agent)
 			const codeWorkflowBuilder = new CodeWorkflowBuilder({
-				planningLLM: this.stageLLMs.builder,
-				codingLLM: this.stageLLMs.builder,
+				llm: this.stageLLMs.builder,
 				nodeTypes: this.parsedNodeTypes,
 				logger: this.logger,
 				generatedTypesDir: this.generatedTypesDir,

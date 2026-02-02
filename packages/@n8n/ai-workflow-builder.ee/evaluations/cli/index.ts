@@ -128,8 +128,7 @@ function createCodeWorkflowBuilderGenerator(
 		const evalLogger = new EvaluationLogger();
 
 		const builder = new CodeWorkflowBuilder({
-			planningLLM: llms.builder,
-			codingLLM: llms.builder,
+			llm: llms.builder,
 			nodeTypes: parsedNodeTypes,
 			evalLogger,
 		});

@@ -38,8 +38,7 @@ describe('CodeWorkflowBuilder', () => {
 	describe('constructor', () => {
 		it('should initialize with required config', () => {
 			const config: CodeWorkflowBuilderConfig = {
-				planningLLM: createMockLLM() as unknown as CodeWorkflowBuilderConfig['planningLLM'],
-				codingLLM: createMockLLM() as unknown as CodeWorkflowBuilderConfig['codingLLM'],
+				llm: createMockLLM() as unknown as CodeWorkflowBuilderConfig['llm'],
 				nodeTypes: mockNodeTypes as unknown as CodeWorkflowBuilderConfig['nodeTypes'],
 			};
 
@@ -56,8 +55,7 @@ describe('CodeWorkflowBuilder', () => {
 			};
 
 			const config: CodeWorkflowBuilderConfig = {
-				planningLLM: createMockLLM() as unknown as CodeWorkflowBuilderConfig['planningLLM'],
-				codingLLM: createMockLLM() as unknown as CodeWorkflowBuilderConfig['codingLLM'],
+				llm: createMockLLM() as unknown as CodeWorkflowBuilderConfig['llm'],
 				nodeTypes: mockNodeTypes as unknown as CodeWorkflowBuilderConfig['nodeTypes'],
 				logger: mockLogger as unknown as CodeWorkflowBuilderConfig['logger'],
 			};
@@ -68,8 +66,7 @@ describe('CodeWorkflowBuilder', () => {
 
 		it('should accept optional generatedTypesDir', () => {
 			const config: CodeWorkflowBuilderConfig = {
-				planningLLM: createMockLLM() as unknown as CodeWorkflowBuilderConfig['planningLLM'],
-				codingLLM: createMockLLM() as unknown as CodeWorkflowBuilderConfig['codingLLM'],
+				llm: createMockLLM() as unknown as CodeWorkflowBuilderConfig['llm'],
 				nodeTypes: mockNodeTypes as unknown as CodeWorkflowBuilderConfig['nodeTypes'],
 				generatedTypesDir: '/path/to/generated/types',
 			};
@@ -82,8 +79,7 @@ describe('CodeWorkflowBuilder', () => {
 	describe('chat', () => {
 		it('should yield stream output chunks', async () => {
 			const config: CodeWorkflowBuilderConfig = {
-				planningLLM: createMockLLM() as unknown as CodeWorkflowBuilderConfig['planningLLM'],
-				codingLLM: createMockLLM() as unknown as CodeWorkflowBuilderConfig['codingLLM'],
+				llm: createMockLLM() as unknown as CodeWorkflowBuilderConfig['llm'],
 				nodeTypes: mockNodeTypes as unknown as CodeWorkflowBuilderConfig['nodeTypes'],
 			};
 
@@ -122,8 +118,7 @@ describe('CodeWorkflowBuilder', () => {
 			};
 
 			const config: CodeWorkflowBuilderConfig = {
-				planningLLM: createMockLLM() as unknown as CodeWorkflowBuilderConfig['planningLLM'],
-				codingLLM: createMockLLM() as unknown as CodeWorkflowBuilderConfig['codingLLM'],
+				llm: createMockLLM() as unknown as CodeWorkflowBuilderConfig['llm'],
 				nodeTypes: mockNodeTypes as unknown as CodeWorkflowBuilderConfig['nodeTypes'],
 			};
 
@@ -151,8 +146,7 @@ describe('CodeWorkflowBuilder', () => {
 			controller.abort();
 
 			const config: CodeWorkflowBuilderConfig = {
-				planningLLM: createMockLLM() as unknown as CodeWorkflowBuilderConfig['planningLLM'],
-				codingLLM: createMockLLM() as unknown as CodeWorkflowBuilderConfig['codingLLM'],
+				llm: createMockLLM() as unknown as CodeWorkflowBuilderConfig['llm'],
 				nodeTypes: mockNodeTypes as unknown as CodeWorkflowBuilderConfig['nodeTypes'],
 			};
 
@@ -182,8 +176,7 @@ describe('CodeWorkflowBuilder', () => {
 			};
 
 			const config: CodeWorkflowBuilderConfig = {
-				planningLLM: createMockLLM() as unknown as CodeWorkflowBuilderConfig['planningLLM'],
-				codingLLM: createMockLLM() as unknown as CodeWorkflowBuilderConfig['codingLLM'],
+				llm: createMockLLM() as unknown as CodeWorkflowBuilderConfig['llm'],
 				nodeTypes: mockNodeTypes as unknown as CodeWorkflowBuilderConfig['nodeTypes'],
 				logger: mockLogger as unknown as CodeWorkflowBuilderConfig['logger'],
 			};
@@ -214,7 +207,7 @@ describe('createCodeWorkflowBuilder', () => {
 		const mockLLM = createMockLLM();
 
 		const builder = createCodeWorkflowBuilder(
-			mockLLM as unknown as CodeWorkflowBuilderConfig['planningLLM'],
+			mockLLM as unknown as CodeWorkflowBuilderConfig['llm'],
 			mockNodeTypes as unknown as CodeWorkflowBuilderConfig['nodeTypes'],
 		);
 
@@ -231,7 +224,7 @@ describe('createCodeWorkflowBuilder', () => {
 		};
 
 		const builder = createCodeWorkflowBuilder(
-			mockLLM as unknown as CodeWorkflowBuilderConfig['planningLLM'],
+			mockLLM as unknown as CodeWorkflowBuilderConfig['llm'],
 			mockNodeTypes as unknown as CodeWorkflowBuilderConfig['nodeTypes'],
 			{ logger: mockLogger as unknown as CodeWorkflowBuilderConfig['logger'] },
 		);
@@ -243,7 +236,7 @@ describe('createCodeWorkflowBuilder', () => {
 		const mockLLM = createMockLLM();
 
 		const builder = createCodeWorkflowBuilder(
-			mockLLM as unknown as CodeWorkflowBuilderConfig['planningLLM'],
+			mockLLM as unknown as CodeWorkflowBuilderConfig['llm'],
 			mockNodeTypes as unknown as CodeWorkflowBuilderConfig['nodeTypes'],
 			{ generatedTypesDir: '/path/to/types' },
 		);

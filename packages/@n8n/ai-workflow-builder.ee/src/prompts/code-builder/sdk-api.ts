@@ -1,6 +1,8 @@
 /**
- * Embedded SDK API Content
+ * Embedded SDK API Content for Code Builder Agent
  *
+ * Contains the SDK API reference documentation used by the code builder agent
+ * to understand how to generate workflow code.
  */
 
 /**

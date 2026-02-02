@@ -148,8 +148,7 @@ describe('CodeWorkflowBuilder Integration', () => {
 			// Verify CodeWorkflowBuilder was instantiated
 			expect(CodeWorkflowBuilder).toHaveBeenCalledWith(
 				expect.objectContaining({
-					planningLLM: mockLlm,
-					codingLLM: mockLlm,
+					llm: mockLlm,
 					nodeTypes: parsedNodeTypes,
 					logger: mockLogger,
 				}),

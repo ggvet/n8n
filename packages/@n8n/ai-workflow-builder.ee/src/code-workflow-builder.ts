@@ -4,17 +4,15 @@
  * Public entry point for the workflow generation system.
  *
  * Architecture:
- * - Planning Agent: Categorizes requests, retrieves best practices, creates plans
- * - Coding Agent: Generates TypeScript SDK code following the plan
- * - Orchestrator: Routes between agents programmatically
+ * Uses a unified CodeBuilderAgent that combines node discovery and code generation
+ * in a single agentic loop, preserving full context throughout the process.
  */
 
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { Logger } from '@n8n/backend-common';
 import type { INodeTypeDescription } from 'n8n-workflow';
-import type { WorkflowJSON } from '@n8n/workflow-sdk';
 
-import { Orchestrator, type ConversationMessage } from './orchestrator';
+import { CodeBuilderAgent } from './code-builder-agent';
 import type { EvaluationLogger } from './utils/evaluation-logger';
 import type { StreamOutput } from './types/streaming';
 import type { ChatPayload } from './workflow-builder-agent';
@@ -23,10 +21,8 @@ import type { ChatPayload } from './workflow-builder-agent';
  * Configuration for CodeWorkflowBuilder
  */
 export interface CodeWorkflowBuilderConfig {
-	/** LLM for the planning agent */
-	planningLLM: BaseChatModel;
-	/** LLM for the coding agent */
-	codingLLM: BaseChatModel;
+	/** LLM for workflow generation */
+	llm: BaseChatModel;
 	/** Parsed node types from n8n */
 	nodeTypes: INodeTypeDescription[];
 	/** Optional logger */
@@ -43,18 +39,16 @@ export interface CodeWorkflowBuilderConfig {
 /**
  * Code Workflow Builder
  *
- * Generates n8n workflows using a planning + coding agent architecture:
- * 1. Planning Agent analyzes requests and creates detailed plans
- * 2. Coding Agent generates TypeScript SDK code following the plan
+ * Generates n8n workflows using a unified CodeBuilderAgent that handles
+ * both node discovery and code generation in a single pass.
  */
 export class CodeWorkflowBuilder {
-	private orchestrator: Orchestrator;
+	private codeBuilderAgent: CodeBuilderAgent;
 	private logger?: Logger;
 
 	constructor(config: CodeWorkflowBuilderConfig) {
-		this.orchestrator = new Orchestrator({
-			planningLLM: config.planningLLM,
-			codingLLM: config.codingLLM,
+		this.codeBuilderAgent = new CodeBuilderAgent({
+			llm: config.llm,
 			nodeTypes: config.nodeTypes,
 			logger: config.logger,
 			generatedTypesDir: config.generatedTypesDir,
@@ -82,26 +76,13 @@ export class CodeWorkflowBuilder {
 			messageLength: payload.message.length,
 		});
 
-		// Extract current workflow from context
-		const currentWorkflow = payload.workflowContext?.currentWorkflow as WorkflowJSON | undefined;
-
-		// For now, we don't maintain conversation history in the builder itself.
-		// The orchestrator will handle it if we add conversation history support later.
-		const conversationHistory: ConversationMessage[] = [];
-
-		// Delegate to orchestrator
-		yield* this.orchestrator.chat(
-			payload.message,
-			currentWorkflow,
-			conversationHistory,
-			abortSignal,
-		);
+		// Delegate to CodeBuilderAgent
+		yield* this.codeBuilderAgent.chat(payload, userId, abortSignal);
 	}
 }
 
 /**
- * Factory function to create a CodeWorkflowBuilder with a single LLM
- * (uses the same LLM for both planning and coding)
+ * Factory function to create a CodeWorkflowBuilder
  */
 export function createCodeWorkflowBuilder(
 	llm: BaseChatModel,
@@ -112,8 +93,7 @@ export function createCodeWorkflowBuilder(
 	},
 ): CodeWorkflowBuilder {
 	return new CodeWorkflowBuilder({
-		planningLLM: llm,
-		codingLLM: llm,
+		llm,
 		nodeTypes,
 		logger: options?.logger,
 		generatedTypesDir: options?.generatedTypesDir,
