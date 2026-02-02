@@ -11,6 +11,7 @@ import type { WorkflowJSON } from '@n8n/workflow-sdk';
 
 import { escapeCurlyBrackets } from './sdk-api';
 import { formatCodeWithLineNumbers } from '../../tools/text-editor-handler';
+import { SDK_IMPORT_STATEMENT } from '../../utils/extract-code';
 
 /**
  * Role and capabilities of the agent
@@ -750,7 +751,9 @@ export function buildCodeBuilderPrompt(
 
 		if (options?.enableTextEditor) {
 			// Format as file with line numbers (matches view command output)
-			const formattedCode = formatCodeWithLineNumbers(workflowCode);
+			// Include SDK import so LLM sees the same code that's in the text editor
+			const codeWithImport = `${SDK_IMPORT_STATEMENT}\n\n${workflowCode}`;
+			const formattedCode = formatCodeWithLineNumbers(codeWithImport);
 			const escapedCode = escapeCurlyBrackets(formattedCode);
 			userMessageParts.push(
 				`<workflow_file path="/workflow.ts">\n${escapedCode}\n</workflow_file>`,
