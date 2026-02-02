@@ -258,7 +258,7 @@ watch(
 						rel="noopener noreferrer"
 						:class="[$style.infoItem, $style.docsLink]"
 					>
-						<N8nIcon :class="$style.infoIcon" icon="external-link-alt" />
+						<N8nIcon :class="$style.infoIcon" icon="external-link" />
 						<N8nText color="text-light" size="small">
 							{{ i18n.baseText('generic.docs') }}
 						</N8nText>

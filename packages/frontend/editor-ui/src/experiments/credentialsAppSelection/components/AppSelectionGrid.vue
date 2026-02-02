@@ -25,6 +25,7 @@ const props = defineProps<{
 	validatedCredentials: Set<string>;
 	searchQuery: string;
 	loading?: boolean;
+	isOwner?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -171,6 +172,7 @@ const isLoading = computed(
 				:installed="entry.installed"
 				:show-warning="isCredentialInvalid(entry)"
 				:show-badge="isCredentialValidated(entry)"
+				:is-owner="isOwner"
 				@click="handleCardClick(entry)"
 			/>
 		</div>

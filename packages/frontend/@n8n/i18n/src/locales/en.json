@@ -4398,6 +4398,7 @@
 	"communityNodeInfo.publishedBy": "Published by {publisherName}",
 	"communityNodeInfo.contact.admin": "Please contact an administrator to install this community node:",
 	"credentialsAppSelection.installToConnect": "Install this node to connect",
+	"credentialsAppSelection.askAdminToInstall": "Ask your admin to install this node",
 	"credentialsAppSelection.credentialsNotValid": "Credentials are not valid",
 	"communityNodeUpdateInfo.available": "A new node package version is available",
 	"insights.upgradeModal.button.dismiss": "Dismiss",

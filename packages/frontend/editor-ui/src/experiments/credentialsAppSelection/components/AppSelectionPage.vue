@@ -35,6 +35,7 @@ const pendingCredentialType = ref<string | null>(null);
 const appToInstall = ref<AppEntry | null>(null);
 
 const firstName = computed(() => usersStore.currentUser?.firstName ?? '');
+const isOwner = computed(() => usersStore.isInstanceOwner);
 
 const heading = computed(() => {
 	if (firstName.value) {
@@ -281,6 +282,7 @@ watch(isCredentialModalOpen, async (isOpen, wasOpen) => {
 				:validated-credentials="validatedCredentials"
 				:search-query="searchQuery"
 				:loading="isLoading"
+				:is-owner="isOwner"
 				@card-click="handleCardClick"
 			/>
 

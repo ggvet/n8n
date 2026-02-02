@@ -18,6 +18,7 @@ const props = defineProps<{
 	installed?: boolean;
 	showWarning?: boolean;
 	showBadge?: boolean;
+	isOwner?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -27,7 +28,15 @@ const emit = defineEmits<{
 const nodeTypesStore = useNodeTypesStore();
 const i18n = useI18n();
 
-const isInstalled = computed(() => props.installed !== false);
+const isInstalled = computed(() => props.installed);
+
+const installBadgeTooltip = computed(() => {
+	if (!props.isOwner) {
+		return i18n.baseText('credentialsAppSelection.installToConnect');
+	}
+
+	return i18n.baseText('credentialsAppSelection.askAdminToInstall');
+});
 
 const isClickable = computed(
 	() =>
@@ -134,7 +143,7 @@ const nodeTypeForIcon = computed((): SimplifiedNodeType | null => {
 		<div v-if="!isInstalled" :class="$style.installBadgeWrapper">
 			<N8nTooltip placement="top" :show-after="300">
 				<template #content>
-					{{ i18n.baseText('credentialsAppSelection.installToConnect') }}
+					{{ installBadgeTooltip }}
 				</template>
 				<div :class="$style.installBadge">
 					<N8nIcon icon="download" :class="$style.installBadgeIcon" />
