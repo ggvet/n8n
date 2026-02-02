@@ -257,16 +257,16 @@ describe('TextEditorHandler', () => {
 		});
 	});
 
-	describe('finalize command', () => {
+	describe('validate command', () => {
 		it('should return message indicating agent should handle it', () => {
 			handler.setWorkflowCode('code');
 
 			const result = handler.execute({
-				command: 'finalize',
+				command: 'validate',
 				path: '/workflow.ts',
 			});
 
-			expect(result).toBe('Finalize command should be handled by the agent.');
+			expect(result).toBe('Validate command should be handled by the agent.');
 		});
 	});
 

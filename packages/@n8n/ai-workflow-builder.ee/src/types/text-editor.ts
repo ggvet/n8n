@@ -46,10 +46,10 @@ export interface InsertCommand {
 }
 
 /**
- * Finalize command - signals completion and triggers validation
+ * Validate command - validates current workflow code and returns errors
  */
-export interface FinalizeCommand {
-	command: 'finalize';
+export interface ValidateCommand {
+	command: 'validate';
 	path: string;
 }
 
@@ -61,7 +61,7 @@ export type TextEditorCommand =
 	| CreateCommand
 	| StrReplaceCommand
 	| InsertCommand
-	| FinalizeCommand;
+	| ValidateCommand;
 
 /**
  * Text editor tool call from LLM response
@@ -78,8 +78,8 @@ export interface TextEditorToolCall {
 export interface TextEditorResult {
 	/** Result message to send back to the LLM */
 	content: string;
-	/** Whether this was a finalize command */
-	isFinalize: boolean;
+	/** Whether this was a validate command */
+	isValidate: boolean;
 }
 
 /**

@@ -51,8 +51,8 @@ import type { ChatPayload } from './workflow-builder-agent';
 /** Maximum iterations for the agentic loop to prevent infinite loops */
 const MAX_AGENT_ITERATIONS = 25;
 
-/** Maximum finalize attempts before giving up in text editor mode */
-const MAX_FINALIZE_ATTEMPTS = 10;
+/** Maximum validate attempts before giving up in text editor mode */
+const MAX_VALIDATE_ATTEMPTS = 10;
 
 /** Native Anthropic text editor tool configuration */
 const TEXT_EDITOR_TOOL = {
@@ -421,7 +421,7 @@ ${'='.repeat(50)}
 
 			// Text editor mode state
 			let textEditorHandler: TextEditorHandler | null = null;
-			let textEditorFinalizeAttempts = 0;
+			let textEditorValidateAttempts = 0;
 
 			if (textEditorEnabled) {
 				// Pass debug log function to handler for detailed logging
@@ -458,7 +458,7 @@ ${'='.repeat(50)}
 					messageTypes: messages.map((m) => m._getType()),
 					lastMessageType: messages[messages.length - 1]?._getType(),
 					consecutiveParseErrors,
-					textEditorFinalizeAttempts,
+					textEditorValidateAttempts,
 				});
 
 				// Check for abort
@@ -555,8 +555,8 @@ ${'='.repeat(50)}
 								messages,
 								textEditorHandler,
 								{
-									getFinalizeAttempts: () => textEditorFinalizeAttempts,
-									incrementFinalizeAttempts: () => textEditorFinalizeAttempts++,
+									getValidateAttempts: () => textEditorValidateAttempts,
+									incrementValidateAttempts: () => textEditorValidateAttempts++,
 									getWorkflow: () => workflow,
 									setWorkflow: (w: WorkflowJSON | null) => {
 										workflow = w;
@@ -573,9 +573,9 @@ ${'='.repeat(50)}
 								iteration,
 							);
 
-							// If finalize succeeded, break the loop
+							// If validate succeeded and workflow is ready, break the loop
 							if (result?.workflowReady) {
-								this.debugLog('CHAT', 'Text editor finalize succeeded, exiting loop');
+								this.debugLog('CHAT', 'Text editor validate succeeded, exiting loop');
 								break;
 							}
 						} else {
@@ -592,20 +592,104 @@ ${'='.repeat(50)}
 						break;
 					}
 
-					// Check for too many finalize failures in text editor mode
-					if (textEditorEnabled && textEditorFinalizeAttempts >= MAX_FINALIZE_ATTEMPTS) {
+					// Check for too many validate failures in text editor mode
+					if (textEditorEnabled && textEditorValidateAttempts >= MAX_VALIDATE_ATTEMPTS) {
 						throw new Error(
-							`Failed to generate valid workflow after ${MAX_FINALIZE_ATTEMPTS} finalize attempts.`,
+							`Failed to generate valid workflow after ${MAX_VALIDATE_ATTEMPTS} validate attempts.`,
 						);
 					}
-				} else if (textEditorEnabled) {
-					// In text editor mode, no tool calls without finalize means agent forgot to finalize
-					this.debugLog('CHAT', 'Text editor mode: no tool calls, prompting to finalize');
-					messages.push(
-						new HumanMessage(
-							'Please use the text editor tool to create or edit the workflow code, then call finalize when done.',
-						),
-					);
+				} else if (textEditorEnabled && textEditorHandler) {
+					// In text editor mode, no tool calls means LLM is done editing - auto-finalize
+					this.debugLog('CHAT', 'Text editor mode: no tool calls, auto-finalizing');
+					const code = textEditorHandler.getWorkflowCode();
+
+					if (!code) {
+						// No code yet - prompt to create
+						this.debugLog('CHAT', 'No code exists, prompting to create');
+						messages.push(
+							new HumanMessage(
+								'Please use the text editor tool to create or edit the workflow code.',
+							),
+						);
+					} else {
+						// Auto-validate and finalize
+						textEditorValidateAttempts++;
+						this.debugLog('CHAT', '========== AUTO-FINALIZE (NO TOOL CALLS) ==========', {
+							attemptNumber: textEditorValidateAttempts,
+							codeLength: code.length,
+						});
+
+						const parseStartTime = Date.now();
+						try {
+							const result = await this.parseAndValidate(code, currentWorkflow);
+							parseDuration = Date.now() - parseStartTime;
+							sourceCode = code;
+
+							this.debugLog('CHAT', 'Auto-finalize: parse completed', {
+								parseDurationMs: parseDuration,
+								warningCount: result.warnings.length,
+								nodeCount: result.workflow.nodes.length,
+							});
+
+							if (result.warnings.length > 0) {
+								const warningText = result.warnings
+									.map((w) => `- [${w.code}] ${w.message}`)
+									.join('\n');
+								const errorContext = this.getErrorContext(code, result.warnings[0].message);
+
+								this.debugLog('CHAT', 'Auto-finalize: validation warnings', {
+									warnings: result.warnings,
+								});
+
+								// Track as generation error
+								generationErrors.push({
+									message: `Validation warnings:\n${warningText}`,
+									code,
+									iteration,
+									type: 'validation',
+								});
+
+								// Send warnings back to agent for correction
+								messages.push(
+									new HumanMessage(
+										`Validation warnings:\n${warningText}\n\n${errorContext}\n\nUse str_replace to fix these issues.`,
+									),
+								);
+							} else {
+								// Success - workflow validated, exit loop
+								workflow = result.workflow;
+								this.debugLog('CHAT', '========== AUTO-FINALIZE SUCCESS ==========', {
+									nodeCount: result.workflow.nodes.length,
+									nodeNames: result.workflow.nodes.map((n) => n.name),
+								});
+								break;
+							}
+						} catch (error) {
+							parseDuration = Date.now() - parseStartTime;
+							const errorMessage = error instanceof Error ? error.message : String(error);
+							const errorContext = this.getErrorContext(code, errorMessage);
+
+							this.debugLog('CHAT', '========== AUTO-FINALIZE FAILED ==========', {
+								parseDurationMs: parseDuration,
+								errorMessage,
+							});
+
+							// Track the generation error
+							generationErrors.push({
+								message: errorMessage,
+								code,
+								iteration,
+								type: 'parse',
+							});
+
+							// Send error back to agent for correction
+							messages.push(
+								new HumanMessage(
+									`Parse error: ${errorMessage}\n\n${errorContext}\n\nUse str_replace to fix these issues.`,
+								),
+							);
+						}
+					}
 				} else {
 					// No tool calls - try to parse as final response
 					this.debugLog('CHAT', 'No tool calls, attempting to parse final response...');
@@ -1006,15 +1090,15 @@ ${'='.repeat(50)}
 	/**
 	 * Execute a text editor tool call and yield progress updates
 	 *
-	 * @returns Object with workflowReady flag indicating if finalize succeeded
+	 * @returns Object with workflowReady flag indicating if validate succeeded
 	 */
 	private async *executeTextEditorToolCall(
 		toolCall: { name: string; args: Record<string, unknown>; id: string },
 		messages: BaseMessage[],
 		handler: TextEditorHandler,
 		state: {
-			getFinalizeAttempts: () => number;
-			incrementFinalizeAttempts: () => void;
+			getValidateAttempts: () => number;
+			incrementValidateAttempts: () => void;
 			getWorkflow: () => WorkflowJSON | null;
 			setWorkflow: (w: WorkflowJSON | null) => void;
 			setSourceCode: (c: string) => void;
@@ -1043,11 +1127,11 @@ ${'='.repeat(50)}
 			],
 		};
 
-		// Handle finalize separately - triggers validation
-		if (command.command === 'finalize') {
-			const attemptNumber = state.getFinalizeAttempts() + 1;
-			state.incrementFinalizeAttempts();
-			this.debugLog('TEXT_EDITOR', '========== FINALIZE ATTEMPT ==========', {
+		// Handle validate separately - triggers validation but doesn't auto-complete
+		if (command.command === 'validate') {
+			const attemptNumber = state.getValidateAttempts() + 1;
+			state.incrementValidateAttempts();
+			this.debugLog('TEXT_EDITOR', '========== VALIDATE ATTEMPT ==========', {
 				attemptNumber,
 				iteration,
 			});
@@ -1055,11 +1139,11 @@ ${'='.repeat(50)}
 			const code = handler.getWorkflowCode();
 
 			if (!code) {
-				this.debugLog('TEXT_EDITOR', 'Finalize failed: no code exists');
+				this.debugLog('TEXT_EDITOR', 'Validate failed: no code exists');
 				messages.push(
 					new ToolMessage({
 						tool_call_id: toolCall.id,
-						content: 'Error: No workflow code to finalize. Use create first.',
+						content: 'Error: No workflow code to validate. Use str_replace to add code first.',
 					}),
 				);
 				yield {
@@ -1075,7 +1159,7 @@ ${'='.repeat(50)}
 				return { workflowReady: false };
 			}
 
-			this.debugLog('TEXT_EDITOR', 'Finalize: code to validate', {
+			this.debugLog('TEXT_EDITOR', 'Validate: code to check', {
 				codeLength: code.length,
 				codeLines: code.split('\n').length,
 				code,
@@ -1088,7 +1172,7 @@ ${'='.repeat(50)}
 				state.setParseDuration(parseDuration);
 				state.setSourceCode(code);
 
-				this.debugLog('TEXT_EDITOR', 'Finalize: parse completed', {
+				this.debugLog('TEXT_EDITOR', 'Validate: parse completed', {
 					parseDurationMs: parseDuration,
 					warningCount: result.warnings.length,
 					nodeCount: result.workflow.nodes.length,
@@ -1098,7 +1182,7 @@ ${'='.repeat(50)}
 					const warningText = result.warnings.map((w) => `- [${w.code}] ${w.message}`).join('\n');
 					const errorContext = this.getErrorContext(code, result.warnings[0].message);
 
-					this.debugLog('TEXT_EDITOR', 'Finalize: validation warnings', {
+					this.debugLog('TEXT_EDITOR', 'Validate: validation warnings', {
 						warnings: result.warnings,
 						errorContext,
 					});
@@ -1114,7 +1198,7 @@ ${'='.repeat(50)}
 					messages.push(
 						new ToolMessage({
 							tool_call_id: toolCall.id,
-							content: `Validation warnings:\n${warningText}\n\n${errorContext}\n\nUse str_replace to fix, then finalize again.`,
+							content: `Validation warnings:\n${warningText}\n\n${errorContext}\n\nUse str_replace to fix these issues.`,
 						}),
 					);
 					state.setWorkflow(null);
@@ -1131,15 +1215,15 @@ ${'='.repeat(50)}
 					return { workflowReady: false };
 				}
 
-				// Success - workflow validated
-				state.setWorkflow(result.workflow);
+				// Validation passed - return success message but don't complete
+				// (workflow will auto-finalize when LLM stops calling tools)
 				messages.push(
 					new ToolMessage({
 						tool_call_id: toolCall.id,
-						content: 'Workflow validated successfully.',
+						content: 'Validation passed. Workflow code is valid.',
 					}),
 				);
-				this.debugLog('TEXT_EDITOR', '========== FINALIZE SUCCESS ==========', {
+				this.debugLog('TEXT_EDITOR', '========== VALIDATE SUCCESS ==========', {
 					nodeCount: result.workflow.nodes.length,
 					nodeNames: result.workflow.nodes.map((n) => n.name),
 					nodeTypes: result.workflow.nodes.map((n) => n.type),
@@ -1154,7 +1238,8 @@ ${'='.repeat(50)}
 						} as ToolProgressChunk,
 					],
 				};
-				return { workflowReady: true };
+				// Don't set workflow ready - let auto-finalize happen when LLM stops calling tools
+				return { workflowReady: false };
 			} catch (error) {
 				const parseDuration = Date.now() - parseStartTime;
 				state.setParseDuration(parseDuration);
@@ -1162,7 +1247,7 @@ ${'='.repeat(50)}
 				const errorStack = error instanceof Error ? error.stack : undefined;
 				const errorContext = this.getErrorContext(code, errorMessage);
 
-				this.debugLog('TEXT_EDITOR', '========== FINALIZE FAILED ==========', {
+				this.debugLog('TEXT_EDITOR', '========== VALIDATE FAILED ==========', {
 					parseDurationMs: parseDuration,
 					errorMessage,
 					errorStack,
@@ -1180,7 +1265,7 @@ ${'='.repeat(50)}
 				messages.push(
 					new ToolMessage({
 						tool_call_id: toolCall.id,
-						content: `Parse error: ${errorMessage}\n\n${errorContext}\n\nUse str_replace to fix, then finalize again.`,
+						content: `Parse error: ${errorMessage}\n\n${errorContext}\n\nUse str_replace to fix these issues.`,
 					}),
 				);
 				yield {
@@ -1210,9 +1295,9 @@ ${'='.repeat(50)}
 				result,
 			});
 
-			// Auto-finalize after create to validate immediately
+			// Auto-validate after create to check immediately
 			if (command.command === 'create') {
-				this.debugLog('TEXT_EDITOR', 'Auto-finalizing after create command');
+				this.debugLog('TEXT_EDITOR', 'Auto-validating after create command');
 				const code = handler.getWorkflowCode();
 
 				if (code) {
@@ -1223,7 +1308,7 @@ ${'='.repeat(50)}
 						state.setParseDuration(parseDuration);
 						state.setSourceCode(code);
 
-						this.debugLog('TEXT_EDITOR', 'Auto-finalize: parse completed', {
+						this.debugLog('TEXT_EDITOR', 'Auto-validate: parse completed', {
 							parseDurationMs: parseDuration,
 							warningCount: parseResult.warnings.length,
 							nodeCount: parseResult.workflow.nodes.length,
@@ -1235,7 +1320,7 @@ ${'='.repeat(50)}
 								.join('\n');
 							const errorContext = this.getErrorContext(code, parseResult.warnings[0].message);
 
-							this.debugLog('TEXT_EDITOR', 'Auto-finalize: validation warnings', {
+							this.debugLog('TEXT_EDITOR', 'Auto-validate: validation warnings', {
 								warnings: parseResult.warnings,
 								errorContext,
 							});
@@ -1250,7 +1335,7 @@ ${'='.repeat(50)}
 
 							messages.push(
 								new HumanMessage(
-									`Validation warnings:\n${warningText}\n\n${errorContext}\n\nUse str_replace to fix, then call finalize.`,
+									`Validation warnings:\n${warningText}\n\n${errorContext}\n\nUse str_replace to fix these issues.`,
 								),
 							);
 							state.setWorkflow(null);
@@ -1267,10 +1352,10 @@ ${'='.repeat(50)}
 							return { workflowReady: false };
 						}
 
-						// Success - workflow validated
+						// Validation passed - workflow is ready
 						state.setWorkflow(parseResult.workflow);
-						state.incrementFinalizeAttempts(); // Count as a finalize attempt
-						this.debugLog('TEXT_EDITOR', '========== AUTO-FINALIZE SUCCESS ==========', {
+						state.incrementValidateAttempts(); // Count as a validate attempt
+						this.debugLog('TEXT_EDITOR', '========== AUTO-VALIDATE SUCCESS (CREATE) ==========', {
 							nodeCount: parseResult.workflow.nodes.length,
 							nodeNames: parseResult.workflow.nodes.map((n) => n.name),
 							nodeTypes: parseResult.workflow.nodes.map((n) => n.type),
@@ -1293,7 +1378,7 @@ ${'='.repeat(50)}
 						const errorStack = error instanceof Error ? error.stack : undefined;
 						const errorContext = this.getErrorContext(code, errorMessage);
 
-						this.debugLog('TEXT_EDITOR', '========== AUTO-FINALIZE FAILED ==========', {
+						this.debugLog('TEXT_EDITOR', '========== AUTO-VALIDATE FAILED (CREATE) ==========', {
 							parseDurationMs: parseDuration,
 							errorMessage,
 							errorStack,
@@ -1310,7 +1395,7 @@ ${'='.repeat(50)}
 
 						messages.push(
 							new HumanMessage(
-								`Parse error: ${errorMessage}\n\n${errorContext}\n\nUse str_replace to fix, then call finalize.`,
+								`Parse error: ${errorMessage}\n\n${errorContext}\n\nUse str_replace to fix these issues.`,
 							),
 						);
 						yield {

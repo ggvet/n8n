@@ -659,17 +659,17 @@ You MUST use the \`str_replace_based_edit_tool\` for all workflow code. Do NOT o
   {{"command": "insert", "path": "/workflow.ts", "insert_line": 5, "new_str": "..."}}
   \`\`\`
 
-- **finalize**: Call when done editing. Validates the code and completes the workflow.
+- **validate**: Check current code for errors. Returns success or list of errors to fix.
   \`\`\`json
-  {{"command": "finalize", "path": "/workflow.ts"}}
+  {{"command": "validate", "path": "/workflow.ts"}}
   \`\`\`
 
 ## Workflow
 
 1. If \`<workflow_file>\` is shown above, the code is already visible with line numbers - proceed directly to \`str_replace\`
 2. Use \`view\` only if you need to refresh the view after multiple edits
-3. After editing, call \`finalize\` to validate the workflow
-4. On errors, use \`str_replace\` to fix, then \`finalize\` again
+3. Use \`validate\` to check your code at any time - it will report any errors
+4. When you're satisfied with your edits, simply stop calling tools - the workflow will auto-finalize
 5. SDK types are available via the \`get_node_types\` tool
 
 ## Important Notes
@@ -677,7 +677,7 @@ You MUST use the \`str_replace_based_edit_tool\` for all workflow code. Do NOT o
 - The only supported file path is \`/workflow.ts\`
 - When using \`str_replace\`, ensure old_str matches EXACTLY one occurrence in the file
 - If you get "multiple matches" error, include more context in old_str to make it unique
-- Always call \`finalize\` when you're done editing to validate the workflow`;
+- When done editing, stop calling tools to auto-finalize (or use \`validate\` first to check)`;
 
 /**
  * History context for multi-turn conversations
