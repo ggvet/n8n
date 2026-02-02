@@ -103,9 +103,9 @@ export class NodeTypeGeneratorService {
 		// Ensure output directory exists
 		await fs.promises.mkdir(outputDir, { recursive: true });
 
-		// Generate base.schema.ts with common Zod helpers
+		// Generate base.schema.js with common Zod helpers
 		const baseSchemaContent = generateBaseSchemaFile();
-		await fs.promises.writeFile(path.join(outputDir, 'base.schema.ts'), baseSchemaContent, 'utf-8');
+		await fs.promises.writeFile(path.join(outputDir, 'base.schema.js'), baseSchemaContent, 'utf-8');
 
 		// Read and parse nodes.json
 		const content = await fs.promises.readFile(nodesJsonPath, 'utf-8');
@@ -177,7 +177,7 @@ export class NodeTypeGeneratorService {
 
 							// Generate flat schema file
 							const schemaContent = generateSingleVersionSchemaFile(sourceNode, version);
-							const schemaFilePath = path.join(nodeDir, `${fileName}.schema.ts`);
+							const schemaFilePath = path.join(nodeDir, `${fileName}.schema.js`);
 							await fs.promises.writeFile(schemaFilePath, schemaContent, 'utf-8');
 						}
 

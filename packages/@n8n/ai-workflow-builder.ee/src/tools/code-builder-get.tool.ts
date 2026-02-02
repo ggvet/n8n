@@ -181,7 +181,7 @@ function getNodeVersions(nodeId: string, generatedTypesDir?: string): string[] {
 				entry.name.startsWith('v') &&
 				entry.name.endsWith('.ts') &&
 				entry.name !== 'index.ts' &&
-				!entry.name.endsWith('.schema.ts')
+				!entry.name.endsWith('.schema.js')
 			) {
 				versions.push(entry.name.replace('.ts', ''));
 			}
