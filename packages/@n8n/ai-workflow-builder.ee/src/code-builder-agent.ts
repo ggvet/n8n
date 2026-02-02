@@ -54,6 +54,15 @@ const MAX_AGENT_ITERATIONS = 25;
 /** Maximum validate attempts before giving up in text editor mode */
 const MAX_VALIDATE_ATTEMPTS = 10;
 
+/** Mandatory instruction appended to validation/parse error messages */
+const FIX_AND_FINALIZE_INSTRUCTION = `
+
+IMPORTANT: After fixing the issues above, you MUST do ONE of:
+1. Call validate_workflow to verify your fixes are correct, OR
+2. Stop calling tools to trigger auto-finalize
+
+Do NOT continue making edits indefinitely without validating.`;
+
 /** Native Anthropic text editor tool configuration */
 const TEXT_EDITOR_TOOL = {
 	type: 'text_editor_20250728' as const,
@@ -438,8 +447,9 @@ ${'='.repeat(50)}
 			let parseDuration = 0;
 			let sourceCode: string | null = null;
 			const generationErrors: StreamGenerationError[] = [];
-			// Track warning codes that have been sent to agent (to avoid repeating)
-			const previousWarningCodes = new Set<string>();
+			// Track warnings that have been sent to agent (to avoid repeating)
+			// Uses "code|message" as key to match on both
+			const previousWarnings = new Set<string>();
 
 			// Text editor mode state
 			let textEditorHandler: TextEditorHandler | null = null;
@@ -617,6 +627,10 @@ ${'='.repeat(50)}
 									setParseDuration: (d: number) => {
 										parseDuration = d;
 									},
+									getPreviousWarnings: () => previousWarnings,
+									addWarnings: (keys: string[]) => {
+										keys.forEach((k) => previousWarnings.add(k));
+									},
 								},
 								currentWorkflow,
 								generationErrors,
@@ -702,7 +716,7 @@ ${'='.repeat(50)}
 								// Send warnings back to agent for correction
 								messages.push(
 									new HumanMessage(
-										`Validation warnings:\n${warningText}\n\n${errorContext}\n\nUse str_replace to fix these issues.`,
+										`Validation warnings:\n${warningText}\n\n${errorContext}\n\nUse str_replace to fix these issues.${FIX_AND_FINALIZE_INSTRUCTION}`,
 									),
 								);
 							} else {
@@ -735,7 +749,7 @@ ${'='.repeat(50)}
 							// Send error back to agent for correction
 							messages.push(
 								new HumanMessage(
-									`Parse error: ${errorMessage}\n\n${errorContext}\n\nUse str_replace to fix these issues.`,
+									`Parse error: ${errorMessage}\n\n${errorContext}\n\nUse str_replace to fix these issues.${FIX_AND_FINALIZE_INSTRUCTION}`,
 								),
 							);
 						}
@@ -774,7 +788,7 @@ ${'='.repeat(50)}
 
 							// Check for new warnings that haven't been sent to agent before
 							const newWarnings = result.warnings.filter(
-								(w) => !previousWarningCodes.has(`${w.code}:${w.message}`),
+								(w) => !previousWarnings.has(`${w.code}|${w.message}`),
 							);
 
 							if (newWarnings.length > 0) {
@@ -785,7 +799,7 @@ ${'='.repeat(50)}
 
 								// Mark these warnings as sent (so we don't repeat)
 								for (const w of newWarnings) {
-									previousWarningCodes.add(`${w.code}:${w.message}`);
+									previousWarnings.add(`${w.code}|${w.message}`);
 								}
 
 								// Format warnings for the agent
@@ -1228,7 +1242,7 @@ ${'='.repeat(50)}
 
 							messages.push(
 								new HumanMessage(
-									`Validation warnings:\n${warningText}\n\n${errorContext}\n\nUse str_replace to fix these issues.`,
+									`Validation warnings:\n${warningText}\n\n${errorContext}\n\nUse str_replace to fix these issues.${FIX_AND_FINALIZE_INSTRUCTION}`,
 								),
 							);
 							state.setWorkflow(null);
@@ -1287,7 +1301,7 @@ ${'='.repeat(50)}
 
 						messages.push(
 							new HumanMessage(
-								`Parse error: ${errorMessage}\n\n${errorContext}\n\nUse str_replace to fix these issues.`,
+								`Parse error: ${errorMessage}\n\n${errorContext}\n\nUse str_replace to fix these issues.${FIX_AND_FINALIZE_INSTRUCTION}`,
 							),
 						);
 						yield {
@@ -1344,6 +1358,8 @@ ${'='.repeat(50)}
 			setWorkflow: (w: WorkflowJSON | null) => void;
 			setSourceCode: (c: string) => void;
 			setParseDuration: (d: number) => void;
+			getPreviousWarnings: () => Set<string>;
+			addWarnings: (keys: string[]) => void;
 		},
 		currentWorkflow: WorkflowJSON | undefined,
 		generationErrors: StreamGenerationError[],
@@ -1414,48 +1430,65 @@ ${'='.repeat(50)}
 			});
 
 			if (result.warnings.length > 0) {
-				const warningText = result.warnings.map((w) => `- [${w.code}] ${w.message}`).join('\n');
-				const errorContext = this.getErrorContext(code, result.warnings[0].message);
+				// Filter out warnings that have already been shown to the agent
+				const previousWarnings = state.getPreviousWarnings();
+				const newWarnings = result.warnings.filter((w) => {
+					const key = `${w.code}|${w.message}`;
+					return !previousWarnings.has(key);
+				});
 
 				this.debugLog('VALIDATE_TOOL', 'Validate: validation warnings', {
-					warnings: result.warnings,
-					errorContext,
+					totalWarnings: result.warnings.length,
+					newWarnings: newWarnings.length,
+					repeatedWarnings: result.warnings.length - newWarnings.length,
 				});
 
-				// Track as generation error
-				generationErrors.push({
-					message: `Validation warnings:\n${warningText}`,
-					code,
-					iteration,
-					type: 'validation',
-				});
+				if (newWarnings.length > 0) {
+					// Track new warnings so we don't repeat them
+					const newWarningKeys = newWarnings.map((w) => `${w.code}|${w.message}`);
+					state.addWarnings(newWarningKeys);
 
-				messages.push(
-					new ToolMessage({
-						tool_call_id: toolCall.id,
-						content: `Validation warnings:\n${warningText}\n\n${errorContext}\n\nUse str_replace_based_edit_tool to fix these issues.`,
-					}),
-				);
-				state.setWorkflow(null);
-				yield {
-					messages: [
-						{
-							type: 'tool',
-							toolName: 'validate_workflow',
-							displayTitle: 'Validating workflow',
-							status: 'completed',
-						} as ToolProgressChunk,
-					],
-				};
-				return { workflowReady: false };
+					const warningText = newWarnings.map((w) => `- [${w.code}] ${w.message}`).join('\n');
+					const errorContext = this.getErrorContext(code, newWarnings[0].message);
+
+					// Track as generation error
+					generationErrors.push({
+						message: `Validation warnings:\n${warningText}`,
+						code,
+						iteration,
+						type: 'validation',
+					});
+
+					messages.push(
+						new ToolMessage({
+							tool_call_id: toolCall.id,
+							content: `Validation warnings:\n${warningText}\n\n${errorContext}\n\nUse str_replace_based_edit_tool to fix these issues.${FIX_AND_FINALIZE_INSTRUCTION}`,
+						}),
+					);
+					state.setWorkflow(null);
+					yield {
+						messages: [
+							{
+								type: 'tool',
+								toolName: 'validate_workflow',
+								displayTitle: 'Validating workflow',
+								status: 'completed',
+							} as ToolProgressChunk,
+						],
+					};
+					return { workflowReady: false };
+				}
+
+				// All warnings are repeated - treat as success and prompt to finalize
+				this.debugLog('VALIDATE_TOOL', 'All warnings are repeated, prompting agent to finalize');
 			}
 
-			// Validation passed - return success message but don't complete
-			// (workflow will auto-finalize when LLM stops calling tools)
+			// Validation passed (or only repeated warnings) - prompt to finalize
 			messages.push(
 				new ToolMessage({
 					tool_call_id: toolCall.id,
-					content: 'Validation passed. Workflow code is valid.',
+					content:
+						'Validation passed. Workflow code is valid.\n\nIMPORTANT: Stop calling tools now to finalize the workflow.',
 				}),
 			);
 			this.debugLog('VALIDATE_TOOL', '========== VALIDATE SUCCESS ==========', {
@@ -1500,7 +1533,7 @@ ${'='.repeat(50)}
 			messages.push(
 				new ToolMessage({
 					tool_call_id: toolCall.id,
-					content: `Parse error: ${errorMessage}\n\n${errorContext}\n\nUse str_replace_based_edit_tool to fix these issues.`,
+					content: `Parse error: ${errorMessage}\n\n${errorContext}\n\nUse str_replace_based_edit_tool to fix these issues.${FIX_AND_FINALIZE_INSTRUCTION}`,
 				}),
 			);
 			yield {
