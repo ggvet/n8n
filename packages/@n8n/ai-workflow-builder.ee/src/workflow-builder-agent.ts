@@ -20,11 +20,11 @@ import { MAX_AI_BUILDER_PROMPT_LENGTH, MAX_MULTI_AGENT_STREAM_ITERATIONS } from 
 import { ValidationError } from './errors';
 import { createMultiAgentWorkflowWithSubgraphs } from './multi-agent-workflow-subgraphs';
 import { SessionManagerService } from './session-manager.service';
+import { resetIdCounters } from './tools/utils/node-creation.utils';
 import type { ResourceLocatorCallback } from './types/callbacks';
 import type { SimpleWorkflow } from './types/workflow';
 import { createStreamProcessor, type StreamEvent } from './utils/stream-processor';
 import type { WorkflowState } from './workflow-state';
-import { resetIdCounters } from './tools/utils/node-creation.utils';
 
 const PROMPT_IS_TOO_LARGE_ERROR =
 	'The current conversation and workflow state is too large to process. Try to simplify your workflow by breaking it into smaller parts.';
