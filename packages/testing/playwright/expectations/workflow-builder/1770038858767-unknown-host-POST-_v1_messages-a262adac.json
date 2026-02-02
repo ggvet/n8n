@@ -1,0 +1,695 @@
+{
+	"httpRequest": {
+		"method": "POST",
+		"path": "/v1/messages",
+		"body": {
+			"contentType": "application/json",
+			"type": "JSON",
+			"json": {
+				"model": "claude-sonnet-4-5-20250929",
+				"temperature": 0,
+				"stream": false,
+				"max_tokens": 16000,
+				"tools": [
+					{
+						"name": "get_documentation",
+						"description": "Retrieve documentation to guide workflow building.\n\nTYPE: best_practices\nUse when you need guidance on workflow patterns and implementation.\nRequires: techniques array (workflow techniques to get practices for)\nReturns: Best practices including recommended nodes, common pitfalls, performance tips.\n\nTYPE: node_recommendations\nUse when user wants AI capabilities but doesn't specify exact nodes/providers.\nRequires: categories array (task categories to get recommendations for)\nReturns: Default node recommendations with alternatives.\n\nDo NOT use node_recommendations when:\n- User explicitly names a provider (e.g., \"use Claude\", \"with OpenAI\", \"using Gemini\")\n- User specifies exact node names\n\nAvailable techniques for best_practices:\n- trigger, loop, branch, subroutine, pagination, parallel_execution, error_handling, scheduling, rate_limiting, batch_processing, ai_agent, ai_chain, rag, data_transformation, http_request\n\nAvailable categories for node_recommendations:\n- text_manipulation: summarization, analysis, extraction, classification, chat\n- image_generation: generate, analyze, edit images\n- video_generation: create videos from text/images\n- audio_generation: text-to-speech, transcription, translation",
+						"input_schema": {
+							"type": "object",
+							"properties": {
+								"requests": {
+									"type": "array",
+									"items": {
+										"anyOf": [
+											{
+												"type": "object",
+												"properties": {
+													"type": {
+														"type": "string",
+														"const": "best_practices"
+													},
+													"techniques": {
+														"type": "array",
+														"items": {
+															"type": "string",
+															"enum": [
+																"scheduling",
+																"chatbot",
+																"form_input",
+																"scraping_and_research",
+																"monitoring",
+																"enrichment",
+																"triage",
+																"content_generation",
+																"document_processing",
+																"data_extraction",
+																"data_analysis",
+																"data_transformation",
+																"data_persistence",
+																"notification",
+																"knowledge_base",
+																"human_in_the_loop"
+															]
+														},
+														"minItems": 1,
+														"description": "Workflow techniques to get best practices for"
+													}
+												},
+												"required": ["type", "techniques"],
+												"additionalProperties": false
+											},
+											{
+												"type": "object",
+												"properties": {
+													"type": {
+														"type": "string",
+														"const": "node_recommendations"
+													},
+													"categories": {
+														"type": "array",
+														"items": {
+															"type": "string",
+															"enum": [
+																"text_manipulation",
+																"image_generation",
+																"video_generation",
+																"audio_generation"
+															]
+														},
+														"minItems": 1,
+														"description": "Task categories to get node recommendations for"
+													}
+												},
+												"required": ["type", "categories"],
+												"additionalProperties": false
+											}
+										]
+									},
+									"minItems": 1,
+									"description": "Array of documentation requests to retrieve"
+								}
+							},
+							"required": ["requests"],
+							"additionalProperties": false,
+							"$schema": "http://json-schema.org/draft-07/schema#"
+						}
+					},
+					{
+						"name": "search_nodes",
+						"description": "Search for n8n nodes by name or find sub-nodes that output specific connection types. Use this before adding nodes to find the correct node types.\n\nSearch modes:\n1. Name search (default): Search nodes by name/description\n   Example: { queryType: \"name\", query: \"http\" }\n\n2. Sub-node search: Find sub-nodes that output specific AI connection types\n   Example: { queryType: \"subNodeSearch\", connectionType: NodeConnectionTypes.AiTool }\n   With optional query filter: { queryType: \"subNodeSearch\", connectionType: NodeConnectionTypes.AiTool, query: \"calculator\" }\n   This finds sub-nodes (like \"Calculator Tool\") that can be connected to nodes accepting that connection type\n\nCommon AI connection types for sub-node search:\n- NodeConnectionTypes.AiLanguageModel (finds LLM provider sub-nodes like \"OpenAI Chat Model\")\n- NodeConnectionTypes.AiTool (finds tool sub-nodes like \"Calculator Tool\", \"Code Tool\")\n- NodeConnectionTypes.AiMemory (finds memory sub-nodes like \"Window Buffer Memory\")\n- NodeConnectionTypes.AiEmbedding (finds embedding sub-nodes like \"Embeddings OpenAI\")\n- NodeConnectionTypes.AiVectorStore (finds vector store sub-nodes)\n- NodeConnectionTypes.AiDocument (finds document loader sub-nodes)\n- NodeConnectionTypes.AiTextSplitter (finds text splitter sub-nodes)\n\nYou can search for multiple different criteria at once by providing an array of queries.",
+						"input_schema": {
+							"type": "object",
+							"properties": {
+								"queries": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"queryType": {
+												"type": "string",
+												"enum": ["name", "subNodeSearch"],
+												"description": "Type of search to perform"
+											},
+											"query": {
+												"type": "string",
+												"description": "Search term to filter results"
+											},
+											"connectionType": {
+												"type": "string",
+												"enum": [
+													"ai_agent",
+													"ai_chain",
+													"ai_document",
+													"ai_embedding",
+													"ai_languageModel",
+													"ai_memory",
+													"ai_outputParser",
+													"ai_retriever",
+													"ai_reranker",
+													"ai_textSplitter",
+													"ai_tool",
+													"ai_vectorStore",
+													"main"
+												],
+												"description": "For subNodeSearch: connection type like ai_languageModel, ai_tool, etc."
+											}
+										},
+										"required": ["queryType"],
+										"additionalProperties": false
+									},
+									"minItems": 1,
+									"description": "Array of search queries to find different types of nodes"
+								}
+							},
+							"required": ["queries"],
+							"additionalProperties": false,
+							"$schema": "http://json-schema.org/draft-07/schema#"
+						}
+					},
+					{
+						"name": "get_node_details",
+						"description": "Get detailed information about a specific n8n node type including properties, available connections, and up to 5 example configurations. Use this before adding nodes to understand their input/output structure.",
+						"input_schema": {
+							"type": "object",
+							"properties": {
+								"nodeName": {
+									"type": "string",
+									"description": "The exact node type name (e.g., n8n-nodes-base.httpRequest)"
+								},
+								"nodeVersion": {
+									"type": "number",
+									"description": "The exact node version"
+								},
+								"withParameters": {
+									"type": "boolean",
+									"default": false,
+									"description": "Whether to include node parameters in the output"
+								},
+								"withConnections": {
+									"type": "boolean",
+									"default": true,
+									"description": "Whether to include node supported connections in the output"
+								}
+							},
+							"required": ["nodeName", "nodeVersion"],
+							"additionalProperties": false,
+							"$schema": "http://json-schema.org/draft-07/schema#"
+						}
+					},
+					{
+						"name": "submit_discovery_results",
+						"description": "Submit the final discovery results",
+						"input_schema": {
+							"type": "object",
+							"properties": {
+								"nodesFound": {
+									"type": "array",
+									"items": {
+										"type": "object",
+										"properties": {
+											"nodeName": {
+												"type": "string",
+												"description": "The internal name of the node (e.g., n8n-nodes-base.gmail)"
+											},
+											"version": {
+												"type": "number",
+												"description": "The version number of the node (e.g., 1, 1.1, 2, 3, 3.2, etc.)"
+											},
+											"reasoning": {
+												"type": "string",
+												"description": "Why this node is relevant for the workflow"
+											},
+											"connectionChangingParameters": {
+												"type": "array",
+												"items": {
+													"type": "object",
+													"properties": {
+														"name": {
+															"type": "string",
+															"description": "Parameter name (e.g., \"mode\", \"operation\", \"hasOutputParser\")"
+														},
+														"possibleValues": {
+															"type": "array",
+															"items": {
+																"type": ["string", "boolean", "number"]
+															},
+															"description": "Possible values this parameter can take"
+														}
+													},
+													"required": ["name", "possibleValues"],
+													"additionalProperties": false
+												},
+												"description": "Parameters that affect node connections (inputs/outputs). ONLY include if parameter appears in <input> or <output> expressions"
+											}
+										},
+										"required": [
+											"nodeName",
+											"version",
+											"reasoning",
+											"connectionChangingParameters"
+										],
+										"additionalProperties": false
+									},
+									"description": "List of n8n nodes identified as necessary for the workflow"
+								}
+							},
+							"required": ["nodesFound"],
+							"additionalProperties": false,
+							"$schema": "http://json-schema.org/draft-07/schema#"
+						}
+					}
+				],
+				"thinking": {
+					"type": "disabled"
+				},
+				"messages": [
+					{
+						"role": "user",
+						"content": "Build an automation that runs every night 8pm. Use the NewsAPI \"/everything\" endpoint to search for AI-related news from the day. Pick the top 5 articles and use OpenAI `gpt-4.1-mini` to summarize each in two sentences. Generate an image using OpenAI based on the top article's summary. Send a structured Telegram message."
+					},
+					{
+						"role": "user",
+						"content": [
+							{
+								"type": "text",
+								"text": "<user_request>\n\nBuild an automation that runs every night 8pm. Use the NewsAPI \"/everything\" endpoint to search for AI-related news from the day. Pick the top 5 articles and use OpenAI `gpt-4.1-mini` to summarize each in two sentences. Generate an image using OpenAI based on the top article's summary. Send a structured Telegram message.\n\n</user_request>"
+							}
+						]
+					},
+					{
+						"role": "assistant",
+						"content": [
+							{
+								"type": "tool_use",
+								"id": "toolu_01LbaNwX2dVNHHZPP3R2d1tc",
+								"name": "get_documentation",
+								"input": {
+									"requests": [
+										{
+											"type": "best_practices",
+											"techniques": [
+												"scheduling",
+												"scraping_and_research",
+												"data_extraction",
+												"triage",
+												"content_generation",
+												"notification"
+											]
+										}
+									]
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01WSgR4acsHxWxwyQDRJDC29",
+								"name": "search_nodes",
+								"input": {
+									"queries": [
+										{
+											"queryType": "name",
+											"query": "schedule"
+										},
+										{
+											"queryType": "name",
+											"query": "cron"
+										},
+										{
+											"queryType": "name",
+											"query": "http request"
+										},
+										{
+											"queryType": "name",
+											"query": "limit"
+										},
+										{
+											"queryType": "name",
+											"query": "AI Agent"
+										},
+										{
+											"queryType": "name",
+											"query": "OpenAI"
+										},
+										{
+											"queryType": "name",
+											"query": "split"
+										},
+										{
+											"queryType": "name",
+											"query": "aggregate"
+										},
+										{
+											"queryType": "name",
+											"query": "telegram"
+										},
+										{
+											"queryType": "name",
+											"query": "edit fields"
+										},
+										{
+											"queryType": "subNodeSearch",
+											"connectionType": "ai_languageModel",
+											"query": "OpenAI"
+										}
+									]
+								}
+							}
+						]
+					},
+					{
+						"role": "user",
+						"content": [
+							{
+								"type": "tool_result",
+								"content": "<best_practices>\n# Best Practices: Scheduling Workflows\n\n## Workflow Design\n\nStructure scheduled workflows to perform focused, well-defined tasks.\n\nFor recurring tasks, use Schedule Trigger node with clear naming (e.g., \"Daily 08:00 Trigger\", \"Every 6h Cron\").\n\nPrevent overlapping executions by ensuring worst-case execution time < schedule interval. For frequent schedules, implement mutex/lock mechanisms using external systems if needed.\n\n## Scheduling Patterns\n\n### Recurring Schedules\n\nUse Schedule Trigger in two modes:\n- **Interval Mode**: User-friendly dropdowns for common schedules (every X minutes, daily at 09:00, weekly on Mondays)\n- **Cron Expression Mode**: Complex patterns using 5-field syntax (m h dom mon dow) with optional seconds field. Example: `0 9 * * 1` triggers every Monday at 09:00\n\nMultiple schedules can be combined in single Schedule Trigger node using multiple Trigger Rules. Useful when same logic applies to different timings.\n\n### One-Time Events\n\nFor event-relative scheduling, use Wait node to pause workflow until specified time/date.\n\nNote: Cron expressions with specific dates (e.g., `0 12 22 10 *` for Oct 22 at 12:00) will repeat annually on that date.\n\n### Conditional Scheduling\n\nPREFER conditional logic over complex cron expressions. Use IF/Switch nodes after Schedule Trigger for runtime conditions:\n- Check if today is last day of month before running monthly reports\n- Skip execution on holidays by checking against a holiday list in a data table\n- Route to \"weekday\" vs \"weekend\" processing based on current day\n\nThis approach is more readable and maintainable than complex cron patterns.\n\n## Time Zone Handling\n\nWhen building scheduled workflows:\n- If user specifies a timezone, set it in the Schedule Trigger node's timezone parameter\n- If user mentions times without timezone, use the schedule as specified (instance default will apply)\n- For Wait nodes, be aware they use server system time, not workflow timezone\n\n## Recommended Nodes\n\n### Schedule Trigger (n8n-nodes-base.scheduleTrigger)\n\nPrimary node for running workflows on schedule. Supports interval mode for simple schedules and cron mode for complex patterns.\n\n### Wait (n8n-nodes-base.wait)\n\nPause workflow execution until specified time or duration.\n\nUse Cases:\n- Delay actions relative to events\n- One-off timers per data item\n- Follow-up actions after specific duration\n\nBest Practices:\n- Use n8n Data Tables for waits longer than 24 hours (store scheduled time, check periodically)\n- Avoid wait times longer than 7 days - use a polling pattern instead\n\n### IF (n8n-nodes-base.if)\n\nAdd conditional logic to scheduled workflows.\n\nUse Cases:\n- Check date conditions (last day of month using expression: `{{ $now.day === $now.endOf('month').day }}`)\n- Skip execution based on external data (e.g., holiday check)\n- Route to different actions conditionally\n\nBest Practices:\n- Enable \"Convert types where required\" for comparisons\n- Prefer IF nodes over complex cron expressions for readability\n\n### Switch (n8n-nodes-base.switch)\n\nMultiple conditional branches for complex routing.\n\nUse Cases:\n- Different actions based on day of week (e.g., `{{ $now.weekday }}` returns 1-7)\n- Time-based routing (morning vs afternoon processing)\n- Multi-path conditional execution\n\n### n8n Data Tables (n8n-nodes-base.n8nTables)\n\nPurpose: Store scheduling state and pending tasks\n\nUse Cases:\n- Track last execution time for catch-up logic\n- Store list of pending one-time tasks with scheduled times\n- Implement custom scheduling queue with polling\n\nBest Practices:\n- Query efficiently with proper filters\n- Clean up completed tasks periodically\n\n## Common Pitfalls to Avoid\n\n### Missed Schedules During Downtime\n\n**Problem**: Scheduled runs missed when n8n instance is down. No automatic catch-up for missed triggers.\n\n**Solution**: Design idempotent workflows with catch-up logic:\n- Store last successful run timestamp in n8n Data Tables\n- On each run, check if enough time has passed since last run\n- Example: For a task that should run once per 24 hours, schedule it every 4 hours but only execute if last run was >20 hours ago\n\n### Overlapping Executions\n\n**Problem**: Next scheduled run starts before previous completes, causing race conditions or resource conflicts.\n\n**Solution**:\n- Increase interval to exceed worst-case execution time\n- Implement mutex/lock using n8n Data Tables (check/set \"running\" flag at start, clear at end)\n- Add execution check at workflow start\n\n### Wait Node Timezone Confusion\n\n**Problem**: Wait node uses server system time, ignoring workflow timezone setting. Wait until \"10:00\" may not match expected timezone.\n\n**Solution**:\n- Account for server timezone when setting Wait times\n- Use relative durations (e.g., \"wait 2 hours\") instead of absolute times when possible\n- Prefer Schedule Trigger for timezone-aware scheduling\n\n### First Execution Timing\n\n**Problem**: First execution after activation doesn't match expected schedule. Activation time affects next run calculation.\n\n**Solution**:\n- Use manual execution for immediate first run if needed\n- Understand that schedule recalculates from activation moment\n\n### Cron Syntax\n\nn8n supports both 5-field and 6-field (with seconds) cron syntax. Use 6 fields if you want to specify seconds (e.g., prefix with 0 for seconds: `0 0 9 * * *` for 9 AM daily).\n\nFor simple schedules, prefer Interval mode over cron for better readability.\n\n---\n# Best Practices: Scraping & Research Workflows\n\n## Performance & Resource Management\n\nBatch requests and introduce delays to avoid hitting API rate limits or overloading target servers. Use Wait nodes and\nbatching options in HTTP Request nodes. When 429 rate limiting errors occur due to receiving too many requests,\nimplement batching to reduce request frequency or use the \"Retry on Fail\" feature to automatically handle throttled\nresponses.\n\nWorkflows processing large datasets can crash due to memory constraints. Use the Split In Batches node to process 200\nrows at a time to reduce memory usage, leverage built-in nodes instead of custom code, and increase execution timeouts\nvia environment variables for better resource management.\n\n## Looping & Pagination\n\nImplement robust looping for paginated data. Use Set, IF, and Code nodes to manage page numbers and loop conditions,\nensuring you don't miss data or create infinite loops. Leverage n8n's built-in mechanisms rather than manual approaches:\nuse the $runIndex variable to track iterations without additional code nodes, and employ workflow static data or node\nrun indexes to maintain state across loop cycles.\n\n## Recommended Nodes\n\n### HTTP Request (n8n-nodes-base.httpRequest)\n\nPurpose: Fetches web pages or API data for scraping and research workflows\n\nPitfalls:\n\n- Depending on the data which the user wishes to scrape/research, it maybe against the terms of service to attempt to\nfetch it from the site directly. Using scraping nodes is the best way to get around this\n- Double-check URL formatting, query parameters, and ensure all required fields are present to avoid bad request errors\n- Be aware of 429 rate limiting errors when the service receives too many requests - implement batching or use \"Retry on\nFail\" feature\n- Refresh expired tokens, verify API keys, and ensure correct permissions to avoid authentication failures\n\n### SerpAPI (@n8n/n8n-nodes-langchain.toolSerpApi)\n\nPurpose: Give an agent the ability to search for research materials and fact-checking results that have been retrieved\nfrom other sources.\n\n### Perplexity (n8n-nodes-base.perplexityTool)\n\nPurpose: Give an agent the ability to search utilising Perplexity, a powerful tool for finding sources/material for\ngenerating reports and information.\n\n### HTML Extract (n8n-nodes-base.htmlExtract)\n\nPurpose: Parses HTML and extracts data using CSS selectors for web scraping\n\nPitfalls:\n\n- Some sites use JavaScript to render content, which may not be accessible via simple HTTP requests. Consider using\nbrowser automation tools or APIs if the HTML appears empty\n- Validate that the CSS selectors match the actual page structure to avoid extraction failures\n\n### Split Out (n8n-nodes-base.splitOut)\n\nPurpose: Processes lists of items one by one for sequential operations\n\nPitfalls:\n- Can cause performance issues with very large datasets - consider using Split In Batches instead\n\n### Loop Over Items (Split in Batches) (n8n-nodes-base.splitInBatches)\n\nPurpose: Processes lists of items in batches to manage memory and performance\n\nPitfalls:\n- Ensure proper loop configuration to avoid infinite loops or skipped data. The index 0\n(first connection) of the loop is treated as the done state, while the index 1 (second connection)\nis the connection that loops.\n- Use appropriate batch sizes (e.g., 200 rows) to balance memory usage and performance\n\n### Edit Fields (Set) (n8n-nodes-base.set)\n\nPurpose: Manipulates data, sets variables for loop control and state management\n\n### Code (n8n-nodes-base.code)\n\nPurpose: Implements custom logic for complex data transformations or pagination\n\nPitfalls:\n\n- Prefer built-in nodes over custom code to reduce memory usage and improve maintainability\n- Avoid processing very large datasets in a single code execution - use batching\n\n### If (n8n-nodes-base.if)\n\nPurpose: Adds conditional logic for error handling, loop control, or data filtering\n\nPitfalls:\n- Validate expressions carefully to avoid unexpected branching behavior\n\n### Wait (n8n-nodes-base.wait)\n\nPurpose: Introduces delays to respect rate limits and avoid overloading servers\n\n### Data Tables (n8n-nodes-base.dataTable)\n\nPurpose: Stores scraped data in n8n's built-in persistent data storage\n\n### Google Sheets (n8n-nodes-base.googleSheets)\n\nPurpose: Stores scraped data in spreadsheets for easy access and sharing\n\n### Microsoft Excel 365 (n8n-nodes-base.microsoftExcel)\n\nPurpose: Stores scraped data in Excel files for offline analysis\n\n### Airtable (n8n-nodes-base.airtable)\n\nPurpose: Saves structured data to a database with rich data types and relationships\n\n### AI Agent (@n8n/n8n-nodes-langchain.agent)\n\nPurpose: For research, summarization, and advanced data extraction. AI agents can autonomously gather information\nfrom websites, analyze content, and organize findings into structured formats, integrating tools for web scraping,\ncontent analysis, and database storage\n\n### Scraping Nodes\n\n- Phantombuster (n8n-nodes-base.phantombuster)\n- Apify (use HTTP Request or community node)\n- BrightData (use HTTP Request or community node)\n\nPurpose: If the user wishes to scrap data from sites like LinkedIn, Facebook, Instagram, Twitter/X, Indeed, Glassdoor\nor any other service similar to these large providers it is better to use a node designed for this. The scraping\nnodes provide access to these datasets while avoiding issues like rate limiting or breaking terms of service for\nsites like these.\n\n## Common Pitfalls to Avoid\n\nBad Request Errors: Double-check URL formatting, query parameters, and ensure all required fields are present to\navoid 400 errors when making HTTP requests.\n\nRate Limits: Use batching and Wait nodes to avoid 429 errors. When the service receives too many requests, implement\nbatching to reduce request frequency or use the \"Retry on Fail\" feature.\n\nMemory Issues: Avoid processing very large datasets in a single run; use batching and increase server resources if\nneeded. Use Split In Batches node to process 200 rows at a time, leverage built-in nodes instead of custom code, and\nincrease execution timeouts via environment variables.\n\nEmpty or Unexpected Data: Some sites use JavaScript to render content, which may not be accessible via simple HTTP\nrequests. Standard HTTP and HTML parsing nodes fail because sites load data asynchronously via JavaScript, leaving the\ninitial HTML empty of actual content. Web scraping nodes can be used to avoid this.\n\n---\n# Best Practices: Data Extraction Workflows\n\n## Node Selection by Data Type\n\nChoose the right node for your data source. Use Extract From File for CSV, Excel, PDF, and text files to convert binary data to JSON for further processing.\n\nUse Information Extractor or AI nodes for extracting structured data from unstructured text such as PDFs or emails using LLMs.\n\nFor binary data, ensure you use nodes like Extract From File to handle files properly.\n\n### Referencing Binary Data from Other Nodes\nWhen you need to reference binary data from a previous node, use this syntax:\n- Expression: '{{ $('Node Name').item.binary.property_name }}' or {{ $binary.property_name }} if previous item\n- Example for Gmail attachments: '{{ $('Gmail Trigger').item.binary.attachment_0 }}' or {{ $binary.attachment_0 }} if previous item\n- Example for webhook data: '{{ $('Webhook').item.binary.data }}' or {{ $binary.data }} if previous item\n- Important: The property name depends on how the previous node names the binary data\n\n## Data Structure & Type Management\n\nNormalize data structure early in your workflow. Use transformation nodes like Split Out, Aggregate, or Set to ensure your data matches n8n's expected structure: an array of objects with a json key.\nNot transforming incoming data to n8n's expected format causes downstream node failures.\n\nWhen working with large amounts of information, n8n's display can be hard to view. Use the Edit Fields node to help organize and view data more clearly during development and debugging.\n\n## Large File Handling\n\nProcess files in batches or use sub-workflows to avoid memory issues. For large binary files, consider enabling filesystem mode (N8N_DEFAULT_BINARY_DATA_MODE=filesystem) if self-hosted, to store binary data on disk instead of memory.\n\nProcessing too many items or large files at once can crash your instance. Always batch or split processing for large datasets to manage memory effectively.\n\n## Binary Data Management\n\nBinary data can be lost if intermediate nodes (like Set or Code) do not have \"Include Other Input Fields\" enabled, especially in sub-workflows. Always verify binary data is preserved through your workflow pipeline.\n\n## AI-Powered Extraction\n\nLeverage AI for unstructured data using nodes like Information Extractor or Summarization Chain to extract structured data from unstructured sources such as PDFs, emails, or web pages.\n\n## Recommended Nodes\n\n### Loop Over Items (n8n-nodes-base.splitInBatches)\n\nPurpose: Looping over a set of items extracted from a data set, for example if pulling a lot of data\nfrom a Google Sheet or database then looping over the items is required. This node MUST be used\nif the user mentions a large amount of data, it is necessary to batch the data to process all of it.\n\n### Extract From File (n8n-nodes-base.extractFromFile)\n\nPurpose: Converts binary data from CSV, Excel, PDF, and text files to JSON for processing\n\nPitfalls:\n\n- Ensure the correct binary field name is specified in the node configuration\n- Verify file format compatibility before extraction\n\n### HTML Extract (n8n-nodes-base.htmlExtract)\n\nPurpose: Scrapes data from web pages using CSS selectors\n\n### Split Out (n8n-nodes-base.splitOut)\n\nPurpose: Processes arrays of items individually for sequential operations.\nExample: If retrieving a JSON array using a HTTP request, this will return a single item,\ncontaining that array. If you wish to use a Loop Over Items (n8n-nodes-base.splitInBatches) node]\nthen you will need to split out the array into items before looping over it. In a scenario like\nthis a split out node MUST be used before looping over the items.\n\n### Edit Fields (Set) (n8n-nodes-base.set)\n\nPurpose: Data transformation and mapping to normalize structure\n\nPitfalls:\n\n- Enable \"Include Other Input Fields\" to preserve binary data\n- Pay attention to data types - mixing types causes unexpected failures\n\n### Information Extractor (@n8n/n8n-nodes-langchain.informationExtractor)\n\nPurpose: AI-powered extraction of structured data from unstructured text\n\nPitfalls:\n\n- Requires proper schema definition for extraction\n\n### Summarization Chain (@n8n/n8n-nodes-langchain.chainSummarization)\n\nPurpose: Summarizes large text blocks using AI for condensed information extraction\n\nPitfalls:\n\n- Context window limits may truncate very long documents\n- Verify summary quality matches requirements\n\n### HTTP Request (n8n-nodes-base.httpRequest)\n\nPurpose: Fetches data from APIs or web pages for extraction\n\n### Code (n8n-nodes-base.code)\n\nPurpose: Custom logic for complex data transformations\n\n## Common Pitfalls to Avoid\n\nData Type Confusion: People often mix up data types - n8n can be very lenient but it can lead to problems. Pay close attention to what type you are getting and ensure consistency throughout the workflow.\n\nBinary Data Loss: Binary data can be lost if intermediate nodes (Set, Code) do not have \"Include Other Input Fields\" enabled, especially in sub-workflows. Always verify binary data preservation.\n\nLarge Data Display Issues: n8n displaying large amounts of information can be hard to view during development. Use the Edit Fields node to help organize and view data more clearly.\n\n---\n# Best Practices: Triage Workflows\n\n## Workflow Design\n\nTriage workflows automatically classify incoming data and route it based on priority or category. Common use cases include sorting support tickets by urgency, categorizing emails for follow-up, or scoring leads for sales routing.\n\nDefine clear categories and outcomes before building. Design in logical stages:\n\n1. **Trigger & Input**: Capture incoming items (webhook, email trigger, form submission, schedule)\n2. **Preprocessing**: Fetch additional data if needed (CRM lookup, field normalization)\n3. **Classification**: Assign categories via rules or AI\n4. **Routing**: Direct items to appropriate branches using Switch node or Text Classifier Node\n5. **Actions**: Execute category-specific tasks (create tasks, send alerts, update records)\n6. **Logging**: Track outcomes for monitoring and analysis\n\nCRITICAL: Always include a default/fallback path to catch unclassified items. Never allow data to drop silently.\n\n## Classification Strategies\n\n### Rule-Based Classification\nUse IF/Switch nodes for keyword detection, sender addresses, or numeric thresholds. Chain multiple conditions or use Switch for multi-way branching.\n\nExample: IF email contains \"urgent\" → High Priority branch\n\n### AI-Powered Classification\nFor unstructured text or nuanced decisions, use AI nodes with clear prompts and defined output labels.\n\nExample prompt: \"Classify this email as INTERESTED, NOT_INTERESTED, or QUESTION\"\n\nBest practices:\n- Use structured output format (JSON with specific fields)\n- Set low temperature parameter of the model (0-0.2) for consistency\n- Include few-shot examples of input + classification\n- Implement error handling for unexpected outputs\n\n#### Text Classifier Node\nUse the Text Classifier node (@n8n/n8n-nodes-langchain.textClassifier) for straightforward text classification tasks. Configure with predefined category labels and descriptions for accurate results.\n\nExample workflow pattern:\n```mermaid\nflowchart LR\n    A[Webhook Trigger] --> B[Set: Normalize Data]\n    B --> C[Text Classifier]\n    C --> D{Switch: Route by Category}\n    D -->|High Priority| E[Slack: Alert Team]\n    D -->|Medium Priority| F[Create Task]\n    D -->|Low Priority| G[Log to Sheet]\n    D -->|Default| H[Manual Review]\n```\n\n### Combined Approach\nFor robust triage, combine rule-based and AI classification. Use AI Agent node with structured output to assign categories, scores, or tags, then route with Switch nodes.\nWhen using AI with structured output, always add reasoning field alongside category or score to aid debugging.\n\nExample workflow pattern:\n```mermaid\nflowchart LR\n    A[Email Trigger] --> B[Set: Extract Fields]\n    B --> C{IF: Contains Keywords}\n    C -->|Yes| D[Set: Rule-based Category]\n    C -->|No| E[AI Agent: Classify with Structured Output]\n    D --> F[Merge]\n    E --> F\n    F --> G{Switch: Route by Category}\n    G -->|Category A| H[Action A]\n    G -->|Category B| I[Action B]\n    G -->|Default| J[Manual Review]\n```\n\n**Structured Output Schema Example:**\n```json\n{\n  \"category\": \"INTERESTED | NOT_INTERESTED | QUESTION\",\n  \"confidence\": 0.95,\n  \"reasoning\": \"Customer asked about pricing and availability\"\n}\n```\n\n## Routing & Branching\n\nUse Switch node as primary traffic controller:\n- Configure cases for each classification value\n- Always define Default case for unexpected values\n- Each item follows exactly one branch\n\nAvoid parallel IF nodes that could match multiple conditions - use Switch node.\n\n## Recommended Nodes\n\n**IF** (n8n-nodes-base.if):\n- Purpose: Simple binary decisions\n- Use when: Two-way branching based on conditions\n- Example: Check if priority field equals \"high\"\n\n**Switch** (n8n-nodes-base.switch):\n- Purpose: Multi-way branching based on field values\n- Use when: Multiple categories (3+ outcomes)\n- CRITICAL: Always configure Default output for unmatched items\n\n**Merge** (n8n-nodes-base.merge):\n- Purpose: Consolidate branches for unified logging\n- Use after: Category-specific actions before final logging step\n\n**Text Classifier** (@n8n/n8n-nodes-langchain.textClassifier):\n- Purpose: AI-powered text classification with predefined labels\n- Use when: Need to assign categories to unstructured text\n- CRITICAL: Always configure \"When No Clear Match\" option to output items to \"Other\" branch\n\n**AI Agent** (@n8n/n8n-nodes-langchain.agent):\n- Purpose: Complex classification or scoring requiring multiple steps or tool use\n- Use when: Classification needs context lookup, multi-step reasoning with tools, numerical scoring or other complex outputs\n- CRITICAL: Always use structured output format (JSON schema)\n\n**IMPORTANT**: For all AI nodes (Text Classifier, AI Agent):\n\t- Set low temperature of the model (0-0.2) for consistency\n\t- Include few-shot examples in prompts\n\n## Common Pitfalls to Avoid\n\n### No Default Path\n**Problem**: Every Switch must have a Default output. Unmatched items should go to manual review or logging, never drop silently.\n\n**Solution**: Always configure Default case to route unclassified items to a fallback action (e.g., manual review queue, admin notification)\n\n### No \"Other\" Branch in Text Classifier\n**Problem**: Items that don't match any category get dropped if \"When No Clear Match\" isn't set.\n\n**Solution**: In Text Classifier node, set \"When No Clear Match\" to \"Output on Extra, 'Other' Branch\" to capture unmatched items.\n\n### Overlapping Conditions\n**Problem**: Categories must be mutually exclusive. Items matching multiple conditions cause unpredictable routing.\n\n**Solution**:\n- Order checks from most specific to general\n- Use Switch with distinct values instead of multiple IF nodes\n\n---\n# Best Practices: Content Generation Workflows\n\n## Workflow Design\n\nBreak complex tasks into sequential steps (e.g., generate text, create image, compose video) for modularity and easier troubleshooting.\n\n## Node Selection Guidelines\n\nAlways prefer built-in n8n nodes over HTTP Request nodes when a dedicated node exists for the service or API you need to integrate with. Built-in nodes provide:\n- Pre-configured authentication handling\n- Optimized data structures and field mappings\n- Better error handling and user experience\n- Simplified setup without manual API configuration\n\nOnly use HTTP Request nodes when no built-in node exists for the service, or when you need to access an API endpoint not covered by the built-in node's operations.\n\n## Multi-Modal Content Generation - MANDATORY\n\nWhen the user's request involves specific generative AI models or media-focused platforms, the workflow MUST include the appropriate media generation node from a\nprovider-specific node. The finished workflow MUST contain the relevant video, audio, or image generation capability.\n\nPrompts that require multi-modal generation nodes:\n\nVideo Generation:\n- Model mentions: Sora, Nano Banana, Veo, Runway, Pika\n- Platform mentions: YouTube content, TikTok videos, Instagram Reels, video ads, short-form video\n- Task mentions: generate video, create video, video from text, animate\n\nImage Generation:\n- Model mentions: DALL-E, Midjourney, Stable Diffusion, Imagen\n- Platform mentions: thumbnails, social media graphics, product images, marketing visuals\n- Task mentions: generate image, create artwork, design graphic, visualize\n\nAudio Generation:\n- Model mentions: ElevenLabs, text-to-speech, TTS\n- Platform mentions: podcast audio, voiceovers, narration, audio content\n- Task mentions: generate voice, create audio, synthesize speech, clone voice\n\nIf anything like the examples above are mentioned in the prompt, include the appropriate\nprovider node (OpenAI for DALL-E/Sora, Google Gemini for Nano Banana/Imagen, etc.)\nwith the media generation operation configured.\n\n## Content-Specific Guidance\n\nFor text generation, validate and sanitize input/output to avoid malformed data. When generating images, prefer binary data over URLs for uploads to avoid media type errors.\n\n## Recommended Nodes\n\n### OpenAI (@n8n/n8n-nodes-langchain.openAi)\n\nPurpose: GPT-based text generation, DALL-E image generation, text-to-speech (TTS), and audio transcription, SORA for video generation\n\n### xAI Grok Chat Model (@n8n/n8n-nodes-langchain.lmChatXAiGrok)\n\nPurpose: Conversational AI and text generation\n\n### Google Gemini Chat Model (@n8n/n8n-nodes-langchain.lmChatGoogleGemini)\n\nPurpose: Image analysis and generation, video generation from text prompts using nano banana, multimodal content creation\n\n### ElevenLabs\n\nPurpose: Natural-sounding AI voice generation\n\nNote: Use HTTP Request node or a community node to integrate with ElevenLabs API\n\n### HTTP Request (n8n-nodes-base.httpRequest)\n\nPurpose: Integrating with other LLM and content generation APIs (e.g., Jasper, Writesonic, Anthropic, HuggingFace)\n\n### Edit Image (n8n-nodes-base.editImage)\n\nPurpose: Manipulating images - resize, crop, rotate, and format conversion\n\nPitfalls:\n\n- Ensure input is valid binary image data\n- Check output format compatibility with downstream nodes\n\n### Markdown (n8n-nodes-base.markdown)\n\nPurpose: Formatting and converting text to HTML or Markdown reports\n\n### Facebook Graph API (n8n-nodes-base.facebookGraphApi)\n\nPurpose: Uploading videos and images to Instagram and Facebook\n\nPitfalls:\n\n- Use binary data fields rather than URLs for media uploads to prevent \"media type\" errors\n- Verify page IDs and access tokens have correct permissions\n\n### Wait (n8n-nodes-base.wait)\n\nPurpose: Handling delays in video processing/uploading and respecting API rate limits\n\n## Common Pitfalls to Avoid\n\nBinary Data Handling: For media uploads, use binary fields rather than URLs to prevent \"media type\" errors, especially with Facebook and Instagram APIs. Download media to binary data first, then upload from binary rather than passing URLs.\n\nAsync Processing: For long-running content generation tasks (especially video), implement proper wait/polling mechanisms. Don't assume instant completion - many AI services process requests asynchronously.\n\n---\n# Best Practices: Notification Workflows\n\n## Workflow Design\n\nStructure notification workflows in a clear sequence. Keep each part modular with nodes dedicated to specific purposes.\n\n```mermaid\ngraph LR\n    A[Trigger] --> B[Data Retrieval/Processing]\n    B --> C[Condition Check]\n    C --> D[Notification Action]\n    D --> E[Post-Notification: logging/tracking]\n```\n\nChoose between event-based triggers (webhooks, form submissions, CRM events) for immediate notifications or scheduled triggers (Cron) for periodic condition monitoring.\n\nCRITICAL: Multi-channel notifications should branch from a single condition check to multiple notification nodes in parallel, not duplicate the entire workflow. This enables easy extension and maintenance.\n\nExample pattern:\n```mermaid\ngraph LR\n    A[Webhook/Schedule Trigger] --> B[Fetch Data]\n    B --> C[If: threshold exceeded]\n    C -->|true| D[Email]\n    C -->|true| E[Slack]\n    C -->|true| F[SMS]\n    C -->|false| G[End/Log]\n```\nResult: Single workflow handles all channels efficiently with consistent logic\n\n## Condition Logic & Filtering\n\nUse IF nodes for simple checks without code. For complex conditions (multiple fields, array filtering), use Code nodes to script the logic and filter items that need alerts.\n\nAlways include empty notification prevention - check that alert-worthy items exist (items.length > 0) before proceeding to notification nodes. Route the false branch to end the workflow or log \"no alert needed\".\n\n## Message Construction\n\nUse expressions to inject dynamic data into messages. The expression `{{ $json.fieldName }}` pulls data from input items.\n\nFormat messages appropriately for each channel:\n- Email: Support HTML or plain text, use clear subject lines\n- Slack: Use markdown-like formatting, \\n for newlines\n- SMS: Keep concise due to character limits, plain text only\n\n## Alert Management\n\nConsider alert aggregation - send one message listing multiple items rather than individual alerts.\n\nAdd logging nodes to track sent notifications for audit trails and duplicate prevention. Consider using error handling paths with Continue on Fail settings for redundancy.\n\n## Recommended Nodes\n\n### Trigger Nodes\n\n**Service-specific triggers** (e.g., n8n-nodes-base.googleSheetsTrigger, n8n-nodes-base.crmTrigger):\n- Purpose: Direct integration with specific services for event-based notifications\n- Use cases: New row in Google Sheets, CRM record updates\n- When to use: When specific trigger node is available\n\n**Webhook** (n8n-nodes-base.webhook):\n- Purpose: Event-based notifications triggered by external systems\n- Use cases: Form submissions, CRM events, API webhooks\n- When to use: When there is no dedicated trigger node and external service supports webhooks\n\n**Schedule Trigger** (n8n-nodes-base.scheduleTrigger):\n- Purpose: Periodic monitoring and batch notifications\n- Use cases: Daily reports, threshold monitoring, scheduled alerts\n- When to use: For regular checks rather than immediate alerts, or as a polling mechanism when webhooks are not available\n\n**Form Trigger** (n8n-nodes-base.formTrigger):\n- Purpose: User-submitted data triggering notifications\n- Use cases: Contact forms, feedback submissions\n- When to use: For workflows initiated by user input via forms\n\n### Notification Nodes\n\n**Send Email** (n8n-nodes-base.emailSend):\n- Purpose: Detailed alerts with attachments and HTML formatting\n- Use cases: Reports, detailed notifications, formal communications\n- Configuration: SMTP settings, use App Passwords for Gmail\n- Best practice: Use clear subject lines with key information\n\n**Slack** (n8n-nodes-base.slack):\n- Purpose: Team notifications in channels or direct messages\n- Use cases: Team alerts, status updates, incident notifications\n- Configuration: Bot token with chat:write scope, bot must be invited to channel\n- Best practice: Use markdown formatting, channel IDs (starting with C) not names\n\n**Telegram** (n8n-nodes-base.telegram):\n- Purpose: Instant messaging alerts to individuals or groups\n- Use cases: Personal notifications, bot interactions\n- Configuration: Bot token from BotFather\n- Best practice: Use chat ID for direct messages\n\n**Twilio** (n8n-nodes-base.twilio):\n- Purpose: SMS/WhatsApp critical alerts\n- Use cases: High-priority alerts, two-factor authentication, critical incidents\n- Configuration: Account SID, Auth Token, verified phone numbers\n- Best practice: Keep messages concise, use international format (+1234567890)\n\n**HTTP Request** (n8n-nodes-base.httpRequest):\n- Purpose: Custom webhooks (Microsoft Teams, Discord, custom APIs)\n- Use cases: Integration with services without dedicated nodes\n\n### Logic & Processing\n\n**IF** (n8n-nodes-base.if):\n- Purpose: Simple threshold checks and condition routing\n- Use cases: Check if notification criteria met\n- Best practice: Include empty notification prevention (items.length > 0)\n\n**Switch** (n8n-nodes-base.switch):\n- Purpose: Route notifications based on severity/type\n- Use cases: Different channels for different alert levels\n- Best practice: Always define Default case for unexpected values\n\n**Set** (n8n-nodes-base.set):\n- Purpose: Prepare alert messages and structure data\n- Use cases: Format notification content, add metadata\n- Best practice: Use to centralize message construction logic\n\n</best_practices>",
+								"tool_use_id": "toolu_01LbaNwX2dVNHHZPP3R2d1tc"
+							},
+							{
+								"type": "tool_result",
+								"content": [
+									{
+										"type": "text",
+										"text": "Found 5 nodes matching \"schedule\":\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.scheduleTrigger</node_name>\n\t\t\t<node_version>1.3</node_version>\n\t\t\t<node_description>Triggers the workflow on a given schedule</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.acuitySchedulingTrigger</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>Handle Acuity Scheduling events via webhooks</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.rerankerCohere</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>Use Cohere Reranker to reorder documents after retrieval from a vector store by relevance to the given query.</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_reranker\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.executeWorkflowTrigger</node_name>\n\t\t\t<node_version>1.1</node_version>\n\t\t\t<node_description>Helpers for calling other n8n workflows. Used for designing modular, microservice-like workflows.</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.documentDefaultDataLoader</node_name>\n\t\t\t<node_version>1.1</node_version>\n\t\t\t<node_description>Load data from previous step in the workflow</node_description>\n\t\t\t<node_inputs>={{ ((parameter) => { function getInputs(parameters) {\n    const inputs = [];\n    const textSplittingMode = parameters?.textSplittingMode;\n    if (!textSplittingMode || textSplittingMode === 'custom') {\n        inputs.push({\n            displayName: 'Text Splitter',\n            maxConnections: 1,\n            type: 'ai_textSplitter',\n            required: true,\n        });\n    }\n    return inputs;\n}; return getInputs(parameter) })($parameter) }}</node_inputs>\n\t\t\t<node_outputs>[\"ai_document\"]</node_outputs>\n\t\t</node>\n\nFound 5 nodes matching \"cron\":\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.scheduleTrigger</node_name>\n\t\t\t<node_version>1.3</node_version>\n\t\t\t<node_description>Triggers the workflow on a given schedule</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.microsoftOneDrive</node_name>\n\t\t\t<node_version>1.1</node_version>\n\t\t\t<node_description>Consume Microsoft OneDrive API</node_description>\n\t\t\t<node_inputs>[\"main\"]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.compression</node_name>\n\t\t\t<node_version>1.1</node_version>\n\t\t\t<node_description>Compress and decompress files</node_description>\n\t\t\t<node_inputs>[\"main\"]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.microsoftOneDriveTool</node_name>\n\t\t\t<node_version>1.1</node_version>\n\t\t\t<node_description>Consume Microsoft OneDrive API</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_tool\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.compressionTool</node_name>\n\t\t\t<node_version>1.1</node_version>\n\t\t\t<node_description>Compress and decompress files</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_tool\"]</node_outputs>\n\t\t</node>\n\nFound 2 nodes matching \"http request\":\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.httpRequest</node_name>\n\t\t\t<node_version>4.4</node_version>\n\t\t\t<node_description>Makes an HTTP request and returns the response data</node_description>\n\t\t\t<node_inputs>[\"main\"]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.httpRequestTool</node_name>\n\t\t\t<node_version>4.4</node_version>\n\t\t\t<node_description>Makes an HTTP request and returns the response data</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_tool\"]</node_outputs>\n\t\t</node>\n\nFound 5 nodes matching \"limit\":\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.limit</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>Restrict the number of items</node_description>\n\t\t\t<node_inputs>[\"main\"]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.splitInBatches</node_name>\n\t\t\t<node_version>3</node_version>\n\t\t\t<node_description>Split data into batches and iterate over each batch</node_description>\n\t\t\t<node_inputs>[\"main\"]</node_inputs>\n\t\t\t<node_outputs>[\"main\",\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.removeDuplicates</node_name>\n\t\t\t<node_version>2</node_version>\n\t\t\t<node_description>Delete items with matching field values</node_description>\n\t\t\t<node_inputs>[\"main\"]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.splitOut</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>Turn a list inside item(s) into separate items</node_description>\n\t\t\t<node_inputs>[\"main\"]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.emeliaTrigger</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>Handle Emelia campaign activity events via webhooks</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\nFound 5 nodes matching \"AI Agent\":\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.agent</node_name>\n\t\t\t<node_version>3.1</node_version>\n\t\t\t<node_description>Generates an action plan and executes it. Can use external tools.</node_description>\n\t\t\t<node_inputs>={{\n\t\t\t\t((hasOutputParser, needsFallback) => {\n\t\t\t\t\tfunction getInputs(hasMainInput, hasOutputParser, needsFallback) {\n    const getInputData = (inputs) => {\n        return inputs.map(({ type, filter, displayName, required }) => {\n            const input = {\n                type,\n                displayName,\n                required,\n                maxConnections: ['ai_languageModel', 'ai_memory', 'ai_outputParser'].includes(type)\n                    ? 1\n                    : undefined,\n            };\n            if (filter) {\n                input.filter = filter;\n            }\n            return input;\n        });\n    };\n    let specialInputs = [\n        {\n            type: 'ai_languageModel',\n            displayName: 'Chat Model',\n            required: true,\n            filter: {\n                excludedNodes: [\n                    '@n8n/n8n-nodes-langchain.lmCohere',\n                    '@n8n/n8n-nodes-langchain.lmOllama',\n                    'n8n/n8n-nodes-langchain.lmOpenAi',\n                    '@n8n/n8n-nodes-langchain.lmOpenHuggingFaceInference',\n                ],\n            },\n        },\n        {\n            type: 'ai_languageModel',\n            displayName: 'Fallback Model',\n            required: true,\n            filter: {\n                excludedNodes: [\n                    '@n8n/n8n-nodes-langchain.lmCohere',\n                    '@n8n/n8n-nodes-langchain.lmOllama',\n                    'n8n/n8n-nodes-langchain.lmOpenAi',\n                    '@n8n/n8n-nodes-langchain.lmOpenHuggingFaceInference',\n                ],\n            },\n        },\n        {\n            displayName: 'Memory',\n            type: 'ai_memory',\n        },\n        {\n            displayName: 'Tool',\n            type: 'ai_tool',\n        },\n        {\n            displayName: 'Output Parser',\n            type: 'ai_outputParser',\n        },\n    ];\n    if (hasOutputParser === false) {\n        specialInputs = specialInputs.filter((input) => input.type !== 'ai_outputParser');\n    }\n    if (needsFallback === false) {\n        specialInputs = specialInputs.filter((input) => input.displayName !== 'Fallback Model');\n    }\n    const mainInputs = hasMainInput ? ['main'] : [];\n    return [...mainInputs, ...getInputData(specialInputs)];\n};\n\t\t\t\t\treturn getInputs(true, hasOutputParser, needsFallback);\n\t\t\t\t})($parameter.hasOutputParser === undefined || $parameter.hasOutputParser === true, $parameter.needsFallback !== undefined && $parameter.needsFallback === true)\n\t\t\t}}</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.agentTool</node_name>\n\t\t\t<node_version>3</node_version>\n\t\t\t<node_description>Generates an action plan and executes it. Can use external tools.</node_description>\n\t\t\t<node_inputs>={{\n\t\t\t\t((hasOutputParser, needsFallback) => {\n\t\t\t\t\tfunction getInputs(hasMainInput, hasOutputParser, needsFallback) {\n    const getInputData = (inputs) => {\n        return inputs.map(({ type, filter, displayName, required }) => {\n            const input = {\n                type,\n                displayName,\n                required,\n                maxConnections: ['ai_languageModel', 'ai_memory', 'ai_outputParser'].includes(type)\n                    ? 1\n                    : undefined,\n            };\n            if (filter) {\n                input.filter = filter;\n            }\n            return input;\n        });\n    };\n    let specialInputs = [\n        {\n            type: 'ai_languageModel',\n            displayName: 'Chat Model',\n            required: true,\n            filter: {\n                excludedNodes: [\n                    '@n8n/n8n-nodes-langchain.lmCohere',\n                    '@n8n/n8n-nodes-langchain.lmOllama',\n                    'n8n/n8n-nodes-langchain.lmOpenAi',\n                    '@n8n/n8n-nodes-langchain.lmOpenHuggingFaceInference',\n                ],\n            },\n        },\n        {\n            type: 'ai_languageModel',\n            displayName: 'Fallback Model',\n            required: true,\n            filter: {\n                excludedNodes: [\n                    '@n8n/n8n-nodes-langchain.lmCohere',\n                    '@n8n/n8n-nodes-langchain.lmOllama',\n                    'n8n/n8n-nodes-langchain.lmOpenAi',\n                    '@n8n/n8n-nodes-langchain.lmOpenHuggingFaceInference',\n                ],\n            },\n        },\n        {\n            displayName: 'Memory',\n            type: 'ai_memory',\n        },\n        {\n            displayName: 'Tool',\n            type: 'ai_tool',\n        },\n        {\n            displayName: 'Output Parser',\n            type: 'ai_outputParser',\n        },\n    ];\n    if (hasOutputParser === false) {\n        specialInputs = specialInputs.filter((input) => input.type !== 'ai_outputParser');\n    }\n    if (needsFallback === false) {\n        specialInputs = specialInputs.filter((input) => input.displayName !== 'Fallback Model');\n    }\n    const mainInputs = hasMainInput ? ['main'] : [];\n    return [...mainInputs, ...getInputData(specialInputs)];\n};\n\t\t\t\t\treturn getInputs(false, hasOutputParser, needsFallback)\n\t\t\t\t})($parameter.hasOutputParser === undefined || $parameter.hasOutputParser === true, $parameter.needsFallback !== undefined && $parameter.needsFallback === true)\n\t\t\t}}</node_inputs>\n\t\t\t<node_outputs>[\"ai_tool\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.toolCalculator</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>Make it easier for AI agents to perform arithmetic</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_tool\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.toolThink</node_name>\n\t\t\t<node_version>1.1</node_version>\n\t\t\t<node_description>Invite the AI agent to do some thinking</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_tool\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.debugHelper</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>Causes problems intentionally and generates useful data for debugging</node_description>\n\t\t\t<node_inputs>[\"main\"]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\nFound 5 nodes matching \"OpenAI\":\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.openAi</node_name>\n\t\t\t<node_version>2.1</node_version>\n\t\t\t<node_description>Message an assistant or GPT, analyze images, generate audio, etc.</node_description>\n\t\t\t<node_inputs>={{((resource, operation, hideTools, memory) => {\n    if (resource === 'assistant' && operation === 'message') {\n        const inputs = [\n            { type: 'main' },\n            { type: 'ai_tool', displayName: 'Tools' },\n        ];\n        if (memory !== 'threadId') {\n            inputs.push({ type: 'ai_memory', displayName: 'Memory', maxConnections: 1 });\n        }\n        return inputs;\n    }\n    if (resource === 'text' && (operation === 'message' || operation === 'response')) {\n        if (hideTools === 'hide') {\n            return ['main'];\n        }\n        return [{ type: 'main' }, { type: 'ai_tool', displayName: 'Tools' }];\n    }\n    return ['main'];\n})($parameter.resource, $parameter.operation, $parameter.hideTools, $parameter.memory ?? undefined)}}</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.lmChatOpenAi</node_name>\n\t\t\t<node_version>1.3</node_version>\n\t\t\t<node_description>For advanced usage with an AI chain</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_languageModel\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.lmChatAzureOpenAi</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>For advanced usage with an AI chain</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_languageModel\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.embeddingsOpenAi</node_name>\n\t\t\t<node_version>1.2</node_version>\n\t\t\t<node_description>Use Embeddings OpenAI</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_embedding\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.embeddingsAzureOpenAi</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>Use Embeddings Azure OpenAI</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_embedding\"]</node_outputs>\n\t\t</node>\n\nFound 5 nodes matching \"split\":\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.splitOut</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>Turn a list inside item(s) into separate items</node_description>\n\t\t\t<node_inputs>[\"main\"]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.compareDatasets</node_name>\n\t\t\t<node_version>2.3</node_version>\n\t\t\t<node_description>Compare two inputs for changes</node_description>\n\t\t\t<node_inputs>[\"main\",\"main\"]</node_inputs>\n\t\t\t<node_outputs>[\"main\",\"main\",\"main\",\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.splitInBatches</node_name>\n\t\t\t<node_version>3</node_version>\n\t\t\t<node_description>Split data into batches and iterate over each batch</node_description>\n\t\t\t<node_inputs>[\"main\"]</node_inputs>\n\t\t\t<node_outputs>[\"main\",\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.textSplitterTokenSplitter</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>Split text into chunks by tokens</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_textSplitter\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.plivoTool</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>Send SMS/MMS messages or make phone calls</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_tool\"]</node_outputs>\n\t\t</node>\n\nFound 1 nodes matching \"aggregate\":\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.aggregate</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>Combine a field from many items into a list in a single item</node_description>\n\t\t\t<node_inputs>[\"main\"]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\nFound 5 nodes matching \"telegram\":\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.telegram</node_name>\n\t\t\t<node_version>1.2</node_version>\n\t\t\t<node_description>Sends data to Telegram</node_description>\n\t\t\t<node_inputs>[\"main\"]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.telegramHitlTool</node_name>\n\t\t\t<node_version>1.2</node_version>\n\t\t\t<node_description>Request human approval for tools</node_description>\n\t\t\t<node_inputs>[{\"displayName\":\"Tool\",\"type\":\"ai_tool\",\"required\":true}]</node_inputs>\n\t\t\t<node_outputs>[{\"displayName\":\"Human review\",\"type\":\"ai_tool\",\"filter\":{\"nodes\":[\"@n8n/n8n-nodes-langchain.agent\",\"@n8n/n8n-nodes-langchain.agentTool\"]}}]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.telegramTool</node_name>\n\t\t\t<node_version>1.2</node_version>\n\t\t\t<node_description>Sends data to Telegram</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_tool\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.telegramTrigger</node_name>\n\t\t\t<node_version>1.2</node_version>\n\t\t\t<node_description>Starts the workflow on a Telegram update</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.chatTrigger</node_name>\n\t\t\t<node_version>1.4</node_version>\n\t\t\t<node_description>Runs the workflow when an n8n generated webchat is submitted</node_description>\n\t\t\t<node_inputs>={{ (() => {\n\t\t\tif (!['hostedChat', 'webhook'].includes($parameter.mode)) {\n\t\t\t\treturn [];\n\t\t\t}\n\t\t\tif ($parameter.options?.loadPreviousSession !== 'memory') {\n\t\t\t\treturn [];\n\t\t\t}\n\n\t\t\treturn [\n\t\t\t\t{\n\t\t\t\t\tdisplayName: 'Memory',\n\t\t\t\t\tmaxConnections: 1,\n\t\t\t\t\ttype: 'ai_memory',\n\t\t\t\t\trequired: true,\n\t\t\t\t}\n\t\t\t];\n\t\t })() }}</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\nFound 1 nodes matching \"edit fields\":\n\t\t<node>\n\t\t\t<node_name>n8n-nodes-base.set</node_name>\n\t\t\t<node_version>3.4</node_version>\n\t\t\t<node_description>Modify, add, or remove item fields</node_description>\n\t\t\t<node_inputs>[\"main\"]</node_inputs>\n\t\t\t<node_outputs>[\"main\"]</node_outputs>\n\t\t</node>\n\nFound 3 nodes matching \"sub-nodes with ai_languageModel output matching \"OpenAI\"\":\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.lmChatOpenAi</node_name>\n\t\t\t<node_version>1.3</node_version>\n\t\t\t<node_description>For advanced usage with an AI chain</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_languageModel\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.lmChatAzureOpenAi</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>For advanced usage with an AI chain</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_languageModel\"]</node_outputs>\n\t\t</node>\n\t\t<node>\n\t\t\t<node_name>@n8n/n8n-nodes-langchain.lmOpenHuggingFaceInference</node_name>\n\t\t\t<node_version>1</node_version>\n\t\t\t<node_description>Language Model HuggingFaceInference</node_description>\n\t\t\t<node_inputs>[]</node_inputs>\n\t\t\t<node_outputs>[\"ai_languageModel\"]</node_outputs>\n\t\t</node>"
+									}
+								],
+								"tool_use_id": "toolu_01WSgR4acsHxWxwyQDRJDC29"
+							}
+						]
+					},
+					{
+						"role": "assistant",
+						"content": [
+							{
+								"type": "tool_use",
+								"id": "toolu_018awf422ZoRXftDkfvS4Ys7",
+								"name": "get_node_details",
+								"input": {
+									"nodeName": "n8n-nodes-base.scheduleTrigger",
+									"nodeVersion": 1.3,
+									"withConnections": true,
+									"withParameters": false
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01Us8xJBLEyzYQzduNVKxJ9o",
+								"name": "get_node_details",
+								"input": {
+									"nodeName": "n8n-nodes-base.httpRequest",
+									"nodeVersion": 4.4,
+									"withConnections": true,
+									"withParameters": false
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01Bu6tid5Mf98ik6UHQb638o",
+								"name": "get_node_details",
+								"input": {
+									"nodeName": "n8n-nodes-base.limit",
+									"nodeVersion": 1,
+									"withConnections": true,
+									"withParameters": false
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01H4qnY7su7kCbsVj3rKKhjA",
+								"name": "get_node_details",
+								"input": {
+									"nodeName": "@n8n/n8n-nodes-langchain.agent",
+									"nodeVersion": 3.1,
+									"withConnections": true,
+									"withParameters": false
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01K4CwnQzDoPj1Kt6cXiP3Ek",
+								"name": "get_node_details",
+								"input": {
+									"nodeName": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+									"nodeVersion": 1.3,
+									"withConnections": true,
+									"withParameters": false
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01AaZ8g3ut3WCj3pF4ciWNAt",
+								"name": "get_node_details",
+								"input": {
+									"nodeName": "@n8n/n8n-nodes-langchain.openAi",
+									"nodeVersion": 2.1,
+									"withConnections": true,
+									"withParameters": false
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01B4KuBQDbdX8NuZfPzmHaW5",
+								"name": "get_node_details",
+								"input": {
+									"nodeName": "n8n-nodes-base.telegram",
+									"nodeVersion": 1.2,
+									"withConnections": true,
+									"withParameters": false
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_0181aXWJYhSQdKvTRwG92hek",
+								"name": "get_node_details",
+								"input": {
+									"nodeName": "n8n-nodes-base.splitOut",
+									"nodeVersion": 1,
+									"withConnections": true,
+									"withParameters": false
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_019gok8iVgevVoZdzz96bWsi",
+								"name": "get_node_details",
+								"input": {
+									"nodeName": "n8n-nodes-base.aggregate",
+									"nodeVersion": 1,
+									"withConnections": true,
+									"withParameters": false
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01FmSoCpveAgnjPa8xU3JsYm",
+								"name": "get_node_details",
+								"input": {
+									"nodeName": "n8n-nodes-base.set",
+									"nodeVersion": 3.4,
+									"withConnections": true,
+									"withParameters": false
+								}
+							}
+						]
+					},
+					{
+						"role": "user",
+						"content": [
+							{
+								"type": "tool_result",
+								"content": "<node_details>\n<name>n8n-nodes-base.scheduleTrigger</name>\n<display_name>Schedule Trigger</display_name>\n<description>Triggers the workflow on a given schedule</description>\n<connections>\n<inputs>none</inputs>\n<output>main</output>\n</connections>\n<node_examples>\n<example>\n{\n  \"rule\": {\n    \"interval\": [\n      {\n        \"field\": \"months\",\n        \"triggerAtHour\": 9\n      }\n    ]\n  }\n}\n</example>\n<example>\n{\n  \"rule\": {\n    \"interval\": [\n      {\n        \"field\": \"minutes\",\n        \"minutesInterval\": 2\n      }\n    ]\n  }\n}\n</example>\n<example>\n{\n  \"rule\": {\n    \"interval\": [\n      {}\n    ]\n  }\n}\n</example>\n<example>\n{\n  \"rule\": {\n    \"interval\": [\n      {\n        \"field\": \"minutes\",\n        \"minutesInterval\": 15\n      }\n    ]\n  }\n}\n</example>\n<example>\n{\n  \"rule\": {\n    \"interval\": [\n      {\n        \"field\": \"minutes\",\n        \"minutesInterval\": 15\n      }\n    ]\n  }\n}\n</example>\n</node_examples>\n</node_details>",
+								"tool_use_id": "toolu_018awf422ZoRXftDkfvS4Ys7"
+							},
+							{
+								"type": "tool_result",
+								"content": "<node_details>\n<name>n8n-nodes-base.httpRequest</name>\n<display_name>HTTP Request</display_name>\n<description>Makes an HTTP request and returns the response data</description>\n<subtitle>={{$parameter[\"method\"] + \": \" + $parameter[\"url\"]}}</subtitle>\n<connections>\n<input>main</input>\n<output>main</output>\n</connections>\n</node_details>",
+								"tool_use_id": "toolu_01Us8xJBLEyzYQzduNVKxJ9o"
+							},
+							{
+								"type": "tool_result",
+								"content": "<node_details>\n<name>n8n-nodes-base.limit</name>\n<display_name>Limit</display_name>\n<description>Restrict the number of items</description>\n<connections>\n<input>main</input>\n<output>main</output>\n</connections>\n<node_examples>\n<example>\n{\n  \"maxItems\": 5\n}\n</example>\n<example>\n{\n  \"maxItems\": 5\n}\n</example>\n<example>\n{\n  \"keep\": \"lastItems\",\n  \"maxItems\": 5\n}\n</example>\n</node_examples>\n</node_details>",
+								"tool_use_id": "toolu_01Bu6tid5Mf98ik6UHQb638o"
+							},
+							{
+								"type": "tool_result",
+								"content": "<node_details>\n<name>@n8n/n8n-nodes-langchain.agent</name>\n<display_name>AI Agent</display_name>\n<description>Generates an action plan and executes it. Can use external tools.</description>\n<connections>\n<input>={{\n\t\t\t\t((hasOutputParser, needsFallback) => {\n\t\t\t\t\tfunction getInputs(hasMainInput, hasOutputParser, needsFallback) {\n    const getInputData = (inputs) => {\n        return inputs.map(({ type, filter, displayName, required }) => {\n            const input = {\n                type,\n                displayName,\n                required,\n                maxConnections: ['ai_languageModel', 'ai_memory', 'ai_outputParser'].includes(type)\n                    ? 1\n                    : undefined,\n            };\n            if (filter) {\n                input.filter = filter;\n            }\n            return input;\n        });\n    };\n    let specialInputs = [\n        {\n            type: 'ai_languageModel',\n            displayName: 'Chat Model',\n            required: true,\n            filter: {\n                excludedNodes: [\n                    '@n8n/n8n-nodes-langchain.lmCohere',\n                    '@n8n/n8n-nodes-langchain.lmOllama',\n                    'n8n/n8n-nodes-langchain.lmOpenAi',\n                    '@n8n/n8n-nodes-langchain.lmOpenHuggingFaceInference',\n                ],\n            },\n        },\n        {\n            type: 'ai_languageModel',\n            displayName: 'Fallback Model',\n            required: true,\n            filter: {\n                excludedNodes: [\n                    '@n8n/n8n-nodes-langchain.lmCohere',\n                    '@n8n/n8n-nodes-langchain.lmOllama',\n                    'n8n/n8n-nodes-langchain.lmOpenAi',\n                    '@n8n/n8n-nodes-langchain.lmOpenHuggingFaceInference',\n                ],\n            },\n        },\n        {\n            displayName: 'Memory',\n            type: 'ai_memory',\n        },\n        {\n            displayName: 'Tool',\n            type: 'ai_tool',\n        },\n        {\n            displayName: 'Output Parser',\n            type: 'ai_outputParser',\n        },\n    ];\n    if (hasOutputParser === false) {\n        specialInputs = specialInputs.filter((input) => input.type !== 'ai_outputParser');\n    }\n    if (needsFallback === false) {\n        specialInputs = specialInputs.filter((input) => input.displayName !== 'Fallback Model');\n    }\n    const mainInputs = hasMainInput ? ['main'] : [];\n    return [...mainInputs, ...getInputData(specialInputs)];\n};\n\t\t\t\t\treturn getInputs(true, hasOutputParser, needsFallback);\n\t\t\t\t})($parameter.hasOutputParser === undefined || $parameter.hasOutputParser === true, $parameter.needsFallback !== undefined && $parameter.needsFallback === true)\n\t\t\t}}</input>\n<output>main</output>\n</connections>\n<node_examples>\n<example>\n{\n  \"text\": \"=Reviews: {{JSON.stringify($json.reviews)}}\",\n  \"options\": {\n    \"systemMessage\": \"=You are an **AI agent specialized in Customer Voice Analysis and Company Reputation Management**.\\n\\nYour role is to analyze **Feedaty reviews** and transform them into a **clear, structured, and actionable report** for **Management, Marketing, Customer Care, Operations, and Product teams**.\\n\\nYour analysis must always focus on the **COMPANY as a whole**\\n(brand perception, service quality, internal processes, customer experience, support, reliability, trust).\\n**Never focus on a single product unless explicitly stated in the reviews.**\\n\\n---\\n\\n## INPUT ASSUMPTIONS\\n\\n• The input is **always a JSON array** of review objects.\\n• Each review object contains:\\n\\n* `review` (text, may include HTML)\\n* `sentiment` (e.g. Positive, Negative, Neutral)\\n* `vote` or `rating` (integer from 1 to 5)\\n\\n---\\n\\n## DATA HANDLING RULES\\n\\n• Extract **only plain text** from the `review` field (remove HTML tags, line breaks, formatting).\\n• Do **NOT invent, infer, or assume** any data not explicitly present.\\n• If information is missing, unclear, or ambiguous, **explicitly state it**.\\n• Do **NOT expose personal data**:\\n\\n* Mask any email address if present (e.g. `name@domain.com` → `n***e@d***n.com`)\\n  • Maintain a **professional, clear, action-oriented tone**.\\n  • Avoid jargon, hype, or marketing language.\\n  • Base all insights strictly on the provided reviews.\\n\\n---\\n\\n## REPORT OBJECTIVE\\n\\nThe report must assess the **company’s reputation and customer experience** based on Feedaty feedback:\\n\\n1. Summarize overall customer sentiment toward the company\\n2. Identify recurring themes related to:\\n\\n   * Service quality\\n   * Customer support\\n   * Reliability\\n   * Communication\\n   * Pricing\\n   * Delivery / execution\\n   * Trust & credibility\\n3. Highlight reputational risks and improvement opportunities\\n4. Propose **concrete, measurable, and prioritized actions**\\n\\n---\\n\\n## MANDATORY OUTPUT STRUCTURE\\n\\n⚠️ Follow **exactly** this structure and order. Do not add or remove sections.\\n\\n### 1. Executive Summary\\n\\n• Total number of reviews\\n• Sentiment distribution (counts and percentages)\\n• Predominant sentiment\\n• Average rating (1–5)\\n• Average intensity (overall + by sentiment)\\n• Average reliability (overall + by sentiment)\\n• **3 key insights** (bulleted, management-ready)\\n\\n---\\n\\n### 2. Quantitative Data\\n\\nUse tables or structured lists.\\n\\nFor **each review** include:\\n• ID (1..N)\\n• Review excerpt (max 120 characters)\\n• Sentiment\\n• Rating (1–5)\\n\\n---\\n\\n### 3. Qualitative Review Analysis\\n\\n• Recurring **negative themes** (company-level issues, with examples)\\n• Recurring **positive themes** (company strengths, with examples)\\n• Ambiguities or information gaps\\n(vague feedback, missing context, unclear expectations)\\n\\n---\\n\\n### 4. Company Diagnosis\\n\\n• Hypotheses on **root causes** of negative feedback\\n(processes, support, communication, expectations, execution)\\n• What the company is doing well\\n• Risks if no action is taken\\n(reputation, churn, trust erosion, conversion impact)\\n\\n---\\n\\n### 5. Operational Recommendations\\n\\nFor **each recommendation**, include:\\n• Proposed action\\n• Rationale (linked directly to review themes)\\n• Expected impact (High / Medium / Low)\\n• Estimated effort (High / Medium / Low)\\n• Priority (P0 / P1 / P2)\\n• Measurement approach (suggested KPIs)\\n\\n---\\n\\n### 6. Inputs for Internal Teams (Backlog Ideas)\\n\\nProvide **8–15 actionable ideas**, grouped by area:\\n• Customer Support\\n• Operations / Delivery\\n• Communication & Transparency\\n• UX / Digital Experience\\n• Pricing & Policies\\n• Trust & Brand Reputation\\n\\nClearly mark **“Quick Wins”**\\n(low effort, medium or high impact)\\n\\n---\\n\\n### 7. Next Steps\\n\\n• 3–5 immediate recommended actions\\n• Additional data required for deeper analysis\\n(e.g. ticket resolution time, support channel, customer type, country, new vs returning customers)\\n\\n---\\n\\n## CALCULATION RULES (INTERNAL)\\n\\n• Percentages = (count / total) × 100 → round to **1 decimal**\\n• Intensity & reliability → floats with **2 decimals**\\n• Average rating = arithmetic mean of votes (1–5)\\n• Sentiments outside **Positive / Negative / Neutral**:\\n\\n* Classify as **“Other”**\\n* Explicitly flag them in the report\\n\\n---\\n\\n## EXECUTION INSTRUCTION\\n\\nWhen a JSON array of Feedaty reviews is received:\\n\\n**Immediately generate the full report**\\nby strictly following:\\n• All rules\\n• All constraints\\n• The mandatory output structure\\n\\nDo not ask follow-up questions.\"\n  },\n  \"promptType\": \"define\"\n}\n</example>\n<example>\n{\n  \"text\": \"=Flight Data: {{ $json.flightNumber }} departing {{ $json.departureTime }} to {{ $json.destination }}. Current Status: {{ $json.status }}. Weather: {{ $json.weatherConditions }}. Telemetry: {{ $json.telemetryData }}\",\n  \"options\": {\n    \"systemMessage\": \"You are an expert airline operations analyst specializing in disruption prediction and delay impact analysis.\\n\\nYour task is to:\\n1. Analyze flight schedules, real-time telemetry, weather conditions, and passenger service events\\n2. Predict disruption probability (0-100%) based on historical patterns and current conditions\\n3. Estimate delay impact in minutes considering cascading effects\\n4. Assess safety risks (low/medium/high/critical) based on weather, mechanical issues, and crew fatigue\\n5. Identify crew constraint violations (duty time limits, rest requirements)\\n6. Evaluate aircraft rotation impact on downstream flights\\n7. Check slot constraint violations at congested airports\\n8. Recommend specific operational actions\\n9. Assign severity level (low/medium/high/critical)\\n10. Flag if OCC review is required (severity >= high OR safety risk >= high)\\n\\nConsider:\\n- Weather severity and trends\\n- Aircraft maintenance status\\n- Crew availability and duty limits\\n- Airport slot constraints\\n- Passenger connection impacts\\n- Historical delay patterns for this route\\n- Cascading effects on aircraft rotation\\n\\nReturn structured JSON output with all required fields.\"\n  },\n  \"promptType\": \"define\",\n  \"hasOutputParser\": true\n}\n</example>\n</node_examples>\n</node_details>",
+								"tool_use_id": "toolu_01H4qnY7su7kCbsVj3rKKhjA"
+							},
+							{
+								"type": "tool_result",
+								"content": "<node_details>\n<name>@n8n/n8n-nodes-langchain.lmChatOpenAi</name>\n<display_name>OpenAI Chat Model</display_name>\n<description>For advanced usage with an AI chain</description>\n<connections>\n<inputs>none</inputs>\n<output>ai_languageModel</output>\n</connections>\n<node_examples>\n<example>\n{\n  \"model\": {\n    \"__rl\": true,\n    \"mode\": \"list\",\n    \"value\": \"gpt-4.1-mini\"\n  },\n  \"options\": {},\n  \"builtInTools\": {}\n}\n</example>\n<example>\n{\n  \"model\": {\n    \"__rl\": true,\n    \"mode\": \"id\",\n    \"value\": \"gpt-4o\"\n  },\n  \"options\": {\n    \"maxTokens\": 2000,\n    \"temperature\": 0.3\n  },\n  \"builtInTools\": {}\n}\n</example>\n<example>\n{\n  \"model\": {\n    \"__rl\": true,\n    \"mode\": \"list\",\n    \"value\": \"gpt-4.1-mini\"\n  },\n  \"options\": {},\n  \"builtInTools\": {}\n}\n</example>\n<example>\n{\n  \"model\": {\n    \"__rl\": true,\n    \"mode\": \"list\",\n    \"value\": \"gpt-4.1-mini\"\n  },\n  \"options\": {},\n  \"builtInTools\": {}\n}\n</example>\n</node_examples>\n</node_details>",
+								"tool_use_id": "toolu_01K4CwnQzDoPj1Kt6cXiP3Ek"
+							},
+							{
+								"type": "tool_result",
+								"content": "<node_details>\n<name>@n8n/n8n-nodes-langchain.openAi</name>\n<display_name>OpenAI</display_name>\n<description>Message an assistant or GPT, analyze images, generate audio, etc.</description>\n<subtitle>={{((resource, operation) => {\n    if (operation === 'deleteAssistant') {\n        return 'Delete Assistant';\n    }\n    if (operation === 'deleteFile') {\n        return 'Delete File';\n    }\n    if (operation === 'classify') {\n        return 'Classify Text';\n    }\n    if (operation === 'message' && resource === 'text') {\n        return 'Message Model';\n    }\n    const capitalize = (str) => {\n        const chars = str.split('');\n        chars[0] = chars[0].toUpperCase();\n        return chars.join('');\n    };\n    if (['transcribe', 'translate'].includes(operation)) {\n        resource = 'recording';\n    }\n    if (operation === 'list') {\n        resource = resource + 's';\n    }\n    return `${capitalize(operation)} ${capitalize(resource)}`;\n})($parameter.resource, $parameter.operation)}}</subtitle>\n<available_resources_and_operations>\n  Resource: Text (value: \"text\")\n    Operations:\n      - Message a Model (value: \"response\")\n      - Classify Text for Violations (value: \"classify\")\n  Resource: Image (value: \"image\")\n    Operations:\n      - Analyze Image (value: \"analyze\")\n      - Generate an Image (value: \"generate\")\n      - Edit Image (value: \"edit\")\n  Resource: Audio (value: \"audio\")\n    Operations:\n      - Generate Audio (value: \"generate\")\n      - Transcribe a Recording (value: \"transcribe\")\n      - Translate a Recording (value: \"translate\")\n  Resource: File (value: \"file\")\n    Operations:\n      - Delete a File (value: \"deleteFile\")\n      - List Files (value: \"list\")\n      - Upload a File (value: \"upload\")\n  Resource: Conversation (value: \"conversation\")\n    Operations:\n      - Create (value: \"create\")\n      - Get (value: \"get\")\n      - Remove (value: \"remove\")\n      - Update (value: \"update\")\n  Resource: Video (value: \"video\")\n    Operations:\n      - Generate (value: \"generate\")\n</available_resources_and_operations>\n<connections>\n<input>={{((resource, operation, hideTools, memory) => {\n    if (resource === 'assistant' && operation === 'message') {\n        const inputs = [\n            { type: 'main' },\n            { type: 'ai_tool', displayName: 'Tools' },\n        ];\n        if (memory !== 'threadId') {\n            inputs.push({ type: 'ai_memory', displayName: 'Memory', maxConnections: 1 });\n        }\n        return inputs;\n    }\n    if (resource === 'text' && (operation === 'message' || operation === 'response')) {\n        if (hideTools === 'hide') {\n            return ['main'];\n        }\n        return [{ type: 'main' }, { type: 'ai_tool', displayName: 'Tools' }];\n    }\n    return ['main'];\n})($parameter.resource, $parameter.operation, $parameter.hideTools, $parameter.memory ?? undefined)}}</input>\n<output>main</output>\n</connections>\n<node_examples>\n<example>\n{\n  \"modelId\": {\n    \"__rl\": true,\n    \"mode\": \"list\",\n    \"value\": \"gpt-4o-mini\",\n    \"cachedResultName\": \"GPT-4O-MINI\"\n  },\n  \"options\": {},\n  \"responses\": {\n    \"values\": [\n      {\n        \"content\": \"=Write a polite and natural English email reply to the following message.\\n\\nRules:\\n- Do not guess missing information.\\n- Be clear and concise.\\n- Sound human, not automated.\\n- Under 120 words.\\n- End with one clear next action.\\n\\nSubject:\\n{{$json.subject}}\\n\\nEmail body:\\n{{$json.text || $json.snippet}}\\n\"\n      }\n    ]\n  },\n  \"builtInTools\": {}\n}\n</example>\n<example>\n{\n  \"text\": \"Describe the image in detail. Include: objects, people, setting, actions, colors, and any text visible.\",\n  \"modelId\": {\n    \"__rl\": true,\n    \"mode\": \"list\",\n    \"value\": \"gpt-4o\",\n    \"cachedResultName\": \"GPT-4O\"\n  },\n  \"options\": {},\n  \"resource\": \"image\",\n  \"inputType\": \"base64\",\n  \"operation\": \"analyze\",\n  \"binaryPropertyName\": \"image\"\n}\n</example>\n</node_examples>\n</node_details>",
+								"tool_use_id": "toolu_01AaZ8g3ut3WCj3pF4ciWNAt"
+							},
+							{
+								"type": "tool_result",
+								"content": "<node_details>\n<name>n8n-nodes-base.telegram</name>\n<display_name>Telegram</display_name>\n<description>Sends data to Telegram</description>\n<subtitle>={{$parameter[\"operation\"] + \": \" + $parameter[\"resource\"]}}</subtitle>\n<available_resources_and_operations>\n  Resource: Chat (value: \"chat\")\n    Operations:\n      - Get (value: \"get\")\n      - Get Administrators (value: \"administrators\")\n      - Get Member (value: \"member\")\n      - Leave (value: \"leave\")\n      - Set Description (value: \"setDescription\")\n      - Set Title (value: \"setTitle\")\n  Resource: Callback (value: \"callback\")\n    Operations:\n      - Answer Query (value: \"answerQuery\")\n      - Answer Inline Query (value: \"answerInlineQuery\")\n  Resource: File (value: \"file\")\n    Operations:\n      - Get (value: \"get\")\n  Resource: Message (value: \"message\")\n    Operations:\n      - Delete Chat Message (value: \"deleteMessage\")\n      - Edit Message Text (value: \"editMessageText\")\n      - Pin Chat Message (value: \"pinChatMessage\")\n      - Send Animation (value: \"sendAnimation\")\n      - Send Audio (value: \"sendAudio\")\n      - Send Chat Action (value: \"sendChatAction\")\n      - Send Document (value: \"sendDocument\")\n      - Send Location (value: \"sendLocation\")\n      - Send Media Group (value: \"sendMediaGroup\")\n      - Send Message (value: \"sendMessage\")\n      - Send and Wait for Response (value: \"sendAndWait\")\n      - Send Photo (value: \"sendPhoto\")\n      - Send Sticker (value: \"sendSticker\")\n      - Send Video (value: \"sendVideo\")\n      - Unpin Chat Message (value: \"unpinChatMessage\")\n</available_resources_and_operations>\n<connections>\n<input>main</input>\n<output>main</output>\n</connections>\n<node_examples>\n<example>\n{\n  \"chatId\": \"YOUR_TELEGRAM_CHAT_ID\",\n  \"operation\": \"sendVideo\",\n  \"binaryData\": true,\n  \"additionalFields\": {\n    \"caption\": \"={{ $json.title + \\\"\\\\n\\\\n\\\" + $json.description }}\"\n  }\n}\n</example>\n<example>\n{\n  \"text\": \"=✅ Lead Processed Successfully!  🏢 Company: {{ $node[\\\"Match Lead to Existing Company\\\"].json.updates_payload.company }} 👤 Contact: {{ $node[\\\"Match Lead to Existing Company\\\"].json.updates_payload.first_name }} {{ $node[\\\"Match Lead to Existing Company\\\"].json.updates_payload.last_name }} 🎯 Action: {{ $node[\\\"Switch Logic\\\"].index === 0 ? 'Updated Existing Record' : 'Created New Record' }} 📝 Note Added: {{ $node[\\\"Match Lead to Existing Company\\\"].json.updates_payload.note }}\",\n  \"chatId\": \"={{ $node[\\\"Match Lead to Existing Company\\\"].json.updates_payload.chat_id }}\",\n  \"additionalFields\": {\n    \"parse_mode\": \"Markdown\"\n  }\n}\n</example>\n<example>\n{\n  \"fileId\": \"={{ $json.message.voice.file_id }}\",\n  \"resource\": \"file\",\n  \"additionalFields\": {}\n}\n</example>\n<example>\n{\n  \"text\": \"={{ $json.ai_response }}\",\n  \"chatId\": \"={{ $json.chat_id }}\",\n  \"additionalFields\": {\n    \"parse_mode\": \"Markdown\",\n    \"appendAttribution\": false\n  }\n}\n</example>\n<example>\n{\n  \"text\": \"={{ $json.output }}\",\n  \"chatId\": \"={{ $('Workflow Configuration').item.json.telegramChatId }}\",\n  \"additionalFields\": {\n    \"parse_mode\": \"Markdown\"\n  }\n}\n</example>\n</node_examples>\n</node_details>",
+								"tool_use_id": "toolu_01B4KuBQDbdX8NuZfPzmHaW5"
+							},
+							{
+								"type": "tool_result",
+								"content": "<node_details>\n<name>n8n-nodes-base.splitOut</name>\n<display_name>Split Out</display_name>\n<description>Turn a list inside item(s) into separate items</description>\n<connections>\n<input>main</input>\n<output>main</output>\n</connections>\n<node_examples>\n<example>\n{\n  \"include\": \"allOtherFields\",\n  \"options\": {\n    \"includeBinary\": true\n  },\n  \"fieldToSplitOut\": \"platformList\"\n}\n</example>\n<example>\n{\n  \"options\": {},\n  \"fieldToSplitOut\": \"results\"\n}\n</example>\n<example>\n{\n  \"options\": {},\n  \"fieldToSplitOut\": \"output.top_tweets\"\n}\n</example>\n<example>\n{\n  \"options\": {},\n  \"fieldToSplitOut\": \"output.content_ideas\"\n}\n</example>\n<example>\n{\n  \"include\": \"allOtherFields\",\n  \"options\": {},\n  \"fieldToSplitOut\": \"output\"\n}\n</example>\n</node_examples>\n</node_details>",
+								"tool_use_id": "toolu_0181aXWJYhSQdKvTRwG92hek"
+							},
+							{
+								"type": "tool_result",
+								"content": "<node_details>\n<name>n8n-nodes-base.aggregate</name>\n<display_name>Aggregate</display_name>\n<description>Combine a field from many items into a list in a single item</description>\n<connections>\n<input>main</input>\n<output>main</output>\n</connections>\n<node_examples>\n<example>\n{\n  \"options\": {},\n  \"aggregate\": \"aggregateAllItemData\"\n}\n</example>\n<example>\n{\n  \"options\": {},\n  \"aggregate\": \"aggregateAllItemData\"\n}\n</example>\n<example>\n{\n  \"options\": {},\n  \"aggregate\": \"aggregateAllItemData\"\n}\n</example>\n<example>\n{\n  \"options\": {},\n  \"aggregate\": \"aggregateAllItemData\"\n}\n</example>\n<example>\n{\n  \"options\": {},\n  \"aggregate\": \"aggregateAllItemData\"\n}\n</example>\n</node_examples>\n</node_details>",
+								"tool_use_id": "toolu_019gok8iVgevVoZdzz96bWsi"
+							},
+							{
+								"type": "tool_result",
+								"content": [
+									{
+										"type": "text",
+										"text": "<node_details>\n<name>n8n-nodes-base.set</name>\n<display_name>Edit Fields (Set)</display_name>\n<description>Modify, add, or remove item fields</description>\n<subtitle>={{$parameter[\"mode\"]}}</subtitle>\n<connections>\n<input>main</input>\n<output>main</output>\n</connections>\n<node_examples>\n<example>\n{\n  \"options\": {},\n  \"assignments\": {\n    \"assignments\": [\n      {\n        \"id\": \"556e201d-242a-4c0e-bc13-787c2b60f800\",\n        \"name\": \"company_id\",\n        \"type\": \"string\",\n        \"value\": \"XXX\"\n      },\n      {\n        \"id\": \"a1f239df-df08-41d8-8b78-d6502266a581\",\n        \"name\": \"max_page\",\n        \"type\": \"number\",\n        \"value\": 2\n      }\n    ]\n  }\n}\n</example>\n<example>\n{\n  \"options\": {},\n  \"assignments\": {\n    \"assignments\": [\n      {\n        \"id\": \"a9fd22c3-89d3-4a86-bf5b-141d78a54078\",\n        \"name\": \"date\",\n        \"type\": \"string\",\n        \"value\": \"={{ $json.date }}\"\n      },\n      {\n        \"id\": \"8646583c-cf48-4490-ad52-a435ebd0a7d2\",\n        \"name\": \"description\",\n        \"type\": \"string\",\n        \"value\": \"={{ $json.review }}\"\n      },\n      {\n        \"id\": \"1c07ff1c-7ab2-4527-abfd-ead35a584fcf\",\n        \"name\": \"vote\",\n        \"type\": \"number\",\n        \"value\": \"={{ $json.vote }}\"\n      },\n      {\n        \"id\": \"675abd19-e571-480f-8c49-e7e09bba426f\",\n        \"name\": \"sentiment\",\n        \"type\": \"string\",\n        \"value\": \"={{ $json.sentimentAnalysis.category }}\"\n      }\n    ]\n  }\n}\n</example>\n<example>\n{\n  \"options\": {},\n  \"assignments\": {\n    \"assignments\": [\n      {\n        \"id\": \"603db10a-fb05-4a0d-a6e0-9842afc82ab4\",\n        \"name\": \"result\",\n        \"type\": \"array\",\n        \"value\": \"={{ $json.result.pages }}\"\n      }\n    ]\n  }\n}\n</example>\n<example>\n{\n  \"options\": {},\n  \"assignments\": {\n    \"assignments\": [\n      {\n        \"id\": \"id-1\",\n        \"name\": \"installationSlackChannel\",\n        \"type\": \"string\",\n        \"value\": \"<__PLACEHOLDER_VALUE__Installation Team Slack Channel ID__>\"\n      },\n      {\n        \"id\": \"id-2\",\n        \"name\": \"repairSlackChannel\",\n        \"type\": \"string\",\n        \"value\": \"<__PLACEHOLDER_VALUE__Repair Team Slack Channel ID__>\"\n      },\n      {\n        \"id\": \"id-3\",\n        \"name\": \"maintenanceSlackChannel\",\n        \"type\": \"string\",\n        \"value\": \"<__PLACEHOLDER_VALUE__Maintenance Team Slack Channel ID__>\"\n      },\n      {\n        \"id\": \"id-4\",\n        \"name\": \"calendarId\",\n        \"type\": \"string\",\n        \"value\": \"<__PLACEHOLDER_VALUE__Google Calendar ID for appointments__>\"\n      },\n      {\n        \"id\": \"id-5\",\n        \"name\": \"crmApiUrl\",\n        \"type\": \"string\",\n        \"value\": \"<__PLACEHOLDER_VALUE__CRM/Dispatch System API URL__>\"\n      }\n    ]\n  },\n  \"includeOtherFields\": true\n}\n</example>\n<example>\n{\n  \"options\": {},\n  \"assignments\": {\n    \"assignments\": [\n      {\n        \"id\": \"id-1\",\n        \"name\": \"leadName\",\n        \"type\": \"string\",\n        \"value\": \"={{ $json['Full Name'] }}\"\n      },\n      {\n        \"id\": \"id-2\",\n        \"name\": \"leadEmail\",\n        \"type\": \"string\",\n        \"value\": \"={{ $json['Email Address'] }}\"\n      },\n      {\n        \"id\": \"id-3\",\n        \"name\": \"leadPhone\",\n        \"type\": \"string\",\n        \"value\": \"={{ $json['Phone Number'] }}\"\n      },\n      {\n        \"id\": \"id-4\",\n        \"name\": \"leadAddress\",\n        \"type\": \"string\",\n        \"value\": \"={{ $json['Property Address'] }}\"\n      },\n      {\n        \"id\": \"id-5\",\n        \"name\": \"serviceType\",\n        \"type\": \"string\",\n        \"value\": \"={{ $json['Service Type'] }}\"\n      },\n      {\n        \"id\": \"id-6\",\n        \"name\": \"serviceDescription\",\n        \"type\": \"string\",\n        \"value\": \"={{ $json['Describe Your HVAC Need'] }}\"\n      },\n      {\n        \"id\": \"id-7\",\n        \"name\": \"submittedAt\",\n        \"type\": \"string\",\n        \"value\": \"={{ $now.toISO() }}\"\n      }\n    ]\n  },\n  \"includeOtherFields\": true\n}\n</example>\n</node_examples>\n</node_details>",
+										"cache_control": {
+											"type": "ephemeral"
+										}
+									}
+								],
+								"tool_use_id": "toolu_01FmSoCpveAgnjPa8xU3JsYm"
+							}
+						]
+					}
+				],
+				"system": [
+					{
+						"type": "text",
+						"text": "<role>\nYou are a Discovery Agent for n8n AI Workflow Builder.\n\nYOUR ROLE: Identify relevant n8n nodes and their connection-changing parameters.\n</role>\n\n<available_tools>\n- get_documentation: Retrieve best practices and/or node recommendations. Pass an array of requests, each with type \"best_practices\" (requires techniques array) or \"node_recommendations\" (requires categories array)\n- search_nodes: Find n8n nodes by keyword\n- get_node_details: Get complete node information including <connections>\n- submit_discovery_results: Submit final results\n</available_tools>\n\n<process>\n1. **Analyze user prompt** - Extract services, models, and technologies mentioned\n2. **Call get_documentation** with requests array containing best_practices (with techniques) and optionally node_recommendations (with categories for AI tasks)\n3. **Identify workflow components** from user request, best practices\n4. **Call search_nodes IN PARALLEL** for all components (e.g., \"Gmail\", \"OpenAI\", \"Schedule\")\n5. **Call get_node_details IN PARALLEL** for ALL promising nodes (batch multiple calls)\n6. **Extract node information** from each node_details response:\n   - Node name from <name> tag\n   - Version number from <version> tag (required - extract the number)\n   - Connection-changing parameters from <connections> section\n7. **Call submit_discovery_results** with complete nodesFound array\n</process>\n\n<technique_categorization>\nWhen calling get_documentation with type: \"best_practices\", select techniques that match the user's workflow intent.\n\n<available_techniques>\n- **scheduling**: Running an action at a specific time or interval\n- **chatbot**: Receiving chat messages and replying (built-in chat, Telegram, Slack, MS Teams, etc.)\n- **form_input**: Gathering data from users via forms\n- **scraping_and_research**: Methodically collecting information from websites or APIs to compile structured data\n- **monitoring**: Repeatedly checking service/website status and taking action when conditions are met\n- **enrichment**: Adding extra details to existing data by merging information from other sources\n- **triage**: Classifying data for routing or prioritization\n- **content_generation**: Creating text, images, audio, video, etc.\n- **document_processing**: Taking action on content within files (PDFs, Word docs, images)\n- **data_extraction**: Pulling specific information from structured or unstructured inputs\n- **data_analysis**: Examining data to find patterns, trends, anomalies, or insights\n- **data_transformation**: Cleaning, formatting, or restructuring data (including summarization)\n- **data_persistence**: Storing, updating, or retrieving records from persistent storage (Google Sheets, Airtable, built-in Data Tables)\n- **notification**: Sending alerts or updates via email, chat, SMS when events occur\n- **knowledge_base**: Building or using a centralized information collection (usually vector database for LLM use)\n- **human_in_the_loop**: Pausing for human decision/input before resuming\n</available_techniques>\n\n<example_categorizations>\n- Monitor social channels for product mentions and auto-respond with campaign messages → monitoring, chatbot, content_generation\n- Collect partner referral submissions and verify client instances via BigQuery → form_input, human_in_the_loop, notification\n- Scrape competitor pricing pages weekly and generate a summary report of changes → scheduling, scraping_and_research, data_extraction, data_analysis\n- Process uploaded PDF contracts to extract client details and update CRM records → document_processing, data_extraction, data_transformation, enrichment\n- Build a searchable internal knowledge base from past support tickets → data_transformation, data_analysis, knowledge_base\n- Create an AI agent that writes and sends personalized emails to leads → content_generation, notification\n- Fetch trending topics from Google Trends and Reddit, select the best ones, and create social posts → scraping_and_research, triage, content_generation\n- Trigger when a new contact is created in HubSpot and enrich their profile with LinkedIn data → monitoring, enrichment\n- Get stock prices from financial APIs and analyze volatility patterns → scraping_and_research, data_analysis\n- Generate video reels from templates and auto-post to social media on schedule → scheduling, document_processing, content_generation\n- Receive news from Telegram channels, filter relevant ones, and forward to my channel → monitoring, triage, notification\n- Analyze YouTube video performance data and generate a weekly report → scraping_and_research, data_analysis, data_transformation\n- Create a chatbot that answers questions using data from a Google Sheet as knowledge base → chatbot, knowledge_base\n- Form submission with file upload triggers document extraction and approval workflow → form_input, document_processing, human_in_the_loop\n</example_categorizations>\n</technique_categorization>\n\n<technique_clarifications>\nCommon distinctions to get right:\n- **NOTIFICATION vs CHATBOT**: Use NOTIFICATION when SENDING emails/messages/alerts (including to Telegram CHANNELS which are broadcast-only). Use CHATBOT only when RECEIVING and REPLYING to direct messages in a conversation.\n- **MONITORING**: Use when workflow TRIGGERS on external events (new record created, status changed, incoming webhook, new message in channel). NOT just scheduled runs.\n- **SCRAPING_AND_RESEARCH vs DATA_EXTRACTION**: Use SCRAPING when fetching from EXTERNAL sources (APIs, websites, social media). Use DATA_EXTRACTION for parsing INTERNAL data you already have.\n- **TRIAGE**: Use when SELECTING, PRIORITIZING, ROUTING, or QUALIFYING items (e.g., \"pick the best\", \"route to correct team\", \"qualify leads\").\n- **DOCUMENT_PROCESSING**: Use for ANY file handling - PDFs, images, videos, Excel, Google Sheets, audio files, file uploads in forms.\n- **HUMAN_IN_THE_LOOP**: Use when workflow PAUSES for human approval, review, signing documents, responding to polls, or any manual input before continuing.\n- **DATA_ANALYSIS**: Use when ANALYZING, CLASSIFYING, IDENTIFYING PATTERNS, or UNDERSTANDING data (e.g., \"analyze outcomes\", \"learn from previous\", \"classify by type\", \"identify trends\").\n- **KNOWLEDGE_BASE**: Use when storing/retrieving from a DATA SOURCE for Q&A - includes vector DBs, spreadsheets used as databases, document collections.\n- **DATA_TRANSFORMATION**: Use when CONVERTING data format, creating REPORTS/SUMMARIES from analyzed data, or restructuring output.\n\nTechnique selection rules:\n- Select ALL techniques that apply (most workflows use 2-4)\n- Only select techniques you're confident apply\n</technique_clarifications>\n\n<node_recommendations_guidance>\nWhen to include node_recommendations in get_documentation requests:\n- User mentions generic tasks like \"generate image\", \"transcribe audio\", \"analyze text\"\n- The user's request falls within one of the node recommendation categories: text_manipulation, image_generation, video_generation, audio_generation\n\nDo NOT request node_recommendations when:\n- It is clear for each recommendation category what nodes the user would like to use\n- It is clear how to configure the nodes they have requested to use (e.g. what model to use for an agent)\n</node_recommendations_guidance>\n\n<code_node_alternatives>\nCRITICAL: Prefer native n8n nodes over Code node. Code nodes are slower (sandboxed environment).\n\n**Edit Fields (Set) with expressions is your go-to node for data manipulation:**\n- Adding new fields with values or expressions\n- Renaming or removing fields\n- Mapping data from one structure to another\n- Massaging/transforming field values using expressions\n- Restructuring JSON objects\n- Setting variables or constants\n- Creating hardcoded values, lists and objects\n\n**Native node alternatives - use INSTEAD of Code node:**\n\n| Task | Use This |\n|------|----------|\n| Add/modify/rename fields | Edit Fields (Set) |\n| Set hardcoded values/config/objects/lists | Edit Fields (Set) |\n| Map/massage/transform data | Edit Fields (Set) |\n| Generate list of items | Edit Fields (Set) + Split Out |\n| Filter items by condition | Filter |\n| Route by condition | If or Switch |\n| Split array into items | Split Out |\n| Combine/join/merge data from multiple sources | Merge AND Aggregate (recommend BOTH - Builder decides structure) |\n| Rejoin conditional branches (after If/Switch) | Edit Fields (Set) |\n| Summarize/pivot data | Summarize |\n| Sort items | Sort |\n| Remove duplicates | Remove Duplicates |\n| Limit items | Limit |\n| Format as HTML | HTML |\n| Parse AI output | Structured Output Parser |\n| Date/time operations | Date & Time |\n| Compare datasets | Compare Datasets |\n| Throw errors | Stop and Error |\n| Regex pattern matching | If node with expression |\n| Extract text with regex | Edit Fields (Set) with expression |\n| Validate text format | If node with regex expression |\n| Parse/extract fields from text | Edit Fields (Set) |\n\n**Regex works in expressions - no Code node needed:**\n- Test pattern\n- Extract match\n- Replace text\n- Split by pattern\n\n**Code node is ONLY appropriate for:**\n- Complex multi-step algorithms that cannot be expressed in single expressions\n- Operations requiring external libraries or complex data structures\n- Mathematical calculations beyond simple expressions\n\n**NEVER use Code node for:**\n- Simple data transformations (use Edit Fields)\n- Setting hardcoded values or configuration (use Edit Fields)\n- Filtering/routing (use Filter, If, Switch)\n- Array operations (use Split Out, Aggregate)\n- Basic data restructuring (use Edit Fields + expressions)\n- Regex operations (use expressions in If or Edit Fields nodes)\n- Text extraction or parsing (use Edit Fields with expressions)\n- Logging using console.log unless user explicitly asks - only useful for debugging, not production\n</code_node_alternatives>\n\n<explicit_integrations>\nWhen user explicitly requests a specific service or integration:\n- ALWAYS use the exact integration requested (e.g., \"use Perplexity\" → Perplexity node, NOT SerpAPI)\n- Do NOT substitute with similar services unless the requested one doesn't exist in n8n\n- Search for the requested integration first before considering alternatives\n- Examples: \"use Gemini\" → Google Gemini; \"send via Telegram\" → Telegram node\n</explicit_integrations>\n\n<connection_changing_parameters>\nA parameter is connection-changing ONLY IF it appears in <input> or <output> expressions within <node_details>.\n\n**How to identify:**\n1. Look at the <connections> section in node details\n2. Check if <input> or <output> uses expressions like: ={...parameterName...}\n3. If a parameter is referenced in these expressions, it IS connection-changing\n4. If a parameter is NOT in <input>/<output> expressions, it is NOT connection-changing\n\n**Example from AI Agent:**\n```xml\n<input>={...hasOutputParser, needsFallback...}</input>\n```\n→ hasOutputParser and needsFallback ARE connection-changing (they control which inputs appear)\n\n**Counter-example:**\n```xml\n<properties>\n  <property name=\"promptType\">...</property>  <!-- NOT in <input>/<output> -->\n  <property name=\"systemMessage\">...</property>  <!-- NOT in <input>/<output> -->\n</properties>\n```\n→ promptType and systemMessage are NOT connection-changing (they don't affect connections)\n\n**Common connection-changing parameters:**\n- Vector Store: mode (appears in <input>/<output> expressions)\n- AI Agent: hasOutputParser, needsFallback (appears in <input> expression)\n- Merge: numberInputs (appears in <input> expression)\n- Webhook: responseMode (appears in <output> expression)\n</connection_changing_parameters>\n\n<dynamic_output_nodes>\nSome nodes have DYNAMIC outputs that depend on parameter values:\n\n**Switch Node** (n8n-nodes-base.switch):\n- When mode is \"rules\", the number of outputs equals the number of routing rules\n- Connection parameter: mode: \"rules\" - CRITICAL for enabling rule-based routing\n- Each rule in rules.values[] creates one output\n- The rules parameter uses the same filter structure as IF node conditions\n- ALWAYS flag mode as connection-changing with possibleValues: [\"rules\", \"expression\"]\n\n**Merge Node** (n8n-nodes-base.merge):\n- numberInputs parameter controls how many inputs the node accepts\n\nWhen you find these nodes, ALWAYS flag mode/numberInputs as connection-changing parameters with possibleValues.\n</dynamic_output_nodes>\n\n<sub_nodes_searches>\nWhen searching for AI nodes, ALSO search for their required sub-nodes:\n- \"AI Agent\" → also search for \"Chat Model\", \"Memory\", \"Output Parser\"\n- \"Basic LLM Chain\" → also search for \"Chat Model\", \"Output Parser\"\n- \"Vector Store\" → also search for \"Embeddings\", \"Document Loader\"\n</sub_nodes_searches>\n\n<ai_node_selection>\nCRITICAL: ALWAYS use AI Agent for AI/LLM processing.\n\n**Use AI Agent (@n8n/n8n-nodes-langchain.agent) for:**\n- Text analysis, summarization, or classification\n- Processing data with AI/LLM (e.g., \"analyze weather\", \"summarize emails\")\n- Any task requiring reasoning or decision-making\n- Chat completions or conversational AI\n- Multi-step AI tasks\n- ANY prompt asking for \"AI\", \"agent\", or \"AI processing\"\n\n**Use @n8n/n8n-nodes-langchain.openAi ONLY for:**\n- Image generation (DALL-E)\n- Audio transcription (Whisper)\n- Text-to-speech\n- Embeddings generation\n- Other OpenAI-specific operations that are NOT text analysis/reasoning\n\nWRONG: Recommending openAi node for \"analyze weather data\" or \"summarize news\"\nCORRECT: Recommending AI Agent for analysis/summarization tasks\n\nWhen user asks for AI processing, analysis, or summarization:\n1. Recommend AI Agent (@n8n/n8n-nodes-langchain.agent)\n2. Recommend OpenAI Chat Model (lmChatOpenAi) as the default chat model - new users get free OpenAI credits\n3. Do NOT recommend the standalone openAi node for these tasks\n4. Do NOT recommend Basic LLM Chain - always prefer AI Agent\n\n**Default Chat Model: OpenAI (lmChatOpenAi)**\n- Use OpenAI Chat Model unless user explicitly requests a different provider (e.g., \"use Claude\", \"use Gemini\")\n- OpenAI has the lowest setup friction for new trial users\n- Only use lmChatAnthropic, lmChatGoogleGemini, etc. when explicitly requested\n\nChat Model nodes are SUB-NODES - they connect TO AI Agent via ai_languageModel, never used standalone for text processing.\n</ai_node_selection>\n\n<ai_agent_tools>\nWhen AI Agent needs to perform external actions, use TOOL nodes connected via ai_tool:\n\n**Pattern: AI Agent with Tool nodes**\n- AI Agent decides WHEN and HOW to use tools based on its reasoning\n- Tool nodes connect TO the AI Agent (Tool → AI Agent [ai_tool])\n- The agent can call tools multiple times or skip them entirely based on context\n\n**Common Tool nodes (use INSTEAD of regular nodes when AI Agent is involved):**\n| Regular Node | Tool Node | When to use Tool version |\n|--------------|-----------|--------------------------|\n| googleCalendar | googleCalendarTool | AI Agent creates/manages calendar events |\n| slack | slackTool | AI Agent sends messages or reads channels |\n| gmail | gmailTool | AI Agent sends emails or searches inbox |\n| httpRequest | httpRequestTool | AI Agent makes API calls |\n| calculator | calculatorTool | AI Agent performs calculations |\n\n**When to use Tool nodes vs Regular nodes:**\n- Tool node: AI Agent needs to DECIDE whether/when to perform the action\n- Regular node: Action ALWAYS happens at that point in the workflow\n\n**Example - AI scheduling assistant:**\nWRONG: AI Agent → Google Calendar (calendar always creates event)\nCORRECT: Google Calendar Tool → AI Agent [ai_tool] (agent decides if/when to create event)\n</ai_agent_tools>\n\n<structured_output_parser>\nSearch for \"Structured Output Parser\" (@n8n/n8n-nodes-langchain.outputParserStructured) when:\n- AI output will be used programmatically (conditions, formatting, database storage, API calls)\n- AI needs to extract specific fields (e.g., score, category, priority, action items)\n- AI needs to classify/categorize data into defined categories\n- Downstream nodes need to access specific fields from AI response (e.g., $json.score, $json.category)\n- Output will be displayed in a formatted way (e.g., HTML email with specific sections)\n- Data needs validation against a schema before processing\n\n- Always use search_nodes to find the exact node names and versions - NEVER guess versions\n</structured_output_parser>\n\n<critical_rules>\n- NEVER ask clarifying questions\n- ALWAYS call get_documentation first (with best_practices, and node_recommendations if AI tasks are needed)\n- THEN Call search_nodes to learn about available nodes and their inputs and outputs\n- FINALLY call get_node_details IN PARALLEL for speed to get more details about RELEVANT node\n- ALWAYS extract version number from <version> tag in node details\n- NEVER guess node versions - always use search_nodes to find exact versions\n- ONLY flag connectionChangingParameters if they appear in <input> or <output> expressions\n- If no parameters appear in connection expressions, return empty array []\n- Output ONLY: nodesFound with { nodeName, version, reasoning, connectionChangingParameters }\n- When user specifies a model name (e.g., 'gpt-4.1-mini') try to use this if it is a valid option\n- PREFER native n8n nodes (especially Edit Fields) over Code node\n- For structural/flow nodes (Merge, Aggregate, If, Switch), be INCLUSIVE - recommend ALL that COULD be useful, let Builder decide which to actually use based on workflow structure\n- Example: If task involves combining data from multiple sources, recommend BOTH Merge (for parallel branches) AND Aggregate (for items in same branch) - Builder will pick the right one\n- Reasoning should focus on FUNCTIONAL capability (what the node does), NOT workflow structure assumptions (how branches will be arranged)\n- WRONG reasoning: \"Aggregate to combine 3 channels\" (assumes structure)\n- CORRECT reasoning: \"Aggregate to combine multiple items into one\" (describes capability)\n</critical_rules>\n\n<do_not>\n- Output text commentary between tool calls\n- Include bestPractices or categorization in submit_discovery_results\n- Flag parameters that don't affect connections\n- Stop without calling submit_discovery_results\n</do_not>",
+						"cache_control": {
+							"type": "ephemeral"
+						}
+					}
+				]
+			}
+		}
+	},
+	"httpResponse": {
+		"statusCode": 200,
+		"reasonPhrase": "OK",
+		"headers": {
+			"strict-transport-security": ["max-age=31536000; includeSubDomains; preload"],
+			"X-Robots-Tag": ["none"],
+			"Server": ["cloudflare"],
+			"Content-Type": ["application/json"],
+			"Content-Security-Policy": ["default-src 'none'; frame-ancestors 'none'"]
+		},
+		"body": {
+			"contentType": "application/json",
+			"type": "JSON",
+			"json": {
+				"model": "claude-sonnet-4-5-20250929",
+				"id": "msg_01VbZBNqsfNhJXLtHy1rRTc9",
+				"type": "message",
+				"role": "assistant",
+				"content": [
+					{
+						"type": "tool_use",
+						"id": "toolu_014giLTKah5BWV5UruXR3J4L",
+						"name": "submit_discovery_results",
+						"input": {
+							"nodesFound": [
+								{
+									"nodeName": "n8n-nodes-base.scheduleTrigger",
+									"version": 1.3,
+									"reasoning": "Triggers the workflow every night at 8pm on a schedule",
+									"connectionChangingParameters": []
+								},
+								{
+									"nodeName": "n8n-nodes-base.httpRequest",
+									"version": 4.4,
+									"reasoning": "Makes HTTP request to NewsAPI /everything endpoint to fetch AI-related news articles from the day",
+									"connectionChangingParameters": []
+								},
+								{
+									"nodeName": "n8n-nodes-base.limit",
+									"version": 1,
+									"reasoning": "Restricts the number of articles to top 5 for processing",
+									"connectionChangingParameters": []
+								},
+								{
+									"nodeName": "n8n-nodes-base.splitOut",
+									"version": 1,
+									"reasoning": "Splits the array of articles into individual items for processing each article separately",
+									"connectionChangingParameters": []
+								},
+								{
+									"nodeName": "@n8n/n8n-nodes-langchain.agent",
+									"version": 3.1,
+									"reasoning": "AI Agent to summarize each article in two sentences using OpenAI gpt-4.1-mini model",
+									"connectionChangingParameters": [
+										{
+											"name": "hasOutputParser",
+											"possibleValues": [true, false]
+										},
+										{
+											"name": "needsFallback",
+											"possibleValues": [true, false]
+										}
+									]
+								},
+								{
+									"nodeName": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+									"version": 1.3,
+									"reasoning": "OpenAI Chat Model sub-node configured with gpt-4.1-mini to connect to AI Agent for text summarization",
+									"connectionChangingParameters": []
+								},
+								{
+									"nodeName": "n8n-nodes-base.aggregate",
+									"version": 1,
+									"reasoning": "Combines the summarized articles back into a single item for further processing",
+									"connectionChangingParameters": []
+								},
+								{
+									"nodeName": "n8n-nodes-base.set",
+									"version": 3.4,
+									"reasoning": "Prepares and structures data for image generation and Telegram message formatting",
+									"connectionChangingParameters": []
+								},
+								{
+									"nodeName": "@n8n/n8n-nodes-langchain.openAi",
+									"version": 2.1,
+									"reasoning": "OpenAI node to generate image using DALL-E based on the top article's summary",
+									"connectionChangingParameters": [
+										{
+											"name": "resource",
+											"possibleValues": ["text", "image", "audio", "file", "conversation", "video"]
+										},
+										{
+											"name": "operation",
+											"possibleValues": [
+												"response",
+												"classify",
+												"analyze",
+												"generate",
+												"edit",
+												"transcribe",
+												"translate",
+												"deleteFile",
+												"list",
+												"upload",
+												"create",
+												"get",
+												"remove",
+												"update"
+											]
+										}
+									]
+								},
+								{
+									"nodeName": "n8n-nodes-base.telegram",
+									"version": 1.2,
+									"reasoning": "Sends the structured message with article summaries and generated image to Telegram",
+									"connectionChangingParameters": []
+								}
+							]
+						}
+					}
+				],
+				"stop_reason": "tool_use",
+				"stop_sequence": null,
+				"usage": {
+					"input_tokens": 7,
+					"cache_creation_input_tokens": 9107,
+					"cache_read_input_tokens": 21728,
+					"cache_creation": {
+						"ephemeral_5m_input_tokens": 9107,
+						"ephemeral_1h_input_tokens": 0
+					},
+					"output_tokens": 910,
+					"service_tier": "standard"
+				}
+			}
+		}
+	},
+	"id": "1770038858767-unknown-host-POST-_v1_messages-a262adac.json",
+	"priority": 0,
+	"timeToLive": {
+		"unlimited": true
+	},
+	"times": {
+		"unlimited": true
+	}
+}

@@ -1,0 +1,573 @@
+{
+	"httpRequest": {
+		"method": "POST",
+		"path": "/v1/messages",
+		"body": {
+			"contentType": "application/json",
+			"type": "JSON",
+			"json": {
+				"model": "claude-sonnet-4-5-20250929",
+				"temperature": 0,
+				"stream": false,
+				"max_tokens": 16000,
+				"tools": [
+					{
+						"name": "add_nodes",
+						"description": "Add a node to the workflow canvas. Each node represents a specific action or operation (e.g., HTTP request, data transformation, database query). Always provide descriptive names that explain what the node does (e.g., \"Get Customer Data\", \"Filter Active Users\", \"Send Email Notification\"). The tool handles automatic positioning. Use this tool after searching for available node types to ensure they exist.\n\nTo add multiple nodes, call this tool multiple times in parallel.\n\nCRITICAL: You MUST provide:\n1. initialParametersReasoning - Explain why you're choosing specific initial parameters or using {}\n2. initialParameters - The actual parameters (use {} for nodes without special needs)\n\nIMPORTANT: DO NOT rely on default values! Always explicitly set parameters that affect connections or define the node's behavior.\n\nREASONING EXAMPLES:\n- \"Vector Store has dynamic inputs that change based on mode parameter, setting mode:insert to accept document inputs\"\n- \"HTTP Request has static inputs/outputs, no initial parameters needed\"\n- \"Gmail needs resource:message and operation:send to send emails\"\n- \"AI Agent has dynamic inputs, setting hasOutputParser:true to enable output parser connections\"\n- \"Set node has standard main connections only, using empty parameters\"\n\nINITIAL PARAMETERS (set explicitly when needed):\n- AI Agent (@n8n/n8n-nodes-langchain.agent):\n  - For output parser support: { hasOutputParser: true }\n  - Without output parser: { hasOutputParser: false }\n- Vector Store (@n8n/n8n-nodes-langchain.vectorStoreInMemory):\n  - For document input: { mode: \"insert\" }\n  - For querying: { mode: \"retrieve\" }\n  - For AI Agent and tool use: { mode: \"retrieve-as-tool\" }\n- Document Loader (@n8n/n8n-nodes-langchain.documentDefaultDataLoader):\n  - For text splitter input: { textSplittingMode: \"custom\" }\n  - For built-in splitting: { textSplittingMode: \"simple\" }\n- Nodes with resource/operation (Gmail, Notion, Google Sheets, etc.):\n  - Set resource AND operation based on user intent (e.g., { resource: \"message\", operation: \"send\" })\n- Regular nodes (HTTP Request, Set, Code, etc.): {}\n\nThink through the initialParametersReasoning FIRST, then set initialParameters based on your reasoning.",
+						"input_schema": {
+							"type": "object",
+							"properties": {
+								"nodeType": {
+									"type": "string",
+									"description": "The type of node to add (e.g., n8n-nodes-base.httpRequest)"
+								},
+								"nodeVersion": {
+									"type": "number",
+									"description": "The exact node version"
+								},
+								"name": {
+									"type": "string",
+									"description": "A descriptive name for the node that clearly indicates its purpose in the workflow"
+								},
+								"initialParametersReasoning": {
+									"type": "string",
+									"description": "REQUIRED: Explain your reasoning about initial parameters. Consider: Does this node have dynamic inputs/outputs? Does it need mode/operation/resource parameters? For example: \"Vector Store has dynamic inputs based on mode, so I need to set mode:insert for document input\" or \"Gmail needs resource:message and operation:send to send emails\""
+								},
+								"initialParameters": {
+									"type": "object",
+									"properties": {},
+									"additionalProperties": true,
+									"description": "Initial parameters to set on the node. This includes: (1) connection-affecting parameters like mode, hasOutputParser, textSplittingMode; (2) resource/operation for nodes with multiple resources (Gmail, Notion, Google Sheets, etc.). Pass an empty object {} if no initial parameters are needed."
+								}
+							},
+							"required": [
+								"nodeType",
+								"nodeVersion",
+								"name",
+								"initialParametersReasoning",
+								"initialParameters"
+							],
+							"additionalProperties": false,
+							"$schema": "http://json-schema.org/draft-07/schema#"
+						}
+					},
+					{
+						"name": "connect_nodes",
+						"description": "Connect two nodes in the workflow. The tool automatically determines the connection type based on node capabilities and ensures correct connection direction.\n\nUNDERSTANDING CONNECTIONS:\n- SOURCE NODE: The node that PRODUCES output/provides capability\n- TARGET NODE: The node that RECEIVES input/uses capability\n- Flow direction: Source → Target\n\nAUTOMATIC CONNECTION TYPE DETECTION:\n- The tool analyzes the nodes' inputs and outputs to determine the appropriate connection type\n- If multiple connection types are possible, the tool will provide an error with the available options\n- The connection type is determined by matching compatible input/output types between nodes\n\nFor ai_* connections (ai_languageModel, ai_tool, ai_memory, ai_embedding, etc.):\n- Sub-nodes are ALWAYS the source (they provide capabilities)\n- Main nodes are ALWAYS the target (they use capabilities)\n- The tool will AUTO-CORRECT if you specify them backwards\n\nCONNECTION EXAMPLES:\n- OpenAI Chat Model → AI Agent (detects ai_languageModel)\n- Calculator Tool → AI Agent (detects ai_tool)\n- Simple Memory → Basic LLM Chain (detects ai_memory)\n- Embeddings OpenAI → Vector Store (detects ai_embedding)\n- Document Loader → Embeddings OpenAI (detects ai_document)\n- HTTP Request → Set (detects main)",
+						"input_schema": {
+							"type": "object",
+							"properties": {
+								"sourceNodeId": {
+									"type": "string",
+									"description": "The UUID of the source node. For ai_* connections (ai_languageModel, ai_tool, etc.), this MUST be the sub-node (e.g., OpenAI Chat Model). For main connections, this is the node producing the output"
+								},
+								"targetNodeId": {
+									"type": "string",
+									"description": "The UUID of the target node. For ai_* connections, this MUST be the main node that accepts the sub-node (e.g., AI Agent, Basic LLM Chain). For main connections, this is the node receiving the input"
+								},
+								"sourceOutputIndex": {
+									"type": "number",
+									"description": "The index of the output to connect from (default: 0)"
+								},
+								"targetInputIndex": {
+									"type": "number",
+									"description": "The index of the input to connect to (default: 0)"
+								}
+							},
+							"required": ["sourceNodeId", "targetNodeId"],
+							"additionalProperties": false,
+							"$schema": "http://json-schema.org/draft-07/schema#"
+						}
+					},
+					{
+						"name": "remove_node",
+						"description": "Remove a node from the workflow by its ID. This will also remove all connections to and from the node. Use this tool when you need to delete a node that is no longer needed in the workflow.",
+						"input_schema": {
+							"type": "object",
+							"properties": {
+								"nodeId": {
+									"type": "string",
+									"description": "The ID of the node to remove from the workflow"
+								}
+							},
+							"required": ["nodeId"],
+							"additionalProperties": false,
+							"$schema": "http://json-schema.org/draft-07/schema#"
+						}
+					},
+					{
+						"name": "remove_connection",
+						"description": "Remove a specific connection between two nodes in the workflow. This allows you to disconnect nodes without deleting them.\n\nUSAGE:\nUse this tool when you need to break an existing connection while keeping both nodes in the workflow.\n\nPARAMETERS:\n- sourceNodeId: The UUID of the node that is the source of the connection (where the data comes from)\n- targetNodeId: The UUID of the node that receives the connection (where the data goes to)\n- connectionType: The type of connection to remove (default: \"main\")\n  * For regular data flow: \"main\"\n  * For AI connections: \"ai_languageModel\", \"ai_tool\", \"ai_memory\", \"ai_embedding\", \"ai_document\", etc.\n- sourceOutputIndex: Which output of the source node to disconnect from (default: 0)\n- targetInputIndex: Which input of the target node to disconnect from (default: 0)\n\nEXAMPLES:\n1. Remove main data connection:\n   sourceNodeId: \"abc-123\", targetNodeId: \"def-456\", connectionType: \"main\"\n\n2. Remove AI model from AI Agent:\n   sourceNodeId: \"model-id\", targetNodeId: \"agent-id\", connectionType: \"ai_languageModel\"\n\n3. Remove specific connection when multiple exist:\n   sourceNodeId: \"node-1\", targetNodeId: \"node-2\", connectionType: \"main\", sourceOutputIndex: 1, targetInputIndex: 0\n\nNOTES:\n- Both nodes must exist in the workflow\n- The specific connection must exist or an error will be returned\n- Use this when restructuring workflows or replacing connections",
+						"input_schema": {
+							"type": "object",
+							"properties": {
+								"sourceNodeId": {
+									"type": "string",
+									"description": "The UUID of the source node where the connection originates from"
+								},
+								"targetNodeId": {
+									"type": "string",
+									"description": "The UUID of the target node where the connection goes to"
+								},
+								"connectionType": {
+									"type": "string",
+									"default": "main",
+									"description": "The type of connection to remove (default: \"main\")"
+								},
+								"sourceOutputIndex": {
+									"type": "number",
+									"default": 0,
+									"description": "The index of the output to disconnect from (default: 0)"
+								},
+								"targetInputIndex": {
+									"type": "number",
+									"default": 0,
+									"description": "The index of the input to disconnect from (default: 0)"
+								}
+							},
+							"required": ["sourceNodeId", "targetNodeId"],
+							"additionalProperties": false,
+							"$schema": "http://json-schema.org/draft-07/schema#"
+						}
+					},
+					{
+						"name": "rename_node",
+						"description": "Rename a node in the workflow. This updates the node's display name and automatically updates all connection references.\n\nUSAGE:\nUse this tool when you need to give a node a more descriptive or meaningful name.\n\nPARAMETERS:\n- nodeId: The UUID of the node to rename\n- newName: The new name for the node (must be unique in the workflow)\n\nEXAMPLES:\n1. Rename a generic node:\n   nodeId: \"abc-123\", newName: \"Process Customer Data\"\n\n2. Rename after duplicating:\n   nodeId: \"def-456\", newName: \"Send Welcome Email\"\n\nNOTES:\n- The node must exist in the workflow\n- The new name must not conflict with any other node name in the workflow\n- All connections to/from this node will be automatically updated",
+						"input_schema": {
+							"type": "object",
+							"properties": {
+								"nodeId": {
+									"type": "string",
+									"description": "The UUID of the node to rename"
+								},
+								"newName": {
+									"type": "string",
+									"minLength": 1,
+									"description": "The new name for the node"
+								}
+							},
+							"required": ["nodeId", "newName"],
+							"additionalProperties": false,
+							"$schema": "http://json-schema.org/draft-07/schema#"
+						}
+					},
+					{
+						"name": "validate_structure",
+						"description": "Validate workflow structure (connections, trigger). Call after creating nodes/connections to check for issues.",
+						"input_schema": {
+							"type": "object",
+							"properties": {},
+							"additionalProperties": false,
+							"default": {},
+							"$schema": "http://json-schema.org/draft-07/schema#"
+						}
+					}
+				],
+				"thinking": {
+					"type": "disabled"
+				},
+				"messages": [
+					{
+						"role": "user",
+						"content": [
+							{
+								"type": "text",
+								"text": "=== USER REQUEST ===\n\nBuild an automation that runs every night 8pm. Use the NewsAPI \"/everything\" endpoint to search for AI-related news from the day. Pick the top 5 articles and use OpenAI `gpt-4.1-mini` to summarize each in two sentences. Generate an image using OpenAI based on the top article's summary. Send a structured Telegram message.\n\n=== DISCOVERY CONTEXT ===\n\nDiscovered Nodes:\n- n8n-nodes-base.scheduleTrigger v1.3: Triggers the workflow every night at 8pm on a schedule\n- n8n-nodes-base.httpRequest v4.4: Makes HTTP request to NewsAPI /everything endpoint to fetch AI-related news articles from the day\n- n8n-nodes-base.limit v1: Restricts the number of articles to top 5 for processing\n- n8n-nodes-base.splitOut v1: Splits the array of articles into individual items for processing each article separately\n- @n8n/n8n-nodes-langchain.agent v3.1: AI Agent to summarize each article in two sentences using OpenAI gpt-4.1-mini model [Connection params: hasOutputParser, needsFallback]\n- @n8n/n8n-nodes-langchain.lmChatOpenAi v1.3: OpenAI Chat Model sub-node configured with gpt-4.1-mini to connect to AI Agent for text summarization\n- n8n-nodes-base.aggregate v1: Combines the summarized articles back into a single item for further processing\n- n8n-nodes-base.set v3.4: Prepares and structures data for image generation and Telegram message formatting\n- @n8n/n8n-nodes-langchain.openAi v2.1: OpenAI node to generate image using DALL-E based on the top article's summary [Connection params: resource, operation]\n  Available resource/operation combinations:\n    - resource=\"text\" supports operations: [\"response\", \"classify\"]\n    - resource=\"image\" supports operations: [\"analyze\", \"generate\", \"edit\"]\n    - resource=\"audio\" supports operations: [\"generate\", \"transcribe\", \"translate\"]\n    - resource=\"file\" supports operations: [\"deleteFile\", \"list\", \"upload\"]\n    - resource=\"conversation\" supports operations: [\"create\", \"get\", \"remove\", \"update\"]\n    - resource=\"video\" supports operations: [\"generate\"]\n- n8n-nodes-base.telegram v1.2: Sends the structured message with article summaries and generated image to Telegram\n  Available resource/operation combinations:\n    - resource=\"chat\" supports operations: [\"get\", \"administrators\", \"member\", \"leave\", \"setDescription\", \"setTitle\"]\n    - resource=\"callback\" supports operations: [\"answerQuery\", \"answerInlineQuery\"]\n    - resource=\"file\" supports operations: [\"get\"]\n    - resource=\"message\" supports operations: [\"deleteMessage\", \"editMessageText\", \"pinChatMessage\", \"sendAnimation\", \"sendAudio\", \"sendChatAction\", \"sendDocument\", \"sendLocation\", \"sendMediaGroup\", \"sendMessage\", \"sendAndWait\", \"sendPhoto\", \"sendSticker\", \"sendVideo\", \"unpinChatMessage\"]\n\nBest Practices:\n<best_practices>\n# Best Practices: Scheduling Workflows\n\n## Workflow Design\n\nStructure scheduled workflows to perform focused, well-defined tasks.\n\nFor recurring tasks, use Schedule Trigger node with clear naming (e.g., \"Daily 08:00 Trigger\", \"Every 6h Cron\").\n\nPrevent overlapping executions by ensuring worst-case execution time < schedule interval. For frequent schedules, implement mutex/lock mechanisms using external systems if needed.\n\n## Scheduling Patterns\n\n### Recurring Schedules\n\nUse Schedule Trigger in two modes:\n- **Interval Mode**: User-friendly dropdowns for common schedules (every X minutes, daily at 09:00, weekly on Mondays)\n- **Cron Expression Mode**: Complex patterns using 5-field syntax (m h dom mon dow) with optional seconds field. Example: `0 9 * * 1` triggers every Monday at 09:00\n\nMultiple schedules can be combined in single Schedule Trigger node using multiple Trigger Rules. Useful when same logic applies to different timings.\n\n### One-Time Events\n\nFor event-relative scheduling, use Wait node to pause workflow until specified time/date.\n\nNote: Cron expressions with specific dates (e.g., `0 12 22 10 *` for Oct 22 at 12:00) will repeat annually on that date.\n\n### Conditional Scheduling\n\nPREFER conditional logic over complex cron expressions. Use IF/Switch nodes after Schedule Trigger for runtime conditions:\n- Check if today is last day of month before running monthly reports\n- Skip execution on holidays by checking against a holiday list in a data table\n- Route to \"weekday\" vs \"weekend\" processing based on current day\n\nThis approach is more readable and maintainable than complex cron patterns.\n\n## Time Zone Handling\n\nWhen building scheduled workflows:\n- If user specifies a timezone, set it in the Schedule Trigger node's timezone parameter\n- If user mentions times without timezone, use the schedule as specified (instance default will apply)\n- For Wait nodes, be aware they use server system time, not workflow timezone\n\n## Recommended Nodes\n\n### Schedule Trigger (n8n-nodes-base.scheduleTrigger)\n\nPrimary node for running workflows on schedule. Supports interval mode for simple schedules and cron mode for complex patterns.\n\n### Wait (n8n-nodes-base.wait)\n\nPause workflow execution until specified time or duration.\n\nUse Cases:\n- Delay actions relative to events\n- One-off timers per data item\n- Follow-up actions after specific duration\n\nBest Practices:\n- Use n8n Data Tables for waits longer than 24 hours (store scheduled time, check periodically)\n- Avoid wait times longer than 7 days - use a polling pattern instead\n\n### IF (n8n-nodes-base.if)\n\nAdd conditional logic to scheduled workflows.\n\nUse Cases:\n- Check date conditions (last day of month using expression: `{{ $now.day === $now.endOf('month').day }}`)\n- Skip execution based on external data (e.g., holiday check)\n- Route to different actions conditionally\n\nBest Practices:\n- Enable \"Convert types where required\" for comparisons\n- Prefer IF nodes over complex cron expressions for readability\n\n### Switch (n8n-nodes-base.switch)\n\nMultiple conditional branches for complex routing.\n\nUse Cases:\n- Different actions based on day of week (e.g., `{{ $now.weekday }}` returns 1-7)\n- Time-based routing (morning vs afternoon processing)\n- Multi-path conditional execution\n\n### n8n Data Tables (n8n-nodes-base.n8nTables)\n\nPurpose: Store scheduling state and pending tasks\n\nUse Cases:\n- Track last execution time for catch-up logic\n- Store list of pending one-time tasks with scheduled times\n- Implement custom scheduling queue with polling\n\nBest Practices:\n- Query efficiently with proper filters\n- Clean up completed tasks periodically\n\n## Common Pitfalls to Avoid\n\n### Missed Schedules During Downtime\n\n**Problem**: Scheduled runs missed when n8n instance is down. No automatic catch-up for missed triggers.\n\n**Solution**: Design idempotent workflows with catch-up logic:\n- Store last successful run timestamp in n8n Data Tables\n- On each run, check if enough time has passed since last run\n- Example: For a task that should run once per 24 hours, schedule it every 4 hours but only execute if last run was >20 hours ago\n\n### Overlapping Executions\n\n**Problem**: Next scheduled run starts before previous completes, causing race conditions or resource conflicts.\n\n**Solution**:\n- Increase interval to exceed worst-case execution time\n- Implement mutex/lock using n8n Data Tables (check/set \"running\" flag at start, clear at end)\n- Add execution check at workflow start\n\n### Wait Node Timezone Confusion\n\n**Problem**: Wait node uses server system time, ignoring workflow timezone setting. Wait until \"10:00\" may not match expected timezone.\n\n**Solution**:\n- Account for server timezone when setting Wait times\n- Use relative durations (e.g., \"wait 2 hours\") instead of absolute times when possible\n- Prefer Schedule Trigger for timezone-aware scheduling\n\n### First Execution Timing\n\n**Problem**: First execution after activation doesn't match expected schedule. Activation time affects next run calculation.\n\n**Solution**:\n- Use manual execution for immediate first run if needed\n- Understand that schedule recalculates from activation moment\n\n### Cron Syntax\n\nn8n supports both 5-field and 6-field (with seconds) cron syntax. Use 6 fields if you want to specify seconds (e.g., prefix with 0 for seconds: `0 0 9 * * *` for 9 AM daily).\n\nFor simple schedules, prefer Interval mode over cron for better readability.\n\n---\n# Best Practices: Scraping & Research Workflows\n\n## Performance & Resource Management\n\nBatch requests and introduce delays to avoid hitting API rate limits or overloading target servers. Use Wait nodes and\nbatching options in HTTP Request nodes. When 429 rate limiting errors occur due to receiving too many requests,\nimplement batching to reduce request frequency or use the \"Retry on Fail\" feature to automatically handle throttled\nresponses.\n\nWorkflows processing large datasets can crash due to memory constraints. Use the Split In Batches node to process 200\nrows at a time to reduce memory usage, leverage built-in nodes instead of custom code, and increase execution timeouts\nvia environment variables for better resource management.\n\n## Looping & Pagination\n\nImplement robust looping for paginated data. Use Set, IF, and Code nodes to manage page numbers and loop conditions,\nensuring you don't miss data or create infinite loops. Leverage n8n's built-in mechanisms rather than manual approaches:\nuse the $runIndex variable to track iterations without additional code nodes, and employ workflow static data or node\nrun indexes to maintain state across loop cycles.\n\n## Recommended Nodes\n\n### HTTP Request (n8n-nodes-base.httpRequest)\n\nPurpose: Fetches web pages or API data for scraping and research workflows\n\nPitfalls:\n\n- Depending on the data which the user wishes to scrape/research, it maybe against the terms of service to attempt to\nfetch it from the site directly. Using scraping nodes is the best way to get around this\n- Double-check URL formatting, query parameters, and ensure all required fields are present to avoid bad request errors\n- Be aware of 429 rate limiting errors when the service receives too many requests - implement batching or use \"Retry on\nFail\" feature\n- Refresh expired tokens, verify API keys, and ensure correct permissions to avoid authentication failures\n\n### SerpAPI (@n8n/n8n-nodes-langchain.toolSerpApi)\n\nPurpose: Give an agent the ability to search for research materials and fact-checking results that have been retrieved\nfrom other sources.\n\n### Perplexity (n8n-nodes-base.perplexityTool)\n\nPurpose: Give an agent the ability to search utilising Perplexity, a powerful tool for finding sources/material for\ngenerating reports and information.\n\n### HTML Extract (n8n-nodes-base.htmlExtract)\n\nPurpose: Parses HTML and extracts data using CSS selectors for web scraping\n\nPitfalls:\n\n- Some sites use JavaScript to render content, which may not be accessible via simple HTTP requests. Consider using\nbrowser automation tools or APIs if the HTML appears empty\n- Validate that the CSS selectors match the actual page structure to avoid extraction failures\n\n### Split Out (n8n-nodes-base.splitOut)\n\nPurpose: Processes lists of items one by one for sequential operations\n\nPitfalls:\n- Can cause performance issues with very large datasets - consider using Split In Batches instead\n\n### Loop Over Items (Split in Batches) (n8n-nodes-base.splitInBatches)\n\nPurpose: Processes lists of items in batches to manage memory and performance\n\nPitfalls:\n- Ensure proper loop configuration to avoid infinite loops or skipped data. The index 0\n(first connection) of the loop is treated as the done state, while the index 1 (second connection)\nis the connection that loops.\n- Use appropriate batch sizes (e.g., 200 rows) to balance memory usage and performance\n\n### Edit Fields (Set) (n8n-nodes-base.set)\n\nPurpose: Manipulates data, sets variables for loop control and state management\n\n### Code (n8n-nodes-base.code)\n\nPurpose: Implements custom logic for complex data transformations or pagination\n\nPitfalls:\n\n- Prefer built-in nodes over custom code to reduce memory usage and improve maintainability\n- Avoid processing very large datasets in a single code execution - use batching\n\n### If (n8n-nodes-base.if)\n\nPurpose: Adds conditional logic for error handling, loop control, or data filtering\n\nPitfalls:\n- Validate expressions carefully to avoid unexpected branching behavior\n\n### Wait (n8n-nodes-base.wait)\n\nPurpose: Introduces delays to respect rate limits and avoid overloading servers\n\n### Data Tables (n8n-nodes-base.dataTable)\n\nPurpose: Stores scraped data in n8n's built-in persistent data storage\n\n### Google Sheets (n8n-nodes-base.googleSheets)\n\nPurpose: Stores scraped data in spreadsheets for easy access and sharing\n\n### Microsoft Excel 365 (n8n-nodes-base.microsoftExcel)\n\nPurpose: Stores scraped data in Excel files for offline analysis\n\n### Airtable (n8n-nodes-base.airtable)\n\nPurpose: Saves structured data to a database with rich data types and relationships\n\n### AI Agent (@n8n/n8n-nodes-langchain.agent)\n\nPurpose: For research, summarization, and advanced data extraction. AI agents can autonomously gather information\nfrom websites, analyze content, and organize findings into structured formats, integrating tools for web scraping,\ncontent analysis, and database storage\n\n### Scraping Nodes\n\n- Phantombuster (n8n-nodes-base.phantombuster)\n- Apify (use HTTP Request or community node)\n- BrightData (use HTTP Request or community node)\n\nPurpose: If the user wishes to scrap data from sites like LinkedIn, Facebook, Instagram, Twitter/X, Indeed, Glassdoor\nor any other service similar to these large providers it is better to use a node designed for this. The scraping\nnodes provide access to these datasets while avoiding issues like rate limiting or breaking terms of service for\nsites like these.\n\n## Common Pitfalls to Avoid\n\nBad Request Errors: Double-check URL formatting, query parameters, and ensure all required fields are present to\navoid 400 errors when making HTTP requests.\n\nRate Limits: Use batching and Wait nodes to avoid 429 errors. When the service receives too many requests, implement\nbatching to reduce request frequency or use the \"Retry on Fail\" feature.\n\nMemory Issues: Avoid processing very large datasets in a single run; use batching and increase server resources if\nneeded. Use Split In Batches node to process 200 rows at a time, leverage built-in nodes instead of custom code, and\nincrease execution timeouts via environment variables.\n\nEmpty or Unexpected Data: Some sites use JavaScript to render content, which may not be accessible via simple HTTP\nrequests. Standard HTTP and HTML parsing nodes fail because sites load data asynchronously via JavaScript, leaving the\ninitial HTML empty of actual content. Web scraping nodes can be used to avoid this.\n\n---\n# Best Practices: Data Extraction Workflows\n\n## Node Selection by Data Type\n\nChoose the right node for your data source. Use Extract From File for CSV, Excel, PDF, and text files to convert binary data to JSON for further processing.\n\nUse Information Extractor or AI nodes for extracting structured data from unstructured text such as PDFs or emails using LLMs.\n\nFor binary data, ensure you use nodes like Extract From File to handle files properly.\n\n### Referencing Binary Data from Other Nodes\nWhen you need to reference binary data from a previous node, use this syntax:\n- Expression: '{{ $('Node Name').item.binary.property_name }}' or {{ $binary.property_name }} if previous item\n- Example for Gmail attachments: '{{ $('Gmail Trigger').item.binary.attachment_0 }}' or {{ $binary.attachment_0 }} if previous item\n- Example for webhook data: '{{ $('Webhook').item.binary.data }}' or {{ $binary.data }} if previous item\n- Important: The property name depends on how the previous node names the binary data\n\n## Data Structure & Type Management\n\nNormalize data structure early in your workflow. Use transformation nodes like Split Out, Aggregate, or Set to ensure your data matches n8n's expected structure: an array of objects with a json key.\nNot transforming incoming data to n8n's expected format causes downstream node failures.\n\nWhen working with large amounts of information, n8n's display can be hard to view. Use the Edit Fields node to help organize and view data more clearly during development and debugging.\n\n## Large File Handling\n\nProcess files in batches or use sub-workflows to avoid memory issues. For large binary files, consider enabling filesystem mode (N8N_DEFAULT_BINARY_DATA_MODE=filesystem) if self-hosted, to store binary data on disk instead of memory.\n\nProcessing too many items or large files at once can crash your instance. Always batch or split processing for large datasets to manage memory effectively.\n\n## Binary Data Management\n\nBinary data can be lost if intermediate nodes (like Set or Code) do not have \"Include Other Input Fields\" enabled, especially in sub-workflows. Always verify binary data is preserved through your workflow pipeline.\n\n## AI-Powered Extraction\n\nLeverage AI for unstructured data using nodes like Information Extractor or Summarization Chain to extract structured data from unstructured sources such as PDFs, emails, or web pages.\n\n## Recommended Nodes\n\n### Loop Over Items (n8n-nodes-base.splitInBatches)\n\nPurpose: Looping over a set of items extracted from a data set, for example if pulling a lot of data\nfrom a Google Sheet or database then looping over the items is required. This node MUST be used\nif the user mentions a large amount of data, it is necessary to batch the data to process all of it.\n\n### Extract From File (n8n-nodes-base.extractFromFile)\n\nPurpose: Converts binary data from CSV, Excel, PDF, and text files to JSON for processing\n\nPitfalls:\n\n- Ensure the correct binary field name is specified in the node configuration\n- Verify file format compatibility before extraction\n\n### HTML Extract (n8n-nodes-base.htmlExtract)\n\nPurpose: Scrapes data from web pages using CSS selectors\n\n### Split Out (n8n-nodes-base.splitOut)\n\nPurpose: Processes arrays of items individually for sequential operations.\nExample: If retrieving a JSON array using a HTTP request, this will return a single item,\ncontaining that array. If you wish to use a Loop Over Items (n8n-nodes-base.splitInBatches) node]\nthen you will need to split out the array into items before looping over it. In a scenario like\nthis a split out node MUST be used before looping over the items.\n\n### Edit Fields (Set) (n8n-nodes-base.set)\n\nPurpose: Data transformation and mapping to normalize structure\n\nPitfalls:\n\n- Enable \"Include Other Input Fields\" to preserve binary data\n- Pay attention to data types - mixing types causes unexpected failures\n\n### Information Extractor (@n8n/n8n-nodes-langchain.informationExtractor)\n\nPurpose: AI-powered extraction of structured data from unstructured text\n\nPitfalls:\n\n- Requires proper schema definition for extraction\n\n### Summarization Chain (@n8n/n8n-nodes-langchain.chainSummarization)\n\nPurpose: Summarizes large text blocks using AI for condensed information extraction\n\nPitfalls:\n\n- Context window limits may truncate very long documents\n- Verify summary quality matches requirements\n\n### HTTP Request (n8n-nodes-base.httpRequest)\n\nPurpose: Fetches data from APIs or web pages for extraction\n\n### Code (n8n-nodes-base.code)\n\nPurpose: Custom logic for complex data transformations\n\n## Common Pitfalls to Avoid\n\nData Type Confusion: People often mix up data types - n8n can be very lenient but it can lead to problems. Pay close attention to what type you are getting and ensure consistency throughout the workflow.\n\nBinary Data Loss: Binary data can be lost if intermediate nodes (Set, Code) do not have \"Include Other Input Fields\" enabled, especially in sub-workflows. Always verify binary data preservation.\n\nLarge Data Display Issues: n8n displaying large amounts of information can be hard to view during development. Use the Edit Fields node to help organize and view data more clearly.\n\n---\n# Best Practices: Triage Workflows\n\n## Workflow Design\n\nTriage workflows automatically classify incoming data and route it based on priority or category. Common use cases include sorting support tickets by urgency, categorizing emails for follow-up, or scoring leads for sales routing.\n\nDefine clear categories and outcomes before building. Design in logical stages:\n\n1. **Trigger & Input**: Capture incoming items (webhook, email trigger, form submission, schedule)\n2. **Preprocessing**: Fetch additional data if needed (CRM lookup, field normalization)\n3. **Classification**: Assign categories via rules or AI\n4. **Routing**: Direct items to appropriate branches using Switch node or Text Classifier Node\n5. **Actions**: Execute category-specific tasks (create tasks, send alerts, update records)\n6. **Logging**: Track outcomes for monitoring and analysis\n\nCRITICAL: Always include a default/fallback path to catch unclassified items. Never allow data to drop silently.\n\n## Classification Strategies\n\n### Rule-Based Classification\nUse IF/Switch nodes for keyword detection, sender addresses, or numeric thresholds. Chain multiple conditions or use Switch for multi-way branching.\n\nExample: IF email contains \"urgent\" → High Priority branch\n\n### AI-Powered Classification\nFor unstructured text or nuanced decisions, use AI nodes with clear prompts and defined output labels.\n\nExample prompt: \"Classify this email as INTERESTED, NOT_INTERESTED, or QUESTION\"\n\nBest practices:\n- Use structured output format (JSON with specific fields)\n- Set low temperature parameter of the model (0-0.2) for consistency\n- Include few-shot examples of input + classification\n- Implement error handling for unexpected outputs\n\n#### Text Classifier Node\nUse the Text Classifier node (@n8n/n8n-nodes-langchain.textClassifier) for straightforward text classification tasks. Configure with predefined category labels and descriptions for accurate results.\n\nExample workflow pattern:\n```mermaid\nflowchart LR\n    A[Webhook Trigger] --> B[Set: Normalize Data]\n    B --> C[Text Classifier]\n    C --> D{Switch: Route by Category}\n    D -->|High Priority| E[Slack: Alert Team]\n    D -->|Medium Priority| F[Create Task]\n    D -->|Low Priority| G[Log to Sheet]\n    D -->|Default| H[Manual Review]\n```\n\n### Combined Approach\nFor robust triage, combine rule-based and AI classification. Use AI Agent node with structured output to assign categories, scores, or tags, then route with Switch nodes.\nWhen using AI with structured output, always add reasoning field alongside category or score to aid debugging.\n\nExample workflow pattern:\n```mermaid\nflowchart LR\n    A[Email Trigger] --> B[Set: Extract Fields]\n    B --> C{IF: Contains Keywords}\n    C -->|Yes| D[Set: Rule-based Category]\n    C -->|No| E[AI Agent: Classify with Structured Output]\n    D --> F[Merge]\n    E --> F\n    F --> G{Switch: Route by Category}\n    G -->|Category A| H[Action A]\n    G -->|Category B| I[Action B]\n    G -->|Default| J[Manual Review]\n```\n\n**Structured Output Schema Example:**\n```json\n{\n  \"category\": \"INTERESTED | NOT_INTERESTED | QUESTION\",\n  \"confidence\": 0.95,\n  \"reasoning\": \"Customer asked about pricing and availability\"\n}\n```\n\n## Routing & Branching\n\nUse Switch node as primary traffic controller:\n- Configure cases for each classification value\n- Always define Default case for unexpected values\n- Each item follows exactly one branch\n\nAvoid parallel IF nodes that could match multiple conditions - use Switch node.\n\n## Recommended Nodes\n\n**IF** (n8n-nodes-base.if):\n- Purpose: Simple binary decisions\n- Use when: Two-way branching based on conditions\n- Example: Check if priority field equals \"high\"\n\n**Switch** (n8n-nodes-base.switch):\n- Purpose: Multi-way branching based on field values\n- Use when: Multiple categories (3+ outcomes)\n- CRITICAL: Always configure Default output for unmatched items\n\n**Merge** (n8n-nodes-base.merge):\n- Purpose: Consolidate branches for unified logging\n- Use after: Category-specific actions before final logging step\n\n**Text Classifier** (@n8n/n8n-nodes-langchain.textClassifier):\n- Purpose: AI-powered text classification with predefined labels\n- Use when: Need to assign categories to unstructured text\n- CRITICAL: Always configure \"When No Clear Match\" option to output items to \"Other\" branch\n\n**AI Agent** (@n8n/n8n-nodes-langchain.agent):\n- Purpose: Complex classification or scoring requiring multiple steps or tool use\n- Use when: Classification needs context lookup, multi-step reasoning with tools, numerical scoring or other complex outputs\n- CRITICAL: Always use structured output format (JSON schema)\n\n**IMPORTANT**: For all AI nodes (Text Classifier, AI Agent):\n\t- Set low temperature of the model (0-0.2) for consistency\n\t- Include few-shot examples in prompts\n\n## Common Pitfalls to Avoid\n\n### No Default Path\n**Problem**: Every Switch must have a Default output. Unmatched items should go to manual review or logging, never drop silently.\n\n**Solution**: Always configure Default case to route unclassified items to a fallback action (e.g., manual review queue, admin notification)\n\n### No \"Other\" Branch in Text Classifier\n**Problem**: Items that don't match any category get dropped if \"When No Clear Match\" isn't set.\n\n**Solution**: In Text Classifier node, set \"When No Clear Match\" to \"Output on Extra, 'Other' Branch\" to capture unmatched items.\n\n### Overlapping Conditions\n**Problem**: Categories must be mutually exclusive. Items matching multiple conditions cause unpredictable routing.\n\n**Solution**:\n- Order checks from most specific to general\n- Use Switch with distinct values instead of multiple IF nodes\n\n---\n# Best Practices: Content Generation Workflows\n\n## Workflow Design\n\nBreak complex tasks into sequential steps (e.g., generate text, create image, compose video) for modularity and easier troubleshooting.\n\n## Node Selection Guidelines\n\nAlways prefer built-in n8n nodes over HTTP Request nodes when a dedicated node exists for the service or API you need to integrate with. Built-in nodes provide:\n- Pre-configured authentication handling\n- Optimized data structures and field mappings\n- Better error handling and user experience\n- Simplified setup without manual API configuration\n\nOnly use HTTP Request nodes when no built-in node exists for the service, or when you need to access an API endpoint not covered by the built-in node's operations.\n\n## Multi-Modal Content Generation - MANDATORY\n\nWhen the user's request involves specific generative AI models or media-focused platforms, the workflow MUST include the appropriate media generation node from a\nprovider-specific node. The finished workflow MUST contain the relevant video, audio, or image generation capability.\n\nPrompts that require multi-modal generation nodes:\n\nVideo Generation:\n- Model mentions: Sora, Nano Banana, Veo, Runway, Pika\n- Platform mentions: YouTube content, TikTok videos, Instagram Reels, video ads, short-form video\n- Task mentions: generate video, create video, video from text, animate\n\nImage Generation:\n- Model mentions: DALL-E, Midjourney, Stable Diffusion, Imagen\n- Platform mentions: thumbnails, social media graphics, product images, marketing visuals\n- Task mentions: generate image, create artwork, design graphic, visualize\n\nAudio Generation:\n- Model mentions: ElevenLabs, text-to-speech, TTS\n- Platform mentions: podcast audio, voiceovers, narration, audio content\n- Task mentions: generate voice, create audio, synthesize speech, clone voice\n\nIf anything like the examples above are mentioned in the prompt, include the appropriate\nprovider node (OpenAI for DALL-E/Sora, Google Gemini for Nano Banana/Imagen, etc.)\nwith the media generation operation configured.\n\n## Content-Specific Guidance\n\nFor text generation, validate and sanitize input/output to avoid malformed data. When generating images, prefer binary data over URLs for uploads to avoid media type errors.\n\n## Recommended Nodes\n\n### OpenAI (@n8n/n8n-nodes-langchain.openAi)\n\nPurpose: GPT-based text generation, DALL-E image generation, text-to-speech (TTS), and audio transcription, SORA for video generation\n\n### xAI Grok Chat Model (@n8n/n8n-nodes-langchain.lmChatXAiGrok)\n\nPurpose: Conversational AI and text generation\n\n### Google Gemini Chat Model (@n8n/n8n-nodes-langchain.lmChatGoogleGemini)\n\nPurpose: Image analysis and generation, video generation from text prompts using nano banana, multimodal content creation\n\n### ElevenLabs\n\nPurpose: Natural-sounding AI voice generation\n\nNote: Use HTTP Request node or a community node to integrate with ElevenLabs API\n\n### HTTP Request (n8n-nodes-base.httpRequest)\n\nPurpose: Integrating with other LLM and content generation APIs (e.g., Jasper, Writesonic, Anthropic, HuggingFace)\n\n### Edit Image (n8n-nodes-base.editImage)\n\nPurpose: Manipulating images - resize, crop, rotate, and format conversion\n\nPitfalls:\n\n- Ensure input is valid binary image data\n- Check output format compatibility with downstream nodes\n\n### Markdown (n8n-nodes-base.markdown)\n\nPurpose: Formatting and converting text to HTML or Markdown reports\n\n### Facebook Graph API (n8n-nodes-base.facebookGraphApi)\n\nPurpose: Uploading videos and images to Instagram and Facebook\n\nPitfalls:\n\n- Use binary data fields rather than URLs for media uploads to prevent \"media type\" errors\n- Verify page IDs and access tokens have correct permissions\n\n### Wait (n8n-nodes-base.wait)\n\nPurpose: Handling delays in video processing/uploading and respecting API rate limits\n\n## Common Pitfalls to Avoid\n\nBinary Data Handling: For media uploads, use binary fields rather than URLs to prevent \"media type\" errors, especially with Facebook and Instagram APIs. Download media to binary data first, then upload from binary rather than passing URLs.\n\nAsync Processing: For long-running content generation tasks (especially video), implement proper wait/polling mechanisms. Don't assume instant completion - many AI services process requests asynchronously.\n\n---\n# Best Practices: Notification Workflows\n\n## Workflow Design\n\nStructure notification workflows in a clear sequence. Keep each part modular with nodes dedicated to specific purposes.\n\n```mermaid\ngraph LR\n    A[Trigger] --> B[Data Retrieval/Processing]\n    B --> C[Condition Check]\n    C --> D[Notification Action]\n    D --> E[Post-Notification: logging/tracking]\n```\n\nChoose between event-based triggers (webhooks, form submissions, CRM events) for immediate notifications or scheduled triggers (Cron) for periodic condition monitoring.\n\nCRITICAL: Multi-channel notifications should branch from a single condition check to multiple notification nodes in parallel, not duplicate the entire workflow. This enables easy extension and maintenance.\n\nExample pattern:\n```mermaid\ngraph LR\n    A[Webhook/Schedule Trigger] --> B[Fetch Data]\n    B --> C[If: threshold exceeded]\n    C -->|true| D[Email]\n    C -->|true| E[Slack]\n    C -->|true| F[SMS]\n    C -->|false| G[End/Log]\n```\nResult: Single workflow handles all channels efficiently with consistent logic\n\n## Condition Logic & Filtering\n\nUse IF nodes for simple checks without code. For complex conditions (multiple fields, array filtering), use Code nodes to script the logic and filter items that need alerts.\n\nAlways include empty notification prevention - check that alert-worthy items exist (items.length > 0) before proceeding to notification nodes. Route the false branch to end the workflow or log \"no alert needed\".\n\n## Message Construction\n\nUse expressions to inject dynamic data into messages. The expression `{{ $json.fieldName }}` pulls data from input items.\n\nFormat messages appropriately for each channel:\n- Email: Support HTML or plain text, use clear subject lines\n- Slack: Use markdown-like formatting, \\n for newlines\n- SMS: Keep concise due to character limits, plain text only\n\n## Alert Management\n\nConsider alert aggregation - send one message listing multiple items rather than individual alerts.\n\nAdd logging nodes to track sent notifications for audit trails and duplicate prevention. Consider using error handling paths with Continue on Fail settings for redundancy.\n\n## Recommended Nodes\n\n### Trigger Nodes\n\n**Service-specific triggers** (e.g., n8n-nodes-base.googleSheetsTrigger, n8n-nodes-base.crmTrigger):\n- Purpose: Direct integration with specific services for event-based notifications\n- Use cases: New row in Google Sheets, CRM record updates\n- When to use: When specific trigger node is available\n\n**Webhook** (n8n-nodes-base.webhook):\n- Purpose: Event-based notifications triggered by external systems\n- Use cases: Form submissions, CRM events, API webhooks\n- When to use: When there is no dedicated trigger node and external service supports webhooks\n\n**Schedule Trigger** (n8n-nodes-base.scheduleTrigger):\n- Purpose: Periodic monitoring and batch notifications\n- Use cases: Daily reports, threshold monitoring, scheduled alerts\n- When to use: For regular checks rather than immediate alerts, or as a polling mechanism when webhooks are not available\n\n**Form Trigger** (n8n-nodes-base.formTrigger):\n- Purpose: User-submitted data triggering notifications\n- Use cases: Contact forms, feedback submissions\n- When to use: For workflows initiated by user input via forms\n\n### Notification Nodes\n\n**Send Email** (n8n-nodes-base.emailSend):\n- Purpose: Detailed alerts with attachments and HTML formatting\n- Use cases: Reports, detailed notifications, formal communications\n- Configuration: SMTP settings, use App Passwords for Gmail\n- Best practice: Use clear subject lines with key information\n\n**Slack** (n8n-nodes-base.slack):\n- Purpose: Team notifications in channels or direct messages\n- Use cases: Team alerts, status updates, incident notifications\n- Configuration: Bot token with chat:write scope, bot must be invited to channel\n- Best practice: Use markdown formatting, channel IDs (starting with C) not names\n\n**Telegram** (n8n-nodes-base.telegram):\n- Purpose: Instant messaging alerts to individuals or groups\n- Use cases: Personal notifications, bot interactions\n- Configuration: Bot token from BotFather\n- Best practice: Use chat ID for direct messages\n\n**Twilio** (n8n-nodes-base.twilio):\n- Purpose: SMS/WhatsApp critical alerts\n- Use cases: High-priority alerts, two-factor authentication, critical incidents\n- Configuration: Account SID, Auth Token, verified phone numbers\n- Best practice: Keep messages concise, use international format (+1234567890)\n\n**HTTP Request** (n8n-nodes-base.httpRequest):\n- Purpose: Custom webhooks (Microsoft Teams, Discord, custom APIs)\n- Use cases: Integration with services without dedicated nodes\n\n### Logic & Processing\n\n**IF** (n8n-nodes-base.if):\n- Purpose: Simple threshold checks and condition routing\n- Use cases: Check if notification criteria met\n- Best practice: Include empty notification prevention (items.length > 0)\n\n**Switch** (n8n-nodes-base.switch):\n- Purpose: Route notifications based on severity/type\n- Use cases: Different channels for different alert levels\n- Best practice: Always define Default case for unexpected values\n\n**Set** (n8n-nodes-base.set):\n- Purpose: Prepare alert messages and structure data\n- Use cases: Format notification content, add metadata\n- Best practice: Use to centralize message construction logic\n\n</best_practices>\n\n=== CURRENT WORKFLOW ===\n\nEmpty workflow - ready to build"
+							}
+						]
+					},
+					{
+						"role": "assistant",
+						"content": [
+							{
+								"type": "text",
+								"text": "I'll build this automation workflow step by step. Let me create all the necessary nodes and connections."
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01NsyR7FSznVJaV9hDdBgWHP",
+								"name": "add_nodes",
+								"input": {
+									"nodeType": "n8n-nodes-base.scheduleTrigger",
+									"nodeVersion": 1.3,
+									"name": "Daily 8pm Trigger",
+									"initialParametersReasoning": "Schedule Trigger has static inputs/outputs, no initial parameters needed for basic scheduling",
+									"initialParameters": {}
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01T1dvYeJK485WMSrkEhdzjt",
+								"name": "add_nodes",
+								"input": {
+									"nodeType": "n8n-nodes-base.set",
+									"nodeVersion": 3.4,
+									"name": "Workflow Configuration",
+									"initialParametersReasoning": "Set node has static inputs/outputs, no initial parameters needed",
+									"initialParameters": {}
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01UNvpFgviBceivNo39gnzyM",
+								"name": "add_nodes",
+								"input": {
+									"nodeType": "n8n-nodes-base.httpRequest",
+									"nodeVersion": 4.4,
+									"name": "Fetch AI News from NewsAPI",
+									"initialParametersReasoning": "HTTP Request has static inputs/outputs, no initial parameters needed",
+									"initialParameters": {}
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01GXVrzoTpDEorDDW4MVVckt",
+								"name": "add_nodes",
+								"input": {
+									"nodeType": "n8n-nodes-base.limit",
+									"nodeVersion": 1,
+									"name": "Limit to Top 5 Articles",
+									"initialParametersReasoning": "Limit node has static inputs/outputs, no initial parameters needed",
+									"initialParameters": {}
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01PRDnt5kh5uJae4hprijuki",
+								"name": "add_nodes",
+								"input": {
+									"nodeType": "n8n-nodes-base.splitOut",
+									"nodeVersion": 1,
+									"name": "Split Articles",
+									"initialParametersReasoning": "Split Out has static inputs/outputs, no initial parameters needed",
+									"initialParameters": {}
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01NineDLMe92WPksHyPLMkDr",
+								"name": "add_nodes",
+								"input": {
+									"nodeType": "@n8n/n8n-nodes-langchain.agent",
+									"nodeVersion": 3.1,
+									"name": "Summarize Article",
+									"initialParametersReasoning": "AI Agent needs hasOutputParser set to false since we don't need structured output for simple summarization - the summary text will be used directly",
+									"initialParameters": {
+										"hasOutputParser": false
+									}
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01RTNRVnQ9dep8p1bSuqW2A1",
+								"name": "add_nodes",
+								"input": {
+									"nodeType": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+									"nodeVersion": 1.3,
+									"name": "OpenAI GPT-4.1-mini",
+									"initialParametersReasoning": "OpenAI Chat Model is a sub-node with static ai_languageModel connection capability, no initial parameters needed",
+									"initialParameters": {}
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01A13hfrEfWKupQxH7kmCdof",
+								"name": "add_nodes",
+								"input": {
+									"nodeType": "n8n-nodes-base.aggregate",
+									"nodeVersion": 1,
+									"name": "Combine Summaries",
+									"initialParametersReasoning": "Aggregate node has static inputs/outputs, no initial parameters needed",
+									"initialParameters": {}
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01UqELfvwpQcR3uSK22EyRXe",
+								"name": "add_nodes",
+								"input": {
+									"nodeType": "n8n-nodes-base.set",
+									"nodeVersion": 3.4,
+									"name": "Prepare Image Prompt",
+									"initialParametersReasoning": "Set node has static inputs/outputs, no initial parameters needed",
+									"initialParameters": {}
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01CwkvmjS69TFnrwpSrV8XcS",
+								"name": "add_nodes",
+								"input": {
+									"nodeType": "@n8n/n8n-nodes-langchain.openAi",
+									"nodeVersion": 2.1,
+									"name": "Generate Image with DALL-E",
+									"initialParametersReasoning": "OpenAI node needs resource and operation set for image generation. User wants to generate an image using OpenAI based on article summary, so setting resource to image and operation to generate",
+									"initialParameters": {
+										"resource": "image",
+										"operation": "generate"
+									}
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01NjMBidkuCR2xEyDBWwuJZN",
+								"name": "add_nodes",
+								"input": {
+									"nodeType": "n8n-nodes-base.set",
+									"nodeVersion": 3.4,
+									"name": "Format Telegram Message",
+									"initialParametersReasoning": "Set node has static inputs/outputs, no initial parameters needed",
+									"initialParameters": {}
+								}
+							},
+							{
+								"type": "tool_use",
+								"id": "toolu_01S7K6tVr7wCnCipUhdCcosH",
+								"name": "add_nodes",
+								"input": {
+									"nodeType": "n8n-nodes-base.telegram",
+									"nodeVersion": 1.2,
+									"name": "Send Telegram Message",
+									"initialParametersReasoning": "Telegram node needs resource and operation set. User wants to send a structured message, so setting resource to message and operation to sendMessage for text content with the generated image",
+									"initialParameters": {
+										"resource": "message",
+										"operation": "sendMessage"
+									}
+								}
+							}
+						]
+					},
+					{
+						"role": "user",
+						"content": [
+							{
+								"type": "tool_result",
+								"content": "Successfully added \"Daily 8pm Trigger\" (Schedule Trigger) (sub-node) with ID node-00000000",
+								"tool_use_id": "toolu_01NsyR7FSznVJaV9hDdBgWHP"
+							},
+							{
+								"type": "tool_result",
+								"content": "Successfully added \"Workflow Configuration\" (Edit Fields (Set)) with ID node-00000001",
+								"tool_use_id": "toolu_01T1dvYeJK485WMSrkEhdzjt"
+							},
+							{
+								"type": "tool_result",
+								"content": "Successfully added \"Fetch AI News from NewsAPI\" (HTTP Request) with ID node-00000002",
+								"tool_use_id": "toolu_01UNvpFgviBceivNo39gnzyM"
+							},
+							{
+								"type": "tool_result",
+								"content": "Successfully added \"Limit to Top 5 Articles\" (Limit) with ID node-00000003",
+								"tool_use_id": "toolu_01GXVrzoTpDEorDDW4MVVckt"
+							},
+							{
+								"type": "tool_result",
+								"content": "Successfully added \"Split Articles\" (Split Out) with ID node-00000004",
+								"tool_use_id": "toolu_01PRDnt5kh5uJae4hprijuki"
+							},
+							{
+								"type": "tool_result",
+								"content": "Successfully added \"Summarize Article\" (AI Agent) with ID node-00000005",
+								"tool_use_id": "toolu_01NineDLMe92WPksHyPLMkDr"
+							},
+							{
+								"type": "tool_result",
+								"content": "Successfully added \"OpenAI GPT-4.1-mini\" (OpenAI Chat Model) (sub-node) with ID node-00000006",
+								"tool_use_id": "toolu_01RTNRVnQ9dep8p1bSuqW2A1"
+							},
+							{
+								"type": "tool_result",
+								"content": "Successfully added \"Combine Summaries\" (Aggregate) with ID node-00000007",
+								"tool_use_id": "toolu_01A13hfrEfWKupQxH7kmCdof"
+							},
+							{
+								"type": "tool_result",
+								"content": "Successfully added \"Prepare Image Prompt\" (Edit Fields (Set)) with ID node-00000008",
+								"tool_use_id": "toolu_01UqELfvwpQcR3uSK22EyRXe"
+							},
+							{
+								"type": "tool_result",
+								"content": "Successfully added \"Generate Image with DALL-E\" (OpenAI) with ID node-00000009",
+								"tool_use_id": "toolu_01CwkvmjS69TFnrwpSrV8XcS"
+							},
+							{
+								"type": "tool_result",
+								"content": "Successfully added \"Format Telegram Message\" (Edit Fields (Set)) with ID node-00000010",
+								"tool_use_id": "toolu_01NjMBidkuCR2xEyDBWwuJZN"
+							},
+							{
+								"type": "tool_result",
+								"content": [
+									{
+										"type": "text",
+										"text": "Successfully added \"Send Telegram Message\" (Telegram) with ID node-00000011",
+										"cache_control": {
+											"type": "ephemeral"
+										}
+									}
+								],
+								"tool_use_id": "toolu_01S7K6tVr7wCnCipUhdCcosH"
+							}
+						]
+					}
+				],
+				"system": [
+					{
+						"type": "text",
+						"text": "<role>\nYou are a Builder Agent specialized in constructing n8n workflows.\n</role>\n\n<mandatory_execution_sequence>\nYou MUST follow these steps IN ORDER. Do not skip any step.\n\nSTEP 1: CREATE NODES\n- Call add_nodes for EVERY node needed based on discovery results\n- Create multiple nodes in PARALLEL for efficiency\n- Do NOT respond with text - START BUILDING immediately\n\nSTEP 2: CONNECT NODES\n- Call connect_nodes for ALL required connections\n- Connect multiple node pairs in PARALLEL\n\nSTEP 3: VALIDATE (REQUIRED)\n- After ALL nodes and connections are created, call validate_structure\n- This step is MANDATORY - you cannot finish without it\n- If validation finds issues (missing trigger, invalid connections), fix them and validate again\n- MAXIMUM 3 VALIDATION ATTEMPTS: After 3 calls to validate_structure, proceed to respond regardless of remaining issues\n\nSTEP 4: RESPOND TO USER\n- Only after validation passes, provide your brief summary\n\nNEVER respond to the user without calling validate_structure first\n</mandatory_execution_sequence>\n\n<node_creation>\nEach add_nodes call creates ONE node. You must provide:\n- nodeType: The exact type from discovery (e.g., \"n8n-nodes-base.httpRequest\" for the \"HTTP Request node\")\n- name: Descriptive name (e.g., \"Fetch Weather Data\")\n- initialParametersReasoning: Explain your thinking about initial parameters\n- initialParameters: Parameters to set initially (or {} if none needed)\n</node_creation>\n\n<workflow_configuration_node>\nAlways include a Workflow Configuration node at the start of every workflow.\n\nThe Workflow Configuration node (n8n-nodes-base.set) should be placed immediately after the trigger node and before all other processing nodes.\n\nPlacement rules:\n- Add between trigger and first processing node\n- Connect: Trigger → Workflow Configuration → First processing node\n- Name it \"Workflow Configuration\"\n</workflow_configuration_node>\n\n<data_parsing_strategy>\nCode nodes are slower than core n8n nodes (like Edit Fields, If, Switch, etc.) as they run in a sandboxed environment. Use Code nodes as a last resort for custom business logic.\n\nFor AI-generated structured data, prefer Structured Output Parser nodes over Code nodes.\nWhy: Purpose-built parsers are more reliable and handle edge cases better than custom code.\n\nFor binary file data, use Extract From File node to extract content from files before processing.\n\nUse Code nodes only for:\n- Simple string manipulations\n- Already structured data (JSON, CSV)\n- Custom business logic beyond parsing\n\nFor AI-generated structured data, use a Structured Output Parser node. For example, if an \"AI Agent\" node should output a JSON object to be used as input in a subsequent node, enable \"Require Specific Output Format\", add a outputParserStructured node, and connect it to the \"AI Agent\" node.\n\nWhen Discovery results include AI Agent or Structured Output Parser:\n1. Create the Structured Output Parser node\n2. Set AI Agent's hasOutputParser: true in initialParameters\n3. Connect: Structured Output Parser → AI Agent (ai_outputParser connection)\n</data_parsing_strategy>\n\n<proactive_design>\nAnticipate workflow needs:\n- Switch or If nodes for conditional logic when multiple outcomes exist\n- Edit Fields nodes for data transformation between incompatible formats\n- Edit Fields nodes to prepare data for a node like Gmail, Slack, Telegram, or Google Sheets\n- Schedule Triggers for recurring tasks\n- Error handling for external service calls\n\n</proactive_design>\n\n<node_defaults_warning>\nCRITICAL: NEVER RELY ON DEFAULT PARAMETER VALUES\n\nDefault values often hide connection inputs/outputs or select wrong resources. You MUST explicitly set initial parameters:\n- Vector Store: Mode parameter affects available connections - always set explicitly (e.g., mode: \"insert\", \"retrieve\", \"retrieve-as-tool\")\n- AI Agent: hasOutputParser is off by default, but your workflow may need it to be on\n- Document Loader: textSplittingMode affects whether it accepts a text splitter input - always set explicitly (e.g., textSplittingMode: \"custom\")\n- Nodes with resources (Gmail, Notion, etc.): resource and operation affect which parameters are available\n\nALWAYS check node details and set initialParameters explicitly.\n</node_defaults_warning>\n\n<initial_parameters_examples>\n- Static nodes (HTTP Request, Set, Code): reasoning=\"Static inputs/outputs\", parameters={}\n- AI Agent with structured output: reasoning=\"hasOutputParser enables ai_outputParser input for Structured Output Parser\", parameters={ hasOutputParser: true }\n- Vector Store insert: reasoning=\"Insert mode requires document input\", parameters={ mode: \"insert\" }\n- Vector Store insert for AI Agent: reasoning=\"Vector store will be used for AI Agent needs retrieve-as-tool mode\", parameters={ mode: \"retrieve-as-tool\" }\n- Document Loader custom: reasoning=\"Custom mode enables text splitter input\", parameters={ textSplittingMode: \"custom\" }\n- Switch with routing rules: reasoning=\"Switch needs N outputs, creating N rules.values entries with outputKeys\", parameters={ mode: \"rules\", rules: { values: [...] } } - see <switch_node_pattern> for full structure\n- Nodes with resource/operation (Gmail, Notion, Google Sheets, etc.): See <resource_operation_pattern> for details\n</initial_parameters_examples>\n\n<resource_operation_pattern>\nFor nodes with [Resources: ...] in discovery context, you MUST set resource and operation in initialParameters:\n\nWHY: Setting resource/operation during node creation enables the Configurator to filter parameters efficiently.\n\nHOW: Look at the discovery context for available resources and operations, then set based on user intent:\n- Gmail \"send email\": { resource: \"message\", operation: \"send\" }\n- Gmail \"get emails\": { resource: \"message\", operation: \"getAll\" }\n- Notion \"archive page\": { resource: \"page\", operation: \"archive\" }\n- Notion \"create database entry\": { resource: \"databasePage\", operation: \"create\" }\n- Google Sheets \"append row\": { resource: \"sheet\", operation: \"append\" }\n\nEXAMPLES:\n- User wants to \"send a daily email summary\" → Gmail with { resource: \"message\", operation: \"send\" }\n- User wants to \"read data from spreadsheet\" → Google Sheets with { resource: \"sheet\", operation: \"read\" }\n- User wants to \"create a new Notion page\" → Notion with { resource: \"page\", operation: \"create\" }\n\nIMPORTANT: Choose the operation that matches user intent. If unclear, pick the most likely operation based on context\n</resource_operation_pattern>\n\n<structured_output_parser_guidance>\nWHEN TO SET hasOutputParser: true on AI Agent:\n- Discovery found Structured Output Parser node → MUST set hasOutputParser: true\n- AI output will be used in conditions (IF/Switch nodes checking $json.field)\n- AI output will be formatted/displayed (HTML emails, reports with specific sections)\n- AI output will be stored in database/data tables with specific fields\n- AI is classifying, scoring, or extracting specific data fields\n</structured_output_parser_guidance>\n\n<webhook_response_mode>\nWEBHOOK RESPONSE MODE RULES - CRITICAL:\n\nResponse modes and their requirements:\n- \"onReceived\" (Immediately): Responds instantly when webhook is called. No RespondToWebhook node needed.\n- \"lastNode\" (When Last Node Finishes): Responds with data from last node. No RespondToWebhook node needed.\n- \"responseNode\" (Using Respond to Webhook Node): REQUIRES a RespondToWebhook node connected downstream.\n\nRULE 1: If responseMode='responseNode', you MUST add a RespondToWebhook node\nRULE 2: If RespondToWebhook node exists, responseMode MUST be 'responseNode'\n\nPattern for custom response control:\nWebhook (responseMode: responseNode) → [Processing] → RespondToWebhook\n</webhook_response_mode>\n\n<node_connections_understanding>\nn8n connections flow from SOURCE (output) to TARGET (input).\n\nRegular \"main\" connections flow: Source → Target (data flows forward)\nExample: HTTP Request → Set (HTTP outputs data, Set receives it)\n\nAI CAPABILITY CONNECTIONS are REVERSED in direction:\nSub-nodes (tools, memory, models) connect TO the AI Agent, NOT from it.\nThe sub-node is the SOURCE, the AI Agent is the TARGET.\n\nWRONG: AI Agent -> Calculator Tool (NEVER do this)\nCORRECT: Calculator Tool -> AI Agent (tool provides capability to agent)\n\nWhen calling connect_nodes for AI sub-nodes:\n- sourceNodeName: The sub-node (tool, memory, model, parser)\n- targetNodeName: The AI Agent (or Vector Store, Document Loader)\n- connectionType: The appropriate ai_* type\n\nThe AI Agent only has ONE \"main\" output for regular data flow.\nAll inputs to the AI Agent come FROM sub-nodes via ai_* connection types.\n\nNote: The connect_nodes tool will auto-detect connection types - see tool description for examples.\n</node_connections_understanding>\n\n<ai_connection_patterns>\nCRITICAL: AI NODES REQUIRE MANDATORY SUB-NODE CONNECTIONS\n\nThe following nodes CANNOT function without their required ai_* inputs being connected:\n\n**AI Agent** (@n8n/n8n-nodes-langchain.agent):\n- MANDATORY: ai_languageModel - Must have a Chat Model connected (e.g., OpenAI Chat Model, Anthropic Chat Model)\n- OPTIONAL: ai_tool, ai_memory, ai_outputParser\n\n**Basic LLM Chain** (@n8n/n8n-nodes-langchain.chainLlm):\n- MANDATORY: ai_languageModel - Must have a Chat Model connected\n- OPTIONAL: ai_memory, ai_outputParser\n\n**Vector Store** (in insert/load modes):\n- MANDATORY: ai_embedding - Must have an Embeddings node connected (e.g., OpenAI Embeddings)\n- CONDITIONAL: ai_document (required in insert mode)\n\n**Question and Answer Chain** (@n8n/n8n-nodes-langchain.chainRetrievalQa):\n- MANDATORY: ai_languageModel - Must have a Chat Model connected\n- MANDATORY: ai_retriever - Must have a Retriever node connected\n\n**Vector Store Tool** (@n8n/n8n-nodes-langchain.toolVectorStore):\n- MANDATORY: ai_vectorStore - Must have a Vector Store connected\n- MANDATORY: ai_languageModel - Must have a Chat Model connected\n\n## Connection Patterns\n\n**Pattern 1: Simple AI Agent**\nWhat: Basic conversational AI that responds to user input using only its language model capabilities.\nWhen to use: Simple Q&A chatbots, text generation, summarization, or any task where the AI just needs to process text without external data or actions.\nExample prompts: \"Create a chatbot\", \"Summarize incoming emails\", \"Generate product descriptions\"\n```mermaid\ngraph TD\n    T[Trigger] --> A[AI Agent]\n    CM[OpenAI Chat Model] -.ai_languageModel.-> A\n    A --> OUT[Output Node]\n```\n\n**Pattern 2: AI Agent with Tools**\nWhat: AI Agent enhanced with tools that let it perform actions (calculations, API calls, database queries) and memory to maintain conversation context.\nWhen to use: When the AI needs to DO things (not just respond), access external systems, perform calculations, or remember previous interactions.\nExample prompts: \"Create an assistant that can search the web and do math\", \"Build a bot that can create calendar events\", \"Assistant that remembers conversation history\"\n```mermaid\ngraph TD\n    T[Trigger] --> A[AI Agent]\n    CM[Chat Model] -.ai_languageModel.-> A\n    TOOL1[Calculator Tool] -.ai_tool.-> A\n    TOOL2[HTTP Request Tool] -.ai_tool.-> A\n    MEM[Window Buffer Memory] -.ai_memory.-> A\n    A --> OUT[Output]\n```\n\n**Pattern 3: RAG Pipeline (Vector Store Insert)**\nWhat: Ingestion pipeline that processes documents, splits them into chunks, generates embeddings, and stores them in a vector database for later retrieval.\nWhen to use: Building a knowledge base from documents (PDFs, web pages, files). This is the \"indexing\" or \"loading\" phase of RAG - run this BEFORE querying.\nExample prompts: \"Index my company documents\", \"Load PDFs into a knowledge base\", \"Store website content for later search\"\n```mermaid\ngraph TD\n    T[Trigger] --> VS[Vector Store<br/>mode: insert]\n    EMB[OpenAI Embeddings] -.ai_embedding.-> VS\n    DL[Default Data Loader] -.ai_document.-> VS\n    TS[Token Text Splitter] -.ai_textSplitter.-> DL\n```\n\n**Pattern 4: RAG Query with AI Agent**\nWhat: AI Agent that can search a vector database to find relevant information before responding, grounding its answers in your custom data.\nWhen to use: \"Chat with your documents\" scenarios - when the AI needs to answer questions using information from a previously indexed knowledge base.\nExample prompts: \"Answer questions about my documentation\", \"Chat with uploaded PDFs\", \"Search knowledge base and respond\"\n```mermaid\ngraph TD\n    T[Trigger] --> A[AI Agent]\n    CM[Chat Model] -.ai_languageModel.-> A\n    VS[Vector Store<br/>mode: retrieve-as-tool] -.ai_tool.-> A\n    EMB[Embeddings] -.ai_embedding.-> VS\n```\n\n**Pattern 5: Multi-Agent System**\nWhat: Hierarchical agent setup where a main \"supervisor\" agent delegates specialized tasks to sub-agents, each with their own capabilities.\nWhen to use: Complex workflows requiring different expertise (research agent + writing agent), task decomposition, or when one agent needs to orchestrate multiple specialized agents.\nExample prompts: \"Create a team of agents\", \"Supervisor that delegates to specialists\", \"Research agent that calls a coding agent\"\n```mermaid\ngraph TD\n    T[Trigger] --> MAIN[Main AI Agent]\n    CM1[Chat Model 1] -.ai_languageModel.-> MAIN\n    SUB[AI Agent Tool] -.ai_tool.-> MAIN\n    CM2[Chat Model 2] -.ai_languageModel.-> SUB\n```\n\n## Validation Checklist\n1. Every AI Agent has a Chat Model connected via ai_languageModel\n2. Every Vector Store has Embeddings connected via ai_embedding\n3. All sub-nodes (Chat Models, Tools, Memory) are connected to their target nodes\n4. Sub-nodes connect TO parent nodes, not FROM them\n\nREMEMBER: Every AI Agent MUST have a Chat Model. Never create an AI Agent without also creating and connecting a Chat Model.\n</ai_connection_patterns>\n\n<branching>\nIf two nodes (B and C) are both connected to the same output of a node (A), both will execute (with the same data). Whether B or C executes first is determined by their position on the canvas: the highest one executes first. Execution happens depth-first, i.e. any downstream nodes connected to the higher node will execute before the lower node is executed.\nNodes that route the flow (e.g. if, switch) apply their conditions independently to each input item. They may route different items to different branches in the same execution.\n</branching>\n\n<merging>\nIf two nodes (A and B) are both connected to the same input of the following node (C), node C will execute TWICE — once with the items from A and once with the items from B. The same goes for any nodes connected to node C. These two executions are called runs and are independent of each other. In effect, there are still two branches of the execution but they're executing the same nodes. No merging of the data between them will occur.\nTo merge the data of two branches together in a single run, use a merge node. This node performs set operations on the inputs it receives:\n- Union\n    - Mode: append\n- Inner join\n    - Mode: combine\n    - Combine by: Matching fields\n    - Output type: Keep matches\n- Left join\n    - Mode: combine\n    - Combine by: Matching fields\n    - Output type: Enrich input 1\n- Right join\n    - Mode: combine\n    - Combine by: Matching fields\n    - Output type: Enrich input 2\n- Cross join\n    - Mode: combine\n    - Combine by: All possible combinations\n- Outer join\n    - Mode: combine\n    - Combine by: Matching fields\n    - Output type: Keep everything\n\nExamples:\n- Enriching a dataset with another one\n- Matching items between two datasets\n\nCRITICAL: Merge vs Aggregate vs Set distinction:\n\n**MERGE node** - When ALL branches execute (Merge WAITS for all inputs):\n```mermaid\ngraph LR\n    T[Trigger] --> A[API 1]\n    T --> B[API 2]\n    T --> C[API 3]\n    A --> M[Merge<br/>numberInputs: 3]\n    B --> M\n    C --> M\n    M --> Next[Next Step]\n```\nUse cases: 3 Slack channels, 3 RSS feeds, multiple API calls that all need to complete.\n\n**AGGREGATE node** - When combining items from a SINGLE branch:\n```mermaid\ngraph LR\n    T[Trigger] --> G[Gmail<br/>returns 10 emails]\n    G --> A[Aggregate<br/>10 items → 1]\n    A --> Next[Next Step]\n```\nUse cases: Gmail returning multiple emails, loop producing items to collect.\n\n**SET node** - When only ONE branch executes (conditional):\n```mermaid\ngraph LR\n    T[Trigger] --> IFNode{IF}\n    IFNode -->|true| A[Action A]\n    IFNode -->|false| B[Action B]\n    A --> S[Set]\n    B --> S\n    S --> Next[Next Step]\n```\nUse cases: IF node with true/false paths converging. Merge would wait forever for the branch that didn't execute.\n</merging>\n\n<agent_node_distinction>\nDistinguish between two different agent node types:\n\n1. **AI Agent** (@n8n/n8n-nodes-langchain.agent)\n   - Main workflow node that orchestrates AI tasks\n   - Use for: Primary AI logic, chatbots, autonomous workflows\n\n2. **AI Agent Tool** (@n8n/n8n-nodes-langchain.agentTool)\n   - Sub-node that acts as a tool for another AI Agent\n   - Use for: Multi-agent systems where one agent calls another\n\nWhen discovery results include \"agent\", use AI Agent unless explicitly specified as \"agent tool\" or \"sub-agent\".\nWhen discovery results include \"AI\", use the AI Agent node, instead of a provider-specific node like googleGemini or openAi nodes.\n</agent_node_distinction>\n\n<multi_trigger_workflows>\nSome workflows require MULTIPLE triggers for different entry points:\n\n**Examples requiring multiple triggers:**\n- \"React to both form submissions AND emails\" -> n8n Form Trigger + Gmail Trigger\n- \"Handle webhook calls AND scheduled runs\" -> Webhook + Schedule Trigger\n- \"Process incoming chats AND scheduled tasks\" -> Chat Trigger + Schedule Trigger\n\n**How to build:**\n1. Create each trigger node separately\n2. Each trigger starts its own execution path\n3. Paths may converge later using Set (Edit Fields) node if needed (only one trigger fires per execution)\n\nIMPORTANT: If the user prompt mentions TWO different input sources (e.g., \"website form OR email\"), you need TWO trigger nodes.\n</multi_trigger_workflows>\n\n<shared_memory_pattern>\nWhen a workflow has BOTH a scheduled AI task AND a chat interface for querying results:\n\n**Pattern: Share memory between AI Agent and Chat Trigger**\n1. Create ONE Window Buffer Memory node\n2. Connect the SAME memory node to BOTH:\n   - The AI Agent that processes data (via ai_memory)\n   - The Chat Trigger's AI Agent that answers queries (via ai_memory)\n\nThis allows users to query the AI about previously processed data through chat.\n\nExample structure:\n- Schedule Trigger → AI Agent (data processing) ← Memory Node\n- Telegram Trigger → AI Agent (chat queries) ← Memory Node (same one!)\n\nCRITICAL: Both AI Agents must connect to the SAME memory node for context sharing.\n</shared_memory_pattern>\n\n<rag_workflow_pattern>\nFor RAG (Retrieval-Augmented Generation) workflows:\n\nMain data flow:\n- Data source (e.g., HTTP Request) → Vector Store [main connection]\n\nAI capability connections:\n- Document Loader → Vector Store [ai_document]\n- Embeddings → Vector Store [ai_embedding]\n- Text Splitter → Document Loader [ai_textSplitter]\n\nCommon mistake to avoid:\n- NEVER connect Document Loader to main data outputs\n- Document Loader is an AI sub-node that gives Vector Store document processing capability\n</rag_workflow_pattern>\n\n<data_table_pattern>\nDATA TABLE NODE PATTERN:\n\n**Row Column Operations (insert, update, upsert) - REQUIRE Set Node:**\nWhen using Data Table nodes for row column operations, you MUST add a Set node immediately before the Data Table node.\n\nStructure: Set Node → Data Table Node (operation: insert, update, upsert)\n\nWhy: The Set node defines the columns/fields to write. This tells users exactly which columns to create in their Data Table.\n\nExample for storing data:\n- add_nodes(nodeType: \"n8n-nodes-base.set\", name: \"Prepare User Data\")\n- add_nodes(nodeType: \"n8n-nodes-base.dataTable\", name: \"Store Users\", initialParameters: { operation: \"insert\" })\n- connect_nodes(source: \"Prepare User Data\", target: \"Store Users\")\n\n**Row Read Operations (get, getAll, delete) - NO Set Node needed:**\nRead and delete operations don't write data, so they don't need a Set node before them.\n\nExample for reading data:\n- add_nodes(nodeType: \"n8n-nodes-base.dataTable\", name: \"Get Users\", initialParameters: { operation: \"get\" })\n\nIMPORTANT: For insert, update, upsert operations, NEVER connect a Data Table node directly to other nodes without a Set node in between.\n</data_table_pattern>\n\n<switch_node_pattern>\nFor Switch nodes with multiple routing paths:\n- The number of outputs is determined by the number of entries in rules.values[]\n- You MUST create the rules.values[] array with placeholder entries for each output branch\n- Each entry needs: conditions structure (with empty leftValue/rightValue) + renameOutput: true + descriptive outputKey\n- Configurator will fill in the actual condition values later\n- Use descriptive node names like \"Route by Amount\" or \"Route by Status\"\n\nExample initialParameters for 3-way routing:\n{\n  \"mode\": \"rules\",\n  \"rules\": {\n    \"values\": [\n      {\n        \"conditions\": {\n          \"options\": { \"caseSensitive\": true, \"leftValue\": \"\", \"typeValidation\": \"strict\" },\n          \"conditions\": [{ \"leftValue\": \"\", \"rightValue\": \"\", \"operator\": { \"type\": \"string\", \"operation\": \"equals\" } }],\n          \"combinator\": \"and\"\n        },\n        \"renameOutput\": true,\n        \"outputKey\": \"Output 1 Name\"\n      },\n      {\n        \"conditions\": {\n          \"options\": { \"caseSensitive\": true, \"leftValue\": \"\", \"typeValidation\": \"strict\" },\n          \"conditions\": [{ \"leftValue\": \"\", \"rightValue\": \"\", \"operator\": { \"type\": \"string\", \"operation\": \"equals\" } }],\n          \"combinator\": \"and\"\n        },\n        \"renameOutput\": true,\n        \"outputKey\": \"Output 2 Name\"\n      },\n      {\n        \"conditions\": {\n          \"options\": { \"caseSensitive\": true, \"leftValue\": \"\", \"typeValidation\": \"strict\" },\n          \"conditions\": [{ \"leftValue\": \"\", \"rightValue\": \"\", \"operator\": { \"type\": \"string\", \"operation\": \"equals\" } }],\n          \"combinator\": \"and\"\n        },\n        \"renameOutput\": true,\n        \"outputKey\": \"Output 3 Name\"\n      }\n    ]\n  }\n}\n</switch_node_pattern>\n\n<node_connection_examples>\n<node_connection_examples>\nWhen connecting nodes with non-standard output patterns, use get_node_connection_examples:\n\nCall get_node_connection_examples when:\n- Connecting Loop Over Items (splitInBatches) - has TWO outputs with specific meanings\n- Connecting Switch nodes with multiple outputs\n- Connecting IF nodes with true/false branches\n- Any node where you're unsure about connection patterns\n\nUsage:\n- nodeType: \"n8n-nodes-base.splitInBatches\" (exact node type)\n- Returns mermaid diagrams showing how the node is typically connected\n\nCRITICAL for Loop Over Items (splitInBatches):\nThis node has TWO outputs that work differently from most nodes:\n- Output 0 (first array element) = \"Done\" branch - connects to nodes that run AFTER all looping completes\n- Output 1 (second array element) = \"Loop\" branch - connects to nodes that process each batch during the loop\nThis is COUNTERINTUITIVE - the loop processing is on output 1, NOT output 0.\n\nWhen connecting splitInBatches, use sourceOutputIndex to specify which output:\n- sourceOutputIndex: 0 → \"Done\" branch (post-loop processing, aggregation)\n- sourceOutputIndex: 1 → \"Loop\" branch (batch processing during loop)\n\nExample: Looping over items, processing each batch, then aggregating results:\n- connect_nodes(source: \"Loop Over Items\", target: \"Process Each Batch\", sourceOutputIndex: 1)  // Loop branch\n- connect_nodes(source: \"Loop Over Items\", target: \"Aggregate Results\", sourceOutputIndex: 0)  // Done branch\n- connect_nodes(source: \"Process Each Batch\", target: \"Loop Over Items\")  // Loop back for next batch\n</node_connection_examples>\n</node_connection_examples>\n\n<connection_type_examples>\n<connection_type_reference>\nCONNECTION TYPES AND DIRECTIONS:\n\n**Main Connections** (main) - Regular data flow, source outputs TO target:\n- Trigger → HTTP Request → Set → Email\n- AI Agent → Email (AI Agent's main output goes to next node)\n\n**AI Capability Connections** - Sub-nodes connect TO their parent node:\nRemember: Sub-node is SOURCE, Parent is TARGET\n\nai_languageModel - Language model provides LLM capability:\n- OpenAI Chat Model → AI Agent\n- Anthropic Chat Model → AI Agent\n\nai_tool - Tool provides action capability to AI Agent:\n- Calculator Tool → AI Agent\n- HTTP Request Tool → AI Agent\n- Code Tool → AI Agent\n- AI Agent Tool → AI Agent (multi-agent systems)\n- Google Calendar Tool → AI Agent (for scheduling/calendar management)\n- Gmail Tool → AI Agent (for email operations)\n- Slack Tool → AI Agent (for messaging)\n\nIMPORTANT: When AI Agent needs to perform external actions (create events, send messages, make API calls),\nuse TOOL nodes connected via ai_tool, NOT regular nodes in the main flow.\nTool nodes let the AI Agent DECIDE when to use them. Regular nodes ALWAYS execute.\n\nai_memory - Memory provides conversation history:\n- Window Buffer Memory → AI Agent\n- Postgres Chat Memory → AI Agent\n\nai_outputParser - Parser provides structured output capability:\n- Structured Output Parser → AI Agent\n\nai_document - Document loader provides documents:\n- Default Data Loader → Vector Store\n\nai_embedding - Embeddings provides vector generation:\n- OpenAI Embeddings → Vector Store\n- Cohere Embeddings → Vector Store\n\nai_textSplitter - Splitter provides chunking capability:\n- Token Text Splitter → Document Loader\n- Recursive Character Text Splitter → Document Loader\n\nai_vectorStore - Vector store provides retrieval (when used as tool):\n- Vector Store (mode: retrieve-as-tool) → AI Agent [ai_tool]\n\nCOMMON MISTAKES TO AVOID:\nWRONG: AI Agent -> OpenAI Chat Model (model provides TO agent)\nWRONG: AI Agent -> Calculator Tool (tool provides TO agent)\nWRONG: AI Agent -> Window Buffer Memory (memory provides TO agent)\nCORRECT: OpenAI Chat Model -> AI Agent\nCORRECT: Calculator Tool -> AI Agent\nCORRECT: Window Buffer Memory -> AI Agent\n</connection_type_reference>\n</connection_type_examples>\n\n<do_not>\n- Respond before calling validate_structure\n- Skip validation even if you think structure is correct\n- Add commentary between tool calls - execute tools silently\n- Configure node parameters (that's the Configurator Agent's job)\n- Search for nodes (that's the Discovery Agent's job)\n- Make assumptions about node types - use exactly what Discovery found\n</do_not>\n\n<response_format>\nProvide ONE brief text message summarizing:\n- What nodes were added\n- How they're connected\n\nExample: \"Created 4 nodes: Trigger → Weather → Image Generation → Email\"\n</response_format>",
+						"cache_control": {
+							"type": "ephemeral"
+						}
+					}
+				]
+			}
+		}
+	},
+	"httpResponse": {
+		"statusCode": 200,
+		"reasonPhrase": "OK",
+		"headers": {
+			"strict-transport-security": ["max-age=31536000; includeSubDomains; preload"],
+			"X-Robots-Tag": ["none"],
+			"Server": ["cloudflare"],
+			"Content-Type": ["application/json"],
+			"Content-Security-Policy": ["default-src 'none'; frame-ancestors 'none'"]
+		},
+		"body": {
+			"contentType": "application/json",
+			"type": "JSON",
+			"json": {
+				"model": "claude-sonnet-4-5-20250929",
+				"id": "msg_01TyKFQ8Qqd17XW9yLXhPZBV",
+				"type": "message",
+				"role": "assistant",
+				"content": [
+					{
+						"type": "text",
+						"text": "Now let me connect all the nodes in the proper sequence:"
+					},
+					{
+						"type": "tool_use",
+						"id": "toolu_01UQtRWqJKnmcexcrUwSN6uo",
+						"name": "connect_nodes",
+						"input": {
+							"sourceNodeId": "node-00000000",
+							"targetNodeId": "node-00000001"
+						}
+					},
+					{
+						"type": "tool_use",
+						"id": "toolu_01CbFfiLmefFqf9Jnmbn5q8m",
+						"name": "connect_nodes",
+						"input": {
+							"sourceNodeId": "node-00000001",
+							"targetNodeId": "node-00000002"
+						}
+					},
+					{
+						"type": "tool_use",
+						"id": "toolu_018Es1Fj57WbXtXg9HgPEvxt",
+						"name": "connect_nodes",
+						"input": {
+							"sourceNodeId": "node-00000002",
+							"targetNodeId": "node-00000003"
+						}
+					},
+					{
+						"type": "tool_use",
+						"id": "toolu_013Kc3PgYxxhLEUoEncLgSCk",
+						"name": "connect_nodes",
+						"input": {
+							"sourceNodeId": "node-00000003",
+							"targetNodeId": "node-00000004"
+						}
+					},
+					{
+						"type": "tool_use",
+						"id": "toolu_013Wf1Nrg6FGTPfoW23QWkbZ",
+						"name": "connect_nodes",
+						"input": {
+							"sourceNodeId": "node-00000004",
+							"targetNodeId": "node-00000005"
+						}
+					},
+					{
+						"type": "tool_use",
+						"id": "toolu_01LD6BGJKM4R1npA4vkYeni3",
+						"name": "connect_nodes",
+						"input": {
+							"sourceNodeId": "node-00000006",
+							"targetNodeId": "node-00000005"
+						}
+					},
+					{
+						"type": "tool_use",
+						"id": "toolu_01PyZnMwUnwrRtrpc4D51bER",
+						"name": "connect_nodes",
+						"input": {
+							"sourceNodeId": "node-00000005",
+							"targetNodeId": "node-00000007"
+						}
+					},
+					{
+						"type": "tool_use",
+						"id": "toolu_01F3efBwAhopSagbrjVa8Y1J",
+						"name": "connect_nodes",
+						"input": {
+							"sourceNodeId": "node-00000007",
+							"targetNodeId": "node-00000008"
+						}
+					},
+					{
+						"type": "tool_use",
+						"id": "toolu_012gPqsT1BpQ4PuSp9BZcc2G",
+						"name": "connect_nodes",
+						"input": {
+							"sourceNodeId": "node-00000008",
+							"targetNodeId": "node-00000009"
+						}
+					},
+					{
+						"type": "tool_use",
+						"id": "toolu_014v3euYumYGnnULP9bsj6qf",
+						"name": "connect_nodes",
+						"input": {
+							"sourceNodeId": "node-00000009",
+							"targetNodeId": "node-00000010"
+						}
+					},
+					{
+						"type": "tool_use",
+						"id": "toolu_016HuRasfQSpWfCbb8Ho98HN",
+						"name": "connect_nodes",
+						"input": {
+							"sourceNodeId": "node-00000010",
+							"targetNodeId": "node-00000011"
+						}
+					}
+				],
+				"stop_reason": "tool_use",
+				"stop_sequence": null,
+				"usage": {
+					"input_tokens": 7,
+					"cache_creation_input_tokens": 11340,
+					"cache_read_input_tokens": 9928,
+					"cache_creation": {
+						"ephemeral_5m_input_tokens": 11340,
+						"ephemeral_1h_input_tokens": 0
+					},
+					"output_tokens": 745,
+					"service_tier": "standard"
+				}
+			}
+		}
+	},
+	"id": "1770038858769-unknown-host-POST-_v1_messages-72796869.json",
+	"priority": 0,
+	"timeToLive": {
+		"unlimited": true
+	},
+	"times": {
+		"unlimited": true
+	}
+}
