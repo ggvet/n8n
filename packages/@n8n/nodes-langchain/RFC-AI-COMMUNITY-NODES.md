@@ -693,7 +693,6 @@ export class LmChatCustomProvider implements INodeType {
       stream: async function* (messages: Message[]): AsyncGenerator<StreamChunk> {
         // TODO: Consider providing SDK helper like `createSSEStream(this, options)`
         // to abstract away low-level fetch/streaming complexity.
-        // See "Open Questions" section.
       },
     });
 
