@@ -179,7 +179,12 @@ function tryLoadSchemaForNodeType(nodeType: string, version: number): SchemaOrFa
 	const expectedSchemaName = buildExpectedSchemaName(nodeName, versionStr, isLangchain);
 	const expectedFactoryName = buildExpectedFactoryName(nodeName, versionStr, isLangchain);
 
-	// Try default export first (for split structure factory functions)
+	// For CommonJS modules with module.exports = function, require() returns the function directly
+	if (typeof schemaModule === 'function') {
+		return schemaModule as SchemaOrFactory;
+	}
+
+	// Try default export for ESM interop (for split structure factory functions)
 	if (typeof schemaModule.default === 'function') {
 		return schemaModule.default as SchemaOrFactory;
 	}
