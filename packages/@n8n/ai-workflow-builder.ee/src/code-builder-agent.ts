@@ -310,9 +310,23 @@ export class CodeBuilderAgent {
 			this.debugLog('CHAT', 'Formatting initial messages...');
 			const formattedMessages = await prompt.formatMessages({ userMessage: payload.message });
 			const messages: BaseMessage[] = [...formattedMessages];
+
+			// Log the actual prompt content for debugging
 			this.debugLog('CHAT', 'Initial messages formatted', {
 				messageCount: messages.length,
 			});
+			for (let i = 0; i < formattedMessages.length; i++) {
+				const msg = formattedMessages[i];
+				const msgType = msg._getType();
+				const content =
+					typeof msg.content === 'string'
+						? msg.content
+						: JSON.stringify(msg.content).substring(0, 2000);
+				this.debugLog('CHAT', `Message ${i + 1} (${msgType})`, {
+					contentLength: typeof msg.content === 'string' ? msg.content.length : 0,
+					contentPreview: content.substring(0, 1000),
+				});
+			}
 
 			// Run agentic loop
 			this.debugLog('CHAT', 'Starting agentic loop...');
@@ -362,6 +376,15 @@ export class CodeBuilderAgent {
 				iteration++;
 				this.debugLog('CHAT', `========== ITERATION ${iteration} ==========`);
 
+				// Log message history state at start of iteration
+				this.debugLog('CHAT', 'Message history state', {
+					messageCount: messages.length,
+					messageTypes: messages.map((m) => m._getType()),
+					lastMessageType: messages[messages.length - 1]?._getType(),
+					consecutiveParseErrors,
+					textEditorFinalizeAttempts,
+				});
+
 				// Check for abort
 				if (abortSignal?.aborted) {
 					this.debugLog('CHAT', 'Abort signal received');
@@ -369,7 +392,7 @@ export class CodeBuilderAgent {
 				}
 
 				// Invoke LLM
-				this.debugLog('CHAT', 'Invoking LLM...');
+				this.debugLog('CHAT', 'Invoking LLM with message history...');
 				const llmStartTime = Date.now();
 				const response = await llmWithTools.invoke(messages, { signal: abortSignal });
 				const llmDuration = Date.now() - llmStartTime;
@@ -393,10 +416,28 @@ export class CodeBuilderAgent {
 					totalOutputTokens,
 				});
 
+				// Log full response content including thinking blocks
+				this.debugLog('CHAT', 'Full LLM response content', {
+					contentType: typeof response.content,
+					contentIsArray: Array.isArray(response.content),
+					rawContent: response.content,
+				});
+
+				// Extract and log thinking/planning content separately if present
+				const thinkingContent = this.extractThinkingContent(response);
+				if (thinkingContent) {
+					this.debugLog('CHAT', '========== AGENT THINKING/PLANNING ==========', {
+						thinkingContent,
+					});
+				}
+
 				// Extract text content from response
 				const textContent = this.extractTextContent(response);
 				if (textContent) {
-					this.debugLog('CHAT', 'Streaming text response', { textContent });
+					this.debugLog('CHAT', 'Streaming text response', {
+						textContentLength: textContent.length,
+						textContent,
+					});
 					yield {
 						messages: [
 							{
@@ -753,6 +794,44 @@ export class CodeBuilderAgent {
 	}
 
 	/**
+	 * Extract thinking/planning content from an AI message
+	 * Looks for <n8n_thinking> tags and extended thinking blocks
+	 */
+	private extractThinkingContent(message: AIMessage): string | null {
+		const textContent = this.extractTextContent(message);
+		if (!textContent) {
+			return null;
+		}
+
+		// Extract <n8n_thinking> blocks
+		const thinkingMatches = textContent.match(/<n8n_thinking>([\s\S]*?)<\/n8n_thinking>/g);
+		if (thinkingMatches) {
+			return thinkingMatches
+				.map((match) => match.replace(/<\/?n8n_thinking>/g, '').trim())
+				.join('\n\n');
+		}
+
+		// Check for extended thinking in content blocks (Claude's native thinking)
+		if (Array.isArray(message.content)) {
+			const thinkingBlocks = message.content
+				.filter(
+					(block): block is { type: 'thinking'; thinking: string } =>
+						typeof block === 'object' &&
+						block !== null &&
+						'type' in block &&
+						block.type === 'thinking',
+				)
+				.map((block) => block.thinking);
+
+			if (thinkingBlocks.length > 0) {
+				return thinkingBlocks.join('\n\n');
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * Execute a tool call and yield progress updates
 	 */
 	private async *executeToolCall(
@@ -889,10 +968,17 @@ export class CodeBuilderAgent {
 
 		// Handle finalize separately - triggers validation
 		if (command.command === 'finalize') {
+			const attemptNumber = state.getFinalizeAttempts() + 1;
 			state.incrementFinalizeAttempts();
+			this.debugLog('TEXT_EDITOR', '========== FINALIZE ATTEMPT ==========', {
+				attemptNumber,
+				iteration,
+			});
+
 			const code = handler.getWorkflowCode();
 
 			if (!code) {
+				this.debugLog('TEXT_EDITOR', 'Finalize failed: no code exists');
 				messages.push(
 					new ToolMessage({
 						tool_call_id: toolCall.id,
@@ -907,15 +993,33 @@ export class CodeBuilderAgent {
 				return { workflowReady: false };
 			}
 
+			this.debugLog('TEXT_EDITOR', 'Finalize: code to validate', {
+				codeLength: code.length,
+				codeLines: code.split('\n').length,
+				code,
+			});
+
 			const parseStartTime = Date.now();
 			try {
 				const result = await this.parseAndValidate(code, currentWorkflow);
-				state.setParseDuration(Date.now() - parseStartTime);
+				const parseDuration = Date.now() - parseStartTime;
+				state.setParseDuration(parseDuration);
 				state.setSourceCode(code);
+
+				this.debugLog('TEXT_EDITOR', 'Finalize: parse completed', {
+					parseDurationMs: parseDuration,
+					warningCount: result.warnings.length,
+					nodeCount: result.workflow.nodes.length,
+				});
 
 				if (result.warnings.length > 0) {
 					const warningText = result.warnings.map((w) => `- [${w.code}] ${w.message}`).join('\n');
 					const errorContext = this.getErrorContext(code, result.warnings[0].message);
+
+					this.debugLog('TEXT_EDITOR', 'Finalize: validation warnings', {
+						warnings: result.warnings,
+						errorContext,
+					});
 
 					// Track as generation error
 					generationErrors.push({
@@ -948,8 +1052,10 @@ export class CodeBuilderAgent {
 						content: 'Workflow validated successfully.',
 					}),
 				);
-				this.debugLog('TEXT_EDITOR', 'Workflow finalized successfully', {
+				this.debugLog('TEXT_EDITOR', '========== FINALIZE SUCCESS ==========', {
 					nodeCount: result.workflow.nodes.length,
+					nodeNames: result.workflow.nodes.map((n) => n.name),
+					nodeTypes: result.workflow.nodes.map((n) => n.type),
 				});
 				yield {
 					messages: [
@@ -958,9 +1064,18 @@ export class CodeBuilderAgent {
 				};
 				return { workflowReady: true };
 			} catch (error) {
-				state.setParseDuration(Date.now() - parseStartTime);
+				const parseDuration = Date.now() - parseStartTime;
+				state.setParseDuration(parseDuration);
 				const errorMessage = error instanceof Error ? error.message : String(error);
+				const errorStack = error instanceof Error ? error.stack : undefined;
 				const errorContext = this.getErrorContext(code, errorMessage);
+
+				this.debugLog('TEXT_EDITOR', '========== FINALIZE FAILED ==========', {
+					parseDurationMs: parseDuration,
+					errorMessage,
+					errorStack,
+					errorContext,
+				});
 
 				// Track the generation error
 				generationErrors.push({
