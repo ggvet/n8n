@@ -334,7 +334,7 @@ async function onCopyButtonClick(content: string, e: MouseEvent) {
 				display: none;
 			}
 
-			&::before {
+			&::after {
 				content: '';
 				width: 0;
 				height: 0;
@@ -350,7 +350,7 @@ async function onCopyButtonClick(content: string, e: MouseEvent) {
 			}
 		}
 
-		&[open] summary::before {
+		&[open] summary::after {
 			transform: rotate(90deg);
 		}
 
