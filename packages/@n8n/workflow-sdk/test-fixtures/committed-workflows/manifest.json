@@ -64,6 +64,11 @@
 					"nodeName": "Switch3"
 				}
 			]
+		},
+		{
+			"id": 4,
+			"name": "Unknown nodes with connections",
+			"success": true
 		}
 	]
 }

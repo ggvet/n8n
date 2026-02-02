@@ -259,7 +259,9 @@ function hasMultipleOutputSlots(node: SemanticNode): boolean {
  * is a category) from nodes with semantic outputs (like compareDatasets where outputs
  * 0 and 2 mean "same" and "different" but output 1 is unused).
  *
- * Returns true only if outputs are consecutive starting from 0 (e.g., 0,1,2 not 0,2).
+ * Returns true if outputs are consecutive (e.g., 0,1,2 or 1,2,3), not sparse (e.g., 0,2).
+ * Outputs don't need to start from 0 - a Switch with empty case 0 but filled cases 1,2
+ * should still preserve indices.
  */
 function hasConsecutiveOutputSlots(node: SemanticNode): boolean {
 	const occupiedIndices: number[] = [];
@@ -273,13 +275,10 @@ function hasConsecutiveOutputSlots(node: SemanticNode): boolean {
 
 	if (occupiedIndices.length <= 1) return true; // Single or no outputs are trivially consecutive
 
-	// Sort indices and check if they're consecutive starting from 0
+	// Sort indices and check if they're consecutive
 	occupiedIndices.sort((a, b) => a - b);
 
-	// Must start from 0
-	if (occupiedIndices[0] !== 0) return false;
-
-	// Check consecutive
+	// Check consecutive (each index should be previous + 1)
 	for (let i = 1; i < occupiedIndices.length; i++) {
 		if (occupiedIndices[i] !== occupiedIndices[i - 1] + 1) {
 			return false;
@@ -309,18 +308,29 @@ function getOutputSlotName(outputIndex: number, isSwitch = false): string {
 }
 
 /**
+ * Target info for multi-output nodes including the target input slot
+ */
+interface OutputTargetInfo {
+	targetName: string;
+	targetInputSlot: string;
+}
+
+/**
  * Get output targets grouped by output index for multi-output nodes.
- * Returns a Map from output index to array of target names.
+ * Returns a Map from output index to array of target info (name + input slot).
  * Excludes error outputs (handled separately via .onError())
  */
-function getOutputTargetsByIndex(node: SemanticNode): Map<number, string[]> {
-	const result = new Map<number, string[]>();
+function getOutputTargetsByIndex(node: SemanticNode): Map<number, OutputTargetInfo[]> {
+	const result = new Map<number, OutputTargetInfo[]>();
 	for (const [outputName, connections] of node.outputs) {
 		if (outputName === 'error') continue; // Skip error output
 		if (connections.length === 0) continue;
 
 		const outputIndex = getOutputIndex(outputName);
-		const targets = connections.map((c) => c.target);
+		const targets = connections.map((c) => ({
+			targetName: c.target,
+			targetInputSlot: c.targetInputSlot,
+		}));
 		result.set(outputIndex, targets);
 	}
 	return result;
@@ -1240,28 +1250,56 @@ function buildFromNode(nodeName: string, ctx: BuildContext): CompositeNode {
 			const outputTargets = new Map<number, CompositeNode>();
 			for (const [outputIndex, targets] of targetsByIndex) {
 				if (targets.length === 1) {
-					// Single target for this output - build chain
-					const targetName = targets[0];
-					const targetNode = ctx.graph.nodes.get(targetName);
+					// Single target for this output - build chain or deferred connection
+					const targetInfo = targets[0];
+					const targetNode = ctx.graph.nodes.get(targetInfo.targetName);
 					if (targetNode) {
-						if (ctx.visited.has(targetName)) {
-							ctx.variables.set(targetName, targetNode);
-							outputTargets.set(outputIndex, createVarRef(targetName));
+						const targetInputIndex = extractInputIndex(targetInfo.targetInputSlot);
+
+						// If target has non-default input index, create deferred connection only
+						// (don't add to outputTargets to avoid duplicate connections)
+						if (targetInputIndex > 0) {
+							ctx.variables.set(node.name, node);
+							ctx.variables.set(targetInfo.targetName, targetNode);
+							ctx.deferredConnections.push({
+								targetNode,
+								targetInputIndex,
+								sourceNodeName: node.name,
+								sourceOutputIndex: outputIndex,
+							});
+							// Don't add to outputTargets - the deferred connection handles this
+						} else if (ctx.visited.has(targetInfo.targetName)) {
+							ctx.variables.set(targetInfo.targetName, targetNode);
+							outputTargets.set(outputIndex, createVarRef(targetInfo.targetName));
 						} else {
-							outputTargets.set(outputIndex, buildFromNode(targetName, ctx));
+							outputTargets.set(outputIndex, buildFromNode(targetInfo.targetName, ctx));
 						}
 					}
 				} else if (targets.length > 1) {
-					// Multiple targets for this output - build fan-out
+					// Multiple targets for this output - build fan-out (only for default input targets)
+					// Non-default input targets get deferred connections
 					const fanOutBranches: CompositeNode[] = [];
-					for (const targetName of targets) {
-						const targetNode = ctx.graph.nodes.get(targetName);
+					for (const targetInfo of targets) {
+						const targetNode = ctx.graph.nodes.get(targetInfo.targetName);
 						if (targetNode) {
-							if (ctx.visited.has(targetName)) {
-								ctx.variables.set(targetName, targetNode);
-								fanOutBranches.push(createVarRef(targetName));
+							const targetInputIndex = extractInputIndex(targetInfo.targetInputSlot);
+
+							// If target has non-default input index, create deferred connection only
+							if (targetInputIndex > 0) {
+								ctx.variables.set(node.name, node);
+								ctx.variables.set(targetInfo.targetName, targetNode);
+								ctx.deferredConnections.push({
+									targetNode,
+									targetInputIndex,
+									sourceNodeName: node.name,
+									sourceOutputIndex: outputIndex,
+								});
+								// Don't add to fanOutBranches - the deferred connection handles this
+							} else if (ctx.visited.has(targetInfo.targetName)) {
+								ctx.variables.set(targetInfo.targetName, targetNode);
+								fanOutBranches.push(createVarRef(targetInfo.targetName));
 							} else {
-								fanOutBranches.push(buildFromNode(targetName, ctx));
+								fanOutBranches.push(buildFromNode(targetInfo.targetName, ctx));
 							}
 						}
 					}
@@ -1276,7 +1314,9 @@ function buildFromNode(nodeName: string, ctx: BuildContext): CompositeNode {
 				}
 			}
 
-			if (outputTargets.size > 0) {
+			// If we have output targets OR deferred connections for this node, use multi-output pattern
+			const hasDeferred = ctx.deferredConnections.some((c) => c.sourceNodeName === node.name);
+			if (outputTargets.size > 0 || hasDeferred) {
 				// Register the source node as a variable since it will be referenced in .output(n).then() calls
 				ctx.variables.set(node.name, node);
 				const multiOutput: MultiOutputNode = {
