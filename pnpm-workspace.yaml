@@ -62,6 +62,7 @@ catalog:
   mysql2: 3.15.0
   nanoid: 3.3.8
   nodemailer: 7.0.11
+  pg: 8.17.0
   picocolors: 1.0.1
   reflect-metadata: 0.2.2
   rimraf: 6.0.1
@@ -115,6 +116,10 @@ catalogs:
     eslint-plugin-playwright: 2.2.2
     playwright: 1.57.0
     playwright-core: 1.57.0
+  sentry:
+    '@sentry/node': '^10.36.0'
+    '@sentry/node-native': '^10.36.0'
+    '@sentry/profiling-node': '^10.36.0'
 
 minimumReleaseAge: 4320
 
@@ -123,6 +128,7 @@ minimumReleaseAgeExclude:
   - '@n8n_io/*'
   - 'tsdown@0.16.5'
   - eslint-plugin-storybook
+  - eslint-plugin-n8n-nodes-base
   - '@langchain/*'
   - 'langchain'
   - '@anthropic-ai/sdk'

@@ -515,7 +515,7 @@ describe('SourceControlService', () => {
 			mockStatusService.getStatus.mockResolvedValueOnce(statuses);
 
 			// ACT
-			const result = await sourceControlService.pullWorkfolder(user, {});
+			const result = await sourceControlService.pullWorkfolder(user, { autoPublish: 'none' });
 
 			// ASSERT
 			expect(result).toMatchObject({ statusCode: 409, statusResult: statuses });
@@ -539,7 +539,7 @@ describe('SourceControlService', () => {
 			mockStatusService.getStatus.mockResolvedValueOnce(statuses);
 
 			// ACT
-			const result = await sourceControlService.pullWorkfolder(user, {});
+			const result = await sourceControlService.pullWorkfolder(user, { autoPublish: 'none' });
 
 			// ASSERT
 			expect(result).toMatchObject({ statusCode: 409, statusResult: statuses });
