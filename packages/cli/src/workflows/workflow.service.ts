@@ -28,7 +28,7 @@ import isEqual from 'lodash/isEqual';
 import pick from 'lodash/pick';
 import { FileLocation, BinaryDataService } from 'n8n-core';
 
-import type { INode, INodes, IWorkflowSettings, JsonValue } from 'n8n-workflow';
+import type { INode, INodes, IWorkflowSettings, JsonValue, IConnections } from 'n8n-workflow';
 import {
 	NodeApiError,
 	PROJECT_ROOT,
@@ -519,9 +519,10 @@ export class WorkflowService {
 					userId: user.id,
 				});
 			}
+
 			let message;
 			if (error instanceof NodeApiError) message = error.description;
-			message = message ?? (error as Error).message;
+			message = message ?? (error as Error)?.message;
 
 			// Now return the original error for UI to display
 			throw new BadRequestError(message);
@@ -642,7 +643,7 @@ export class WorkflowService {
 
 		await this._detectWebhookConflicts(workflow, versionToActivate);
 
-		this._validateNodes(workflowId, versionToActivate.nodes);
+		this._validateNodes(workflowId, versionToActivate.nodes, versionToActivate.connections);
 		await this._validateSubWorkflowReferences(workflowId, versionToActivate.nodes);
 
 		if (wasActive) {
@@ -1003,13 +1004,15 @@ export class WorkflowService {
 		}
 	}
 
-	_validateNodes(workflowId: string, nodes: INode[]) {
+	_validateNodes(workflowId: string, nodes: INode[], connections: IConnections) {
 		const nodesToValidate = nodes.reduce<INodes>((acc, node) => {
 			acc[node.name] = node;
 			return acc;
 		}, {});
+
 		const validation = this.workflowValidationService.validateForActivation(
 			nodesToValidate,
+			connections,
 			this.nodeTypes,
 		);
 
