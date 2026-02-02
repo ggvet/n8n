@@ -786,7 +786,7 @@ export class ChatHubService {
 				agent,
 				user,
 				sessionId,
-				await this.buildMessageValuesWithAttachments(history, agent, agent.files),
+				await this.buildConversationHistory(history, agent, agent.files),
 				input,
 				trx,
 				agent.systemPrompt + '\n\n' + this.getSystemMessage(timeZone),
@@ -800,7 +800,7 @@ export class ChatHubService {
 			sessionId,
 			credentials,
 			model,
-			await this.buildMessageValuesWithAttachments(history, model, []),
+			await this.buildConversationHistory(history, model, []),
 			input,
 			'You are a helpful assistant.\n\n' + this.getSystemMessage(timeZone),
 			tools,
@@ -933,7 +933,7 @@ export class ChatHubService {
 		};
 	}
 
-	async buildMessageValuesWithAttachments(
+	async buildConversationHistory(
 		history: ChatHubMessage[],
 		model: ChatHubBaseLLMModel,
 		contextFiles: ChatHubAgentKnowledgeItem[],
