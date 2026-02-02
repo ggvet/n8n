@@ -1920,7 +1920,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		for (const graphNode of nodesToProcess) {
 			const node = graphNode.instance;
 
-			// Use output declaration directly as pinData
+			// Use output declaration directly as pinData (copied from top-level to config)
 			const output = node.config?.output;
 			if (output && output.length > 0) {
 				this._pinData = this._pinData ?? {};

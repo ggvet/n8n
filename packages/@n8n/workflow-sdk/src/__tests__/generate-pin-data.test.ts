@@ -21,8 +21,8 @@ describe('generatePinData', () => {
 						config: {
 							name: 'Slack',
 							parameters: { resource: 'channel', operation: 'get' },
-							output: outputData,
 						},
+						output: outputData,
 					}),
 				)
 				.generatePinData();
@@ -61,13 +61,32 @@ describe('generatePinData', () => {
 					node({
 						type: 'n8n-nodes-base.noOp',
 						version: 1,
-						config: { name: 'Empty Output', output: [] },
+						config: { name: 'Empty Output' },
+						output: [],
 					}),
 				)
 				.generatePinData();
 
 			const json = wf.toJSON();
 			expect(json.pinData?.['Empty Output']).toBeUndefined();
+		});
+
+		it('uses output from trigger nodes', () => {
+			const outputData = [{ amount: 500, description: 'Test purchase' }];
+
+			const wf = workflow('id', 'Test')
+				.add(
+					trigger({
+						type: 'n8n-nodes-base.webhook',
+						version: 2,
+						config: { name: 'Webhook' },
+						output: outputData,
+					}),
+				)
+				.generatePinData();
+
+			const json = wf.toJSON();
+			expect(json.pinData!['Webhook']).toEqual(outputData);
 		});
 	});
 
@@ -87,8 +106,8 @@ describe('generatePinData', () => {
 						config: {
 							name: 'Slack',
 							parameters: { resource: 'channel', operation: 'getAll' },
-							output: outputData,
 						},
+						output: outputData,
 					}),
 				)
 				.generatePinData();
@@ -106,14 +125,16 @@ describe('generatePinData', () => {
 					node({
 						type: 'n8n-nodes-base.slack',
 						version: 2,
-						config: { name: 'Slack 1', output: [{ id: '1' }] },
+						config: { name: 'Slack 1' },
+						output: [{ id: '1' }],
 					}),
 				)
 				.then(
 					node({
 						type: 'n8n-nodes-base.slack',
 						version: 2,
-						config: { name: 'Slack 2', output: [{ id: '2' }] },
+						config: { name: 'Slack 2' },
+						output: [{ id: '2' }],
 					}),
 				)
 				.generatePinData({ nodes: ['Slack 1'] });
@@ -134,15 +155,16 @@ describe('generatePinData', () => {
 						config: {
 							name: 'With Creds',
 							credentials: { slackApi: { id: '1', name: 'Slack' } },
-							output: [{ id: 'cred' }],
 						},
+						output: [{ id: 'cred' }],
 					}),
 				)
 				.then(
 					node({
 						type: 'n8n-nodes-base.code',
 						version: 2,
-						config: { name: 'No Creds', output: [{ id: 'nocred' }] },
+						config: { name: 'No Creds' },
+						output: [{ id: 'nocred' }],
 					}),
 				)
 				.generatePinData({ hasNoCredentials: true });
@@ -158,7 +180,8 @@ describe('generatePinData', () => {
 					node({
 						type: 'n8n-nodes-base.code',
 						version: 2,
-						config: { name: 'Empty Creds', credentials: {}, output: [{ id: 'test' }] },
+						config: { name: 'Empty Creds', credentials: {} },
+						output: [{ id: 'test' }],
 					}),
 				)
 				.generatePinData({ hasNoCredentials: true });
@@ -190,14 +213,16 @@ describe('generatePinData', () => {
 					node({
 						type: 'n8n-nodes-base.slack',
 						version: 2,
-						config: { name: 'Existing Node', output: [{ id: 'existing' }] },
+						config: { name: 'Existing Node' },
+						output: [{ id: 'existing' }],
 					}),
 				)
 				.then(
 					node({
 						type: 'n8n-nodes-base.slack',
 						version: 2,
-						config: { name: 'New Node', output: [{ id: 'new' }] },
+						config: { name: 'New Node' },
+						output: [{ id: 'new' }],
 					}),
 				)
 				.generatePinData({ beforeWorkflow });
@@ -230,7 +255,8 @@ describe('generatePinData', () => {
 					node({
 						type: 'n8n-nodes-base.slack',
 						version: 2,
-						config: { name: 'Old', output: [{ id: 'old' }] },
+						config: { name: 'Old' },
+						output: [{ id: 'old' }],
 					}),
 				)
 				.then(
@@ -240,15 +266,16 @@ describe('generatePinData', () => {
 						config: {
 							name: 'New With Creds',
 							credentials: { slackApi: { id: '1', name: 'Slack' } },
-							output: [{ id: 'newcreds' }],
 						},
+						output: [{ id: 'newcreds' }],
 					}),
 				)
 				.then(
 					node({
 						type: 'n8n-nodes-base.code',
 						version: 2,
-						config: { name: 'New No Creds', output: [{ id: 'newnocreds' }] },
+						config: { name: 'New No Creds' },
+						output: [{ id: 'newnocreds' }],
 					}),
 				)
 				.generatePinData({ beforeWorkflow, hasNoCredentials: true });
@@ -272,7 +299,8 @@ describe('generatePinData', () => {
 					node({
 						type: 'n8n-nodes-base.slack',
 						version: 2,
-						config: { name: 'Slack', output: outputData },
+						config: { name: 'Slack' },
+						output: outputData,
 					}),
 				)
 				.generatePinData();
@@ -282,7 +310,8 @@ describe('generatePinData', () => {
 					node({
 						type: 'n8n-nodes-base.slack',
 						version: 2,
-						config: { name: 'Slack', output: outputData },
+						config: { name: 'Slack' },
+						output: outputData,
 					}),
 				)
 				.generatePinData();

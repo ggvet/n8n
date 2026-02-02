@@ -1002,6 +1002,8 @@ export interface NodeInput<
 	type: TType;
 	version: TVersion;
 	config: NodeConfig<TParams>;
+	/** Declared output data for data flow validation and pinData generation */
+	output?: IDataObject[];
 }
 
 /**
@@ -1015,6 +1017,8 @@ export interface TriggerInput<
 	type: TType;
 	version: TVersion;
 	config: NodeConfig<TParams>;
+	/** Declared output data for data flow validation and pinData generation */
+	output?: IDataObject[];
 }
 
 export type WorkflowFn = WorkflowBuilderStatic;

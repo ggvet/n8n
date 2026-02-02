@@ -879,10 +879,14 @@ export function node<TNode extends NodeInput>(
 	input: TNode,
 ): NodeInstance<TNode['type'], `${TNode['version']}`, unknown> {
 	const versionStr = String(input.version) as `${TNode['version']}`;
+	// Copy top-level output into config if present
+	const config: NodeConfig = input.output
+		? ({ ...input.config, output: input.output } as NodeConfig)
+		: (input.config as NodeConfig);
 	return new NodeInstanceImpl<TNode['type'], `${TNode['version']}`, unknown>(
 		input.type,
 		versionStr,
-		input.config as NodeConfig,
+		config,
 	);
 }
 
@@ -1012,10 +1016,14 @@ export function trigger<TTrigger extends TriggerInput>(
 	input: TTrigger,
 ): TriggerInstance<TTrigger['type'], `${TTrigger['version']}`, unknown> {
 	const versionStr = String(input.version) as `${TTrigger['version']}`;
+	// Copy top-level output into config if present
+	const config: NodeConfig = input.output
+		? ({ ...input.config, output: input.output } as NodeConfig)
+		: (input.config as NodeConfig);
 	return new TriggerInstanceImpl<TTrigger['type'], `${TTrigger['version']}`, unknown>(
 		input.type,
 		versionStr,
-		input.config as NodeConfig,
+		config,
 	);
 }
 
