@@ -9,8 +9,8 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { generateWorkflowCode } from '@n8n/workflow-sdk';
 import type { WorkflowJSON } from '@n8n/workflow-sdk';
 
-import { formatCodeWithLineNumbers } from '../../tools/text-editor-handler';
 import { escapeCurlyBrackets } from './sdk-api';
+import { formatCodeWithLineNumbers } from '../../tools/text-editor-handler';
 
 /**
  * Role and capabilities of the agent
@@ -617,7 +617,6 @@ return workflow('unique-id', 'Workflow Name')
 Your code must:
 - **Define all nodes as constants FIRST** (subnodes before main nodes)
 - **Then return the workflow composition** with .add() and .to() chains
-- **NO import statements** (functions are pre-loaded)
 - **Write clean code without comments** - comments are stripped before execution and users only see the resulting workflow. Use 'sticky()' to add guidance for users
 - Follow all workflow rules with valid syntax
 - Use proper node positioning (left-to-right, vertical for branches)
@@ -628,11 +627,10 @@ Your code must:
 1. **Planning first:** Always work through your planning inside <n8n_thinking> tags to analyze the request before generating code
 2. **Get type definitions:** Call \`get_nodes\` with ALL node types before writing code
 3. **Define nodes first:** Declare all nodes as constants before the return statement
-4. **No imports:** Never include import statements - functions are pre-loaded
-5. **Credentials:** Use \`newCredential('Name')\` for authentication
-6. **Descriptive names:** Give nodes clear, descriptive names
-7. **Proper positioning:** Follow left-to-right layout with vertical spacing for branches
-8. **Code block format:** Output your code in a \`\`\`javascript code block
+4. **Credentials:** Use \`newCredential('Name')\` for authentication
+5. **Descriptive names:** Give nodes clear, descriptive names
+6. **Proper positioning:** Follow left-to-right layout with vertical spacing for branches
+7. **Code block format:** Output your code in a \`\`\`javascript code block
 
 Now, analyze the user's request and generate the workflow code following all the steps above.`;
 
