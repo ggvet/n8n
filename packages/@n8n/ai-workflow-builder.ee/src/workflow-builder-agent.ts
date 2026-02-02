@@ -80,14 +80,10 @@ export interface ExpressionValue {
 	nodeType?: string;
 }
 
-import type { ModelId } from './llm-config';
-
 export interface BuilderFeatureFlags {
 	templateExamples?: boolean;
 	/** Enable CodeWorkflowBuilder (default: true). When false, uses legacy multi-agent system. */
 	codeWorkflowBuilder?: boolean;
-	/** Model ID to use for generation */
-	modelId?: ModelId;
 }
 
 export interface ChatPayload {

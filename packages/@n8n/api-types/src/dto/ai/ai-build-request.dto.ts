@@ -64,8 +64,6 @@ export class AiBuilderChatRequestDto extends Z.class({
 			.object({
 				templateExamples: z.boolean().optional(),
 				oneShotAgent: z.boolean().optional(),
-				promptVersion: z.enum(['v1-sonnet', 'v2-opus']).optional(),
-				modelId: z.enum(['claude-opus-4.5', 'claude-sonnet-4.5', 'claude-haiku-4.5']).optional(),
 			})
 			.optional(),
 	}),
