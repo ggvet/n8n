@@ -11,6 +11,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import pLimit from 'p-limit';
 
+import type { IntrospectionEvent } from '@/tools/introspect.tool';
 import type { SimpleWorkflow } from '@/types/workflow';
 import type { BuilderFeatureFlags } from '@/workflow-builder-agent';
 
@@ -25,7 +26,6 @@ import {
 	createPairwiseEvaluator,
 	createSimilarityEvaluator,
 	createIntrospectionEvaluator,
-	clearIntrospectionEvents,
 	type RunConfig,
 	type TestCase,
 	type Evaluator,
@@ -173,13 +173,13 @@ export async function runV2Evaluation(): Promise<void> {
 	// Default workflow generator
 	let generateWorkflow: (prompt: string, callbacks?: Callbacks) => Promise<SimpleWorkflow>;
 
-	// Handle introspection suite separately - uses global event store
+	// Handle introspection suite separately - uses state-based event collection
 	if (args.suite === 'introspection') {
-		// Custom generator that clears events before each run
-		generateWorkflow = async (prompt: string, callbacks?: Callbacks): Promise<SimpleWorkflow> => {
-			// Clear events from previous runs before starting
-			clearIntrospectionEvents();
+		// Closure variable to capture events from the most recent generation
+		let lastIntrospectionEvents: IntrospectionEvent[] = [];
 
+		// Custom generator that captures events from state after each run
+		generateWorkflow = async (prompt: string, callbacks?: Callbacks): Promise<SimpleWorkflow> => {
 			const runId = generateRunId();
 
 			const agent = createAgent({
@@ -208,11 +208,14 @@ export async function runV2Evaluation(): Promise<void> {
 				throw new Error('Invalid workflow state: workflow or messages missing');
 			}
 
+			// Capture introspection events from state for this run
+			lastIntrospectionEvents = (state.values.introspectionEvents as IntrospectionEvent[]) ?? [];
+
 			return state.values.workflowJSON;
 		};
 
-		// Create evaluator that reads from global event store
-		evaluators.push(createIntrospectionEvaluator());
+		// Create evaluator that reads from the closure variable (scoped to this run)
+		evaluators.push(createIntrospectionEvaluator(() => lastIntrospectionEvents));
 	} else {
 		// Create standard workflow generator
 		generateWorkflow = createWorkflowGenerator(env.parsedNodeTypes, env.llms, args.featureFlags);

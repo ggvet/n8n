@@ -48,12 +48,7 @@ export {
 } from './evaluators';
 
 // Introspection evaluator
-export {
-	createIntrospectionEvaluator,
-	clearIntrospectionEvents,
-	getIntrospectionEvents,
-	type IntrospectionEvent,
-} from './evaluators/introspection';
+export { createIntrospectionEvaluator, type IntrospectionEvent } from './evaluators/introspection';
 
 // Output
 export {

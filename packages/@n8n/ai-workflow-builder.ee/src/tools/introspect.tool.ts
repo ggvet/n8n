@@ -1,3 +1,4 @@
+import type { BaseMessage, AIMessage } from '@langchain/core/messages';
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 
@@ -17,31 +18,54 @@ export interface IntrospectionEvent {
 }
 
 /**
- * Global event store for introspection events.
- * Events accumulate here and can be retrieved/cleared by evaluations.
+ * Extract introspection events from AIMessage tool_calls.
+ * Used by subgraphs to collect events from their messages.
  */
-const globalEventStore: IntrospectionEvent[] = [];
-
 /**
- * Add an event to the global store.
+ * Safely convert a value to string, handling objects gracefully.
  */
-function addIntrospectionEvent(event: IntrospectionEvent): void {
-	globalEventStore.push(event);
+function safeString(value: unknown, defaultValue: string = ''): string {
+	if (value === null || value === undefined) {
+		return defaultValue;
+	}
+	if (typeof value === 'string') {
+		return value;
+	}
+	if (typeof value === 'number' || typeof value === 'boolean') {
+		return String(value);
+	}
+	// For objects, try to stringify them
+	try {
+		return JSON.stringify(value);
+	} catch {
+		return defaultValue;
+	}
 }
 
-/**
- * Get all events from the global store.
- */
-export function getIntrospectionEvents(): IntrospectionEvent[] {
-	return [...globalEventStore];
-}
+export function extractIntrospectionEventsFromMessages(
+	messages: BaseMessage[],
+): IntrospectionEvent[] {
+	const events: IntrospectionEvent[] = [];
 
-/**
- * Clear all events from the global store.
- * Should be called before each evaluation example.
- */
-export function clearIntrospectionEvents(): void {
-	globalEventStore.length = 0;
+	for (const msg of messages) {
+		// Check if message is an AIMessage with tool_calls
+		const aiMsg = msg as AIMessage;
+		if (aiMsg._getType?.() === 'ai' && aiMsg.tool_calls && Array.isArray(aiMsg.tool_calls)) {
+			for (const toolCall of aiMsg.tool_calls) {
+				if (toolCall.name === 'introspect' && toolCall.args) {
+					const args = toolCall.args as Record<string, unknown>;
+					events.push({
+						timestamp: new Date().toISOString(),
+						category: safeString(args.category, 'other'),
+						issue: safeString(args.issue, ''),
+						source: args.source !== undefined ? safeString(args.source) : undefined,
+					});
+				}
+			}
+		}
+	}
+
+	return events;
 }
 
 const introspectSchema = z.object({
@@ -87,15 +111,8 @@ export function createIntrospectTool() {
 
 				const timestamp = new Date().toISOString();
 
-				// Store event in global store
-				addIntrospectionEvent({
-					timestamp,
-					category,
-					issue,
-					source,
-				});
-
 				// Log structured diagnostic data for analysis
+				// Events are extracted from AIMessage tool_calls in transformOutput
 				console.log(
 					JSON.stringify({
 						tool: 'introspect',

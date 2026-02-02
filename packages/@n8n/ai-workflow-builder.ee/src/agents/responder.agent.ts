@@ -13,7 +13,11 @@ import {
 	buildDataTableCreationGuidance,
 } from '@/prompts/agents/responder.prompt';
 
-import { createIntrospectTool } from '../tools/introspect.tool';
+import {
+	createIntrospectTool,
+	extractIntrospectionEventsFromMessages,
+	type IntrospectionEvent,
+} from '../tools/introspect.tool';
 import type { CoordinationLogEntry } from '../types/coordination';
 import type { DiscoveryContext } from '../types/discovery-types';
 import { isAIMessage } from '../types/langchain';
@@ -70,6 +74,14 @@ export interface ResponderContext {
  * Synthesizes final user-facing responses from workflow building context.
  * Handles conversational queries and explanations.
  */
+/**
+ * Result from ResponderAgent.invoke
+ */
+export interface ResponderResult {
+	response: AIMessage;
+	introspectionEvents: IntrospectionEvent[];
+}
+
 export class ResponderAgent {
 	private readonly tool: StructuredTool | undefined;
 
@@ -193,8 +205,9 @@ export class ResponderAgent {
 	 * Invoke the responder agent with the given context
 	 * @param context - Responder context with messages and workflow state
 	 * @param config - Optional RunnableConfig for tracing callbacks
+	 * @returns Response message and any introspection events collected
 	 */
-	async invoke(context: ResponderContext, config?: RunnableConfig): Promise<AIMessage> {
+	async invoke(context: ResponderContext, config?: RunnableConfig): Promise<ResponderResult> {
 		const agent = this.systemPrompt.pipe(this.llmWithTools);
 
 		const contextMessage = this.buildContextMessage(context);
@@ -202,39 +215,63 @@ export class ResponderAgent {
 			? [...context.messages, contextMessage]
 			: [...context.messages];
 
+		// Collect AI messages for introspection event extraction
+		const aiMessages: BaseMessage[] = [];
+
 		const MAX_ITERATIONS = 5;
 
 		for (let i = 0; i < MAX_ITERATIONS; i++) {
+			// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 			const result = await agent.invoke({ messages: messagesToSend }, config);
 
-			if (!isAIMessage(result)) {
-				return new AIMessage({
-					content: 'I encountered an issue generating a response. Please try again.',
-				});
+			if (!isAIMessage(result as BaseMessage)) {
+				return {
+					response: new AIMessage({
+						content: 'I encountered an issue generating a response. Please try again.',
+					}),
+					introspectionEvents: extractIntrospectionEventsFromMessages(aiMessages),
+				};
 			}
 
+			// result is narrowed to AIMessage by the type guard above
+			const aiResult = result as AIMessage;
+			aiMessages.push(aiResult);
+
 			// Check if there are tool calls
-			if (!result.tool_calls || result.tool_calls.length === 0) {
+			if (!aiResult.tool_calls || aiResult.tool_calls.length === 0) {
 				// No tool calls - this is the final response
-				return result;
+				return {
+					response: aiResult,
+					introspectionEvents: extractIntrospectionEventsFromMessages(aiMessages),
+				};
 			}
 
 			// Execute tool calls
-			const toolMessages = await this.executeToolCalls(result, config);
+			const toolMessages = await this.executeToolCalls(aiResult, config);
 
 			// Add AI message and tool messages for next iteration
-			messagesToSend = [...messagesToSend, result, ...toolMessages];
+			messagesToSend = [...messagesToSend, aiResult, ...toolMessages];
 		}
 
 		// If we hit max iterations, make one final call without expecting tools
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 		const lastResult = await agent.invoke({ messages: messagesToSend }, config);
-		if (isAIMessage(lastResult)) {
-			return lastResult;
+		if (isAIMessage(lastResult as BaseMessage)) {
+			// lastResult is narrowed to AIMessage by the type guard above
+			const lastAiResult = lastResult as AIMessage;
+			aiMessages.push(lastAiResult);
+			return {
+				response: lastAiResult,
+				introspectionEvents: extractIntrospectionEventsFromMessages(aiMessages),
+			};
 		}
 
-		return new AIMessage({
-			content: 'I encountered an issue generating a response. Please try again.',
-		});
+		return {
+			response: new AIMessage({
+				content: 'I encountered an issue generating a response. Please try again.',
+			}),
+			introspectionEvents: extractIntrospectionEventsFromMessages(aiMessages),
+		};
 	}
 
 	/**
@@ -253,6 +290,7 @@ export class ResponderAgent {
 		for (const toolCall of aiMessage.tool_calls) {
 			if (this.tool && toolCall.name === this.tool.name) {
 				try {
+					// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
 					const result = await this.tool.invoke(toolCall.args ?? {}, {
 						...config,
 						toolCall: {

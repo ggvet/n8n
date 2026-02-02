@@ -26,7 +26,10 @@ import { BaseSubgraph } from './subgraph-interface';
 import type { ParentGraphState } from '../parent-graph-state';
 import { createGetDocumentationTool } from '../tools/get-documentation.tool';
 import { createGetWorkflowExamplesTool } from '../tools/get-workflow-examples.tool';
-import { createIntrospectTool } from '../tools/introspect.tool';
+import {
+	createIntrospectTool,
+	extractIntrospectionEventsFromMessages,
+} from '../tools/introspect.tool';
 import { createNodeDetailsTool } from '../tools/node-details.tool';
 import { createNodeSearchTool } from '../tools/node-search.tool';
 import type { CoordinationLogEntry } from '../types/coordination';
@@ -452,6 +455,9 @@ export class DiscoverySubgraph extends BaseSubgraph<
 			}),
 		};
 
+		// Extract introspection events from subgraph messages
+		const introspectionEvents = extractIntrospectionEventsFromMessages(subgraphOutput.messages);
+
 		return {
 			discoveryContext,
 			coordinationLog: [logEntry],
@@ -459,6 +465,7 @@ export class DiscoverySubgraph extends BaseSubgraph<
 			templateIds,
 			// Propagate cached templates back to parent
 			cachedTemplates: subgraphOutput.cachedTemplates,
+			introspectionEvents,
 		};
 	}
 }

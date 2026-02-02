@@ -32,10 +32,15 @@ const WORKFLOW_TOO_COMPLEX_ERROR =
 	'Workflow generation stopped: The AI reached the maximum number of steps while building your workflow. This usually means the workflow design became too complex or got stuck in a loop while trying to create the nodes and connections.';
 
 /**
- * Type for the state snapshot with properly typed values
+ * Type for the state snapshot with properly typed values.
+ * Note: Uses WorkflowState.State for backward compatibility with telemetry fields.
+ * The actual graph uses ParentGraphState which includes additional fields like introspectionEvents.
  */
 export type TypedStateSnapshot = Omit<StateSnapshot, 'values'> & {
-	values: typeof WorkflowState.State;
+	values: typeof WorkflowState.State & {
+		// Additional fields from ParentGraphState that may be present at runtime
+		introspectionEvents?: unknown[];
+	};
 };
 
 /**

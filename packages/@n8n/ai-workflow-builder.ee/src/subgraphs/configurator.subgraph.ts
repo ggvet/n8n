@@ -21,7 +21,10 @@ import type { ParentGraphState } from '../parent-graph-state';
 import { createGetNodeConfigurationExamplesTool } from '../tools/get-node-examples.tool';
 import { createGetNodeParameterTool } from '../tools/get-node-parameter.tool';
 import { createGetResourceLocatorOptionsTool } from '../tools/get-resource-locator-options.tool';
-import { createIntrospectTool } from '../tools/introspect.tool';
+import {
+	createIntrospectTool,
+	extractIntrospectionEventsFromMessages,
+} from '../tools/introspect.tool';
 import { createUpdateNodeParametersTool } from '../tools/update-node-parameters.tool';
 import { createValidateConfigurationTool } from '../tools/validate-configuration.tool';
 import type { CoordinationLogEntry } from '../types/coordination';
@@ -388,12 +391,16 @@ export class ConfiguratorSubgraph extends BaseSubgraph<
 			}),
 		};
 
+		// Extract introspection events from subgraph messages
+		const introspectionEvents = extractIntrospectionEventsFromMessages(subgraphOutput.messages);
+
 		return {
 			workflowJSON: subgraphOutput.workflowJSON,
 			workflowOperations: subgraphOutput.workflowOperations ?? [],
 			coordinationLog: [logEntry],
 			// Propagate cached templates back to parent
 			cachedTemplates: subgraphOutput.cachedTemplates,
+			introspectionEvents,
 			// NO messages - clean separation from user-facing conversation
 		};
 	}

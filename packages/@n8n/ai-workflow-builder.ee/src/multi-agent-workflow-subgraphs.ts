@@ -198,7 +198,7 @@ export function createMultiAgentWorkflowWithSubgraphs(config: MultiAgentSubgraph
 			// Add Responder Node (synthesizes final user-facing response)
 			// Accepts config as second param to propagate callbacks for tracing
 			.addNode('responder', async (state, config) => {
-				const response = await responderAgent.invoke(
+				const { response, introspectionEvents } = await responderAgent.invoke(
 					{
 						messages: state.messages,
 						coordinationLog: state.coordinationLog,
@@ -218,6 +218,7 @@ export function createMultiAgentWorkflowWithSubgraphs(config: MultiAgentSubgraph
 
 				return {
 					messages: [response], // Only responder adds to user messages
+					introspectionEvents, // Collected from responder's tool calls
 				};
 			})
 			// Add process_operations node for hybrid operations approach

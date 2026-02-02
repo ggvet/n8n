@@ -17,7 +17,10 @@ import type { ParentGraphState } from '../parent-graph-state';
 import { createAddNodeTool } from '../tools/add-node.tool';
 import { createConnectNodesTool } from '../tools/connect-nodes.tool';
 import { createGetNodeConnectionExamplesTool } from '../tools/get-node-examples.tool';
-import { createIntrospectTool } from '../tools/introspect.tool';
+import {
+	createIntrospectTool,
+	extractIntrospectionEventsFromMessages,
+} from '../tools/introspect.tool';
 import { createRemoveConnectionTool } from '../tools/remove-connection.tool';
 import { createRemoveNodeTool } from '../tools/remove-node.tool';
 import { createRenameNodeTool } from '../tools/rename-node.tool';
@@ -301,11 +304,15 @@ export class BuilderSubgraph extends BaseSubgraph<
 			}),
 		};
 
+		// Extract introspection events from subgraph messages
+		const introspectionEvents = extractIntrospectionEventsFromMessages(subgraphOutput.messages);
+
 		return {
 			workflowJSON,
 			workflowOperations: subgraphOutput.workflowOperations ?? [],
 			coordinationLog: [logEntry],
 			cachedTemplates: subgraphOutput.cachedTemplates,
+			introspectionEvents,
 		};
 	}
 }
