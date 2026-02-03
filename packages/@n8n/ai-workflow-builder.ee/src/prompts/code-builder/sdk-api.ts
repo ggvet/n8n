@@ -198,8 +198,8 @@ export interface StickyNoteConfig {
 	width?: number;
 	/** Height in pixels */
 	height?: number;
-	/** Custom name */
-	name?: string;
+	/** Nodes to wrap - auto-positions sticky around these nodes */
+	nodes?: NodeInstance[];
 }
 
 /**
@@ -553,10 +553,11 @@ export type TriggerFn = <TTrigger extends TriggerInput>(
  * sticky(content, config?) - Creates a sticky note
  *
  * @example
- * sticky('## API Integration\\nThis section handles API calls', {
- *   color: 4,
- *   position: [80, -176]
- * });
+ * // Auto-position around nodes
+ * sticky('## Data Processing', { nodes: [httpNode, setNode], color: 2 });
+ *
+ * // Manual positioning
+ * sticky('## API Integration', { color: 4, position: [80, -176] });
  */
 export type StickyFn = (
 	content: string,
