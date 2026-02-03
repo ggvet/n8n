@@ -20,360 +20,51 @@ import type {
 	GeneratePinDataOptions,
 } from './types/base';
 import { isNodeChain } from './types/base';
-import { createHash } from 'crypto';
 import {
 	isInputTarget,
 	isIfElseBuilder,
 	isSwitchCaseBuilder,
 	cloneNodeWithId,
 } from './node-builder';
-
-/**
- * Type guard to check if a MergeComposite uses the old named input syntax.
- * This is for backward compatibility with code using the old merge(node, { input0: ..., input1: ... }) syntax.
- * New code should use the merge() factory and .input(n) syntax instead.
- */
-function isMergeNamedInputSyntax(
-	composite: MergeComposite<NodeInstance<string, string, unknown>[]>,
-): boolean {
-	return '_isNamedInputSyntax' in composite && composite._isNamedInputSyntax === true;
-}
+import {
+	filterMethodsFromPath,
+	parseVersion,
+	normalizeResourceLocators,
+	escapeNewlinesInExpressionStrings,
+	generateDeterministicNodeId,
+} from './workflow-builder/string-utils';
+import { NODE_SPACING_X, DEFAULT_Y, START_X } from './workflow-builder/constants';
+import {
+	isMergeNamedInputSyntax,
+	isSplitInBatchesBuilder,
+	extractSplitInBatchesBuilder,
+	isSwitchCaseComposite,
+	isIfElseComposite,
+	isMergeComposite,
+	isNodeInstanceShape,
+} from './workflow-builder/type-guards';
+import {
+	containsExpression,
+	containsMalformedExpression,
+	isSensitiveHeader,
+	isCredentialFieldName,
+	isToolNode,
+	containsFromAI,
+	isTriggerNode,
+	findMissingExpressionPrefixes,
+	findInvalidDateMethods,
+	extractExpressions,
+	parseExpression,
+	hasPath,
+	TOOLS_WITHOUT_PARAMETERS,
+} from './workflow-builder/validation-helpers';
 import type { IfElseBuilder, SwitchCaseBuilder } from './types/base';
-import { isTriggerNodeType } from './utils/trigger-detection';
 
 /**
  * Track SIB builders currently being processed to prevent infinite recursion.
  * This is used when onEachBatch chain loops back to the same SIB builder.
  */
 const processingSibBuilders = new WeakSet<object>();
-
-/**
- * Default horizontal spacing between nodes
- */
-const NODE_SPACING_X = 200;
-
-/**
- * Default vertical position for nodes
- */
-const DEFAULT_Y = 300;
-
-/**
- * Starting X position for first node
- */
-const START_X = 100;
-
-/**
- * Common JavaScript methods that may appear after field paths in expressions.
- * These should not be treated as part of the field path during validation.
- * E.g., $json.output.includes("test") - "includes" is a method, not a field.
- */
-const JS_METHODS = new Set([
-	'includes',
-	'indexOf',
-	'slice',
-	'substring',
-	'toLowerCase',
-	'toUpperCase',
-	'trim',
-	'split',
-	'replace',
-	'match',
-	'startsWith',
-	'endsWith',
-	'filter',
-	'map',
-	'reduce',
-	'find',
-	'findIndex',
-	'some',
-	'every',
-	'forEach',
-	'join',
-	'sort',
-	'push',
-	'pop',
-	'length',
-	'toString',
-]);
-
-/**
- * Remove trailing JS methods from field path.
- * E.g., ["output", "includes"] -> ["output"]
- */
-function filterMethodsFromPath(fieldPath: string[]): string[] {
-	const result = [...fieldPath];
-	while (result.length > 0 && JS_METHODS.has(result[result.length - 1])) {
-		result.pop();
-	}
-	return result;
-}
-
-/**
- * Parse version string to number
- */
-function parseVersion(version: string | undefined): number {
-	if (!version) return 1;
-	const match = version.match(/v?(\d+(?:\.\d+)?)/);
-	return match ? parseFloat(match[1]) : 1;
-}
-
-/**
- * Check if a value is a placeholder string
- */
-function isPlaceholderValue(value: unknown): boolean {
-	if (typeof value !== 'string') return false;
-	return value.startsWith('<__PLACEHOLDER_VALUE__') && value.endsWith('__>');
-}
-
-/**
- * Check if an object looks like a resource locator value.
- * Resource locators have a 'mode' property (typically 'list', 'id', 'url', or 'name')
- * and a 'value' property.
- */
-function isResourceLocatorLike(obj: unknown): obj is Record<string, unknown> {
-	if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
-		return false;
-	}
-	const record = obj as Record<string, unknown>;
-	// Must have 'mode' property - this is the key identifier
-	// Common modes: 'list', 'id', 'url', 'name'
-	if (!('mode' in record)) {
-		return false;
-	}
-	// Should have 'value' property as well (the actual selected value)
-	if (!('value' in record)) {
-		return false;
-	}
-	return true;
-}
-
-/**
- * Recursively normalize resource locator values in parameters.
- * Adds __rl: true to objects that look like resource locator values but are missing it.
- */
-function normalizeResourceLocators(params: unknown): unknown {
-	if (typeof params !== 'object' || params === null) {
-		return params;
-	}
-
-	if (Array.isArray(params)) {
-		return params.map((item) => normalizeResourceLocators(item));
-	}
-
-	const result: Record<string, unknown> = {};
-	const record = params as Record<string, unknown>;
-
-	for (const [key, value] of Object.entries(record)) {
-		if (isResourceLocatorLike(value)) {
-			const rlValue = value as Record<string, unknown>;
-			const normalizedInner = normalizeResourceLocators(rlValue) as Record<string, unknown>;
-
-			// Clear placeholder value when mode is 'list' - list mode requires user selection
-			if (rlValue.mode === 'list' && isPlaceholderValue(rlValue.value)) {
-				result[key] = {
-					__rl: true,
-					...normalizedInner,
-					value: '',
-				};
-			} else {
-				// Add __rl: true if missing
-				result[key] = {
-					__rl: true,
-					...normalizedInner,
-				};
-			}
-		} else if (typeof value === 'object' && value !== null) {
-			// Recursively process nested objects
-			result[key] = normalizeResourceLocators(value);
-		} else {
-			result[key] = value;
-		}
-	}
-
-	return result;
-}
-
-/**
- * Check if a '/' at position i could be the start of a regex literal.
- * Uses heuristic based on preceding non-whitespace character.
- */
-function couldBeRegexStart(code: string, i: number): boolean {
-	// Find the previous non-whitespace character
-	let j = i - 1;
-	while (j >= 0 && /\s/.test(code[j])) {
-		j--;
-	}
-	if (j < 0) return true; // Start of string, likely regex
-
-	const prevChar = code[j];
-	// Characters that can precede a regex literal
-	// (not an identifier char or closing bracket/paren that would make it division)
-	const regexPreceders = '(,=:[!&|?;{}><%+-*/^~';
-	return regexPreceders.includes(prevChar);
-}
-
-/**
- * Escape raw newlines inside double/single quoted strings within JavaScript code.
- * Skip backtick template literals (they allow raw newlines).
- * Skip regex literals (to avoid misinterpreting quotes inside them).
- * Don't double-escape already escaped \n.
- */
-function escapeNewlinesInStringLiterals(code: string): string {
-	let result = '';
-	let i = 0;
-
-	while (i < code.length) {
-		const char = code[i];
-
-		// Check for template literal (backtick) - skip entirely
-		if (char === '`') {
-			const start = i;
-			i++; // skip opening backtick
-			while (i < code.length) {
-				if (code[i] === '\\' && i + 1 < code.length) {
-					i += 2; // skip escaped character
-				} else if (code[i] === '`') {
-					i++; // skip closing backtick
-					break;
-				} else {
-					i++;
-				}
-			}
-			// Append entire template literal unchanged
-			result += code.slice(start, i);
-			continue;
-		}
-
-		// Check for regex literal - skip entirely to avoid misinterpreting quotes inside
-		if (char === '/' && couldBeRegexStart(code, i)) {
-			// Make sure it's not a comment (// or /*)
-			const next = code[i + 1];
-			if (next !== '/' && next !== '*') {
-				const start = i;
-				i++; // skip opening /
-				while (i < code.length) {
-					if (code[i] === '\\' && i + 1 < code.length) {
-						i += 2; // skip escaped character
-					} else if (code[i] === '/') {
-						i++; // skip closing /
-						// Skip regex flags (g, i, m, s, u, y)
-						while (i < code.length && /[gimsuy]/.test(code[i])) {
-							i++;
-						}
-						break;
-					} else if (code[i] === '\n') {
-						// Newline before closing / means it's not a regex (or malformed)
-						// Just break and let normal processing continue
-						break;
-					} else {
-						i++;
-					}
-				}
-				// Append entire regex unchanged
-				result += code.slice(start, i);
-				continue;
-			}
-		}
-
-		// Check for double or single quote - process string literal
-		if (char === '"' || char === "'") {
-			const quote = char;
-			result += char;
-			i++; // skip opening quote
-
-			while (i < code.length) {
-				const c = code[i];
-
-				if (c === '\\' && i + 1 < code.length) {
-					// Escaped character - pass through as-is
-					result += c + code[i + 1];
-					i += 2;
-				} else if (c === quote) {
-					// End of string
-					result += c;
-					i++;
-					break;
-				} else if (c === '\n') {
-					// Raw newline - escape it
-					result += '\\n';
-					i++;
-				} else {
-					result += c;
-					i++;
-				}
-			}
-			continue;
-		}
-
-		// Any other character - pass through
-		result += char;
-		i++;
-	}
-
-	return result;
-}
-
-/**
- * Escape raw newlines inside string literals within {{ }} expression blocks.
- *
- * Only processes strings starting with `=` (n8n expressions).
- * Only escapes inside double/single quoted strings within {{ }}.
- * Does NOT escape inside backtick template literals (they allow newlines).
- * Does NOT double-escape already escaped \\n.
- */
-function escapeNewlinesInExpressionStrings(value: unknown): unknown {
-	if (typeof value === 'string') {
-		// Only process n8n expressions (start with =)
-		if (!value.startsWith('=')) {
-			return value;
-		}
-
-		// Find {{ }} blocks and process string literals within them
-		return value.replace(/\{\{([\s\S]*?)\}\}/g, (_match, inner: string) => {
-			const escaped = escapeNewlinesInStringLiterals(inner);
-			return `{{${escaped}}}`;
-		});
-	}
-
-	if (Array.isArray(value)) {
-		return value.map(escapeNewlinesInExpressionStrings);
-	}
-
-	if (typeof value === 'object' && value !== null) {
-		const result: Record<string, unknown> = {};
-		for (const [key, val] of Object.entries(value)) {
-			result[key] = escapeNewlinesInExpressionStrings(val);
-		}
-		return result;
-	}
-
-	return value;
-}
-
-/**
- * Generate a deterministic UUID based on workflow ID, node type, and node name.
- * This ensures that the same workflow structure always produces the same node IDs,
- * which is critical for the AI workflow builder where code may be re-parsed multiple times.
- */
-function generateDeterministicNodeId(
-	workflowId: string,
-	nodeType: string,
-	nodeName: string,
-): string {
-	const hash = createHash('sha256')
-		.update(`${workflowId}:${nodeType}:${nodeName}`)
-		.digest('hex')
-		.slice(0, 32);
-
-	// Format as valid UUID v4 structure
-	return [
-		hash.slice(0, 8),
-		hash.slice(8, 12),
-		'4' + hash.slice(13, 16), // Version 4
-		((parseInt(hash[16], 16) & 0x3) | 0x8).toString(16) + hash.slice(17, 20), // Variant
-		hash.slice(20, 32),
-	].join('-');
-}
 
 /**
  * Internal workflow builder implementation
@@ -452,7 +143,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		let pinData = this._pinData;
 		for (const chainNode of chain.allNodes) {
 			// Handle composites that may be in the chain (they don't have a config property)
-			if (this.isSwitchCaseComposite(chainNode)) {
+			if (isSwitchCaseComposite(chainNode)) {
 				const composite = chainNode as unknown as SwitchCaseComposite;
 				pinData = this.collectPinDataFromNode(composite.switchNode, pinData);
 				for (const caseNode of composite.cases) {
@@ -467,7 +158,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 						pinData = this.collectPinDataFromNode(caseNode, pinData);
 					}
 				}
-			} else if (this.isIfElseComposite(chainNode)) {
+			} else if (isIfElseComposite(chainNode)) {
 				const composite = chainNode as unknown as IfElseComposite;
 				pinData = this.collectPinDataFromNode(composite.ifNode, pinData);
 				// Handle array branches (fan-out within branch)
@@ -489,7 +180,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 						pinData = this.collectPinDataFromNode(composite.falseBranch, pinData);
 					}
 				}
-			} else if (this.isMergeComposite(chainNode)) {
+			} else if (isMergeComposite(chainNode)) {
 				const composite = chainNode as unknown as MergeComposite<
 					NodeInstance<string, string, unknown>[]
 				>;
@@ -594,7 +285,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		}
 
 		// Check for composites (old API - can be passed directly to add())
-		if (this.isSwitchCaseComposite(node)) {
+		if (isSwitchCaseComposite(node)) {
 			this.addSwitchCaseNodes(newNodes, node as unknown as SwitchCaseComposite);
 			return this.clone({
 				nodes: newNodes,
@@ -604,7 +295,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			});
 		}
 
-		if (this.isIfElseComposite(node)) {
+		if (isIfElseComposite(node)) {
 			this.addIfElseNodes(newNodes, node as unknown as IfElseComposite);
 			return this.clone({
 				nodes: newNodes,
@@ -614,7 +305,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			});
 		}
 
-		if (this.isMergeComposite(node)) {
+		if (isMergeComposite(node)) {
 			this.addMergeNodes(
 				newNodes,
 				node as unknown as MergeComposite<NodeInstance<string, string, unknown>[]>,
@@ -629,9 +320,9 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		}
 
 		// Check if this is a SplitInBatchesBuilder (for disconnected splitInBatches roots)
-		if (this.isSplitInBatchesBuilder(node)) {
+		if (isSplitInBatchesBuilder(node)) {
 			this.addSplitInBatchesChainNodes(newNodes, node);
-			const builder = this.extractSplitInBatchesBuilder(node);
+			const builder = extractSplitInBatchesBuilder(node);
 			return this.clone({
 				nodes: newNodes,
 				currentNode: builder.sibNode.name,
@@ -655,16 +346,16 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 						newNodes,
 						chainNode as unknown as SwitchCaseBuilder<unknown>,
 					);
-				} else if (this.isSwitchCaseComposite(chainNode)) {
+				} else if (isSwitchCaseComposite(chainNode)) {
 					this.addSwitchCaseNodes(newNodes, chainNode as unknown as SwitchCaseComposite);
-				} else if (this.isIfElseComposite(chainNode)) {
+				} else if (isIfElseComposite(chainNode)) {
 					this.addIfElseNodes(newNodes, chainNode as unknown as IfElseComposite);
-				} else if (this.isMergeComposite(chainNode)) {
+				} else if (isMergeComposite(chainNode)) {
 					this.addMergeNodes(
 						newNodes,
 						chainNode as unknown as MergeComposite<NodeInstance<string, string, unknown>[]>,
 					);
-				} else if (this.isSplitInBatchesBuilder(chainNode)) {
+				} else if (isSplitInBatchesBuilder(chainNode)) {
 					// Handle SplitInBatchesBuilder nested in chain (via node.then(splitInBatches(...)))
 					this.addSplitInBatchesChainNodes(newNodes, chainNode, nameMapping);
 				} else {
@@ -750,7 +441,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		}
 
 		// Handle split in batches builder
-		if (this.isSplitInBatchesBuilder(nodeOrComposite)) {
+		if (isSplitInBatchesBuilder(nodeOrComposite)) {
 			return this.handleSplitInBatches(nodeOrComposite);
 		}
 
@@ -1100,7 +791,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		// Check: Missing trigger
 		if (!options.allowNoTrigger) {
 			const hasTrigger = Array.from(this._nodes.values()).some((graphNode) =>
-				this.isTriggerNode(graphNode.instance.type),
+				isTriggerNode(graphNode.instance.type),
 			);
 			if (!hasTrigger) {
 				warnings.push(
@@ -1118,7 +809,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			for (const [mapKey, graphNode] of this._nodes) {
 				const originalName = graphNode.instance.name;
 				// Skip trigger nodes - they don't need incoming connections
-				if (this.isTriggerNode(graphNode.instance.type)) {
+				if (isTriggerNode(graphNode.instance.type)) {
 					continue;
 				}
 				// Skip sticky notes - they don't participate in data flow
@@ -1212,12 +903,12 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			}
 
 			// Tool node checks
-			if (this.isToolNode(nodeType)) {
+			if (isToolNode(nodeType)) {
 				this.checkToolNode(graphNode.instance, warnings, mapKey);
 			}
 
 			// Check $fromAI in non-tool nodes
-			if (!this.isToolNode(nodeType)) {
+			if (!isToolNode(nodeType)) {
 				this.checkFromAiInNonToolNode(graphNode.instance, warnings, mapKey);
 			}
 
@@ -1311,8 +1002,8 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 
 		// Check: Static prompt (no expression)
 		const text = params.text;
-		const hasValidExpression = this.containsExpression(text);
-		const hasMalformedExpression = this.containsMalformedExpression(text);
+		const hasValidExpression = containsExpression(text);
+		const hasMalformedExpression = containsMalformedExpression(text);
 
 		// Only warn about static prompt if there's NO expression at all
 		// (MISSING_EXPRESSION_PREFIX will handle malformed expressions)
@@ -1372,8 +1063,8 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 
 		// Check: Static prompt (no expression)
 		const text = params.text;
-		const hasValidExpression = this.containsExpression(text);
-		const hasMalformedExpression = this.containsMalformedExpression(text);
+		const hasValidExpression = containsExpression(text);
+		const hasMalformedExpression = containsMalformedExpression(text);
 
 		// Only warn about static prompt if there's NO expression at all
 		// (MISSING_EXPRESSION_PREFIX will handle malformed expressions)
@@ -1387,26 +1078,6 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 				),
 			);
 		}
-	}
-
-	/**
-	 * Check if a value contains an n8n expression
-	 */
-	private containsExpression(value: unknown): boolean {
-		if (typeof value !== 'string') {
-			return false;
-		}
-		return value.includes('={{') || value.startsWith('=');
-	}
-
-	/**
-	 * Check if a value contains a malformed expression ({{ $ without = prefix)
-	 */
-	private containsMalformedExpression(value: unknown): boolean {
-		if (typeof value !== 'string') {
-			return false;
-		}
-		return !value.startsWith('=') && value.includes('{{ $');
 	}
 
 	/**
@@ -1435,9 +1106,9 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			for (const header of headerParams.parameters) {
 				if (
 					header.name &&
-					this.isSensitiveHeader(header.name) &&
+					isSensitiveHeader(header.name) &&
 					header.value &&
-					!this.containsExpression(String(header.value))
+					!containsExpression(String(header.value))
 				) {
 					warnings.push(
 						new ValidationWarning(
@@ -1459,9 +1130,9 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			for (const param of queryParams.parameters) {
 				if (
 					param.name &&
-					this.isCredentialFieldName(param.name) &&
+					isCredentialFieldName(param.name) &&
 					param.value &&
-					!this.containsExpression(String(param.value))
+					!containsExpression(String(param.value))
 				) {
 					warnings.push(
 						new ValidationWarning(
@@ -1474,42 +1145,6 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 				}
 			}
 		}
-	}
-
-	/**
-	 * Check if a header name is sensitive (typically contains credentials)
-	 */
-	private isSensitiveHeader(name: string): boolean {
-		const sensitiveHeaders = new Set([
-			'authorization',
-			'x-api-key',
-			'x-auth-token',
-			'x-access-token',
-			'api-key',
-			'apikey',
-		]);
-		return sensitiveHeaders.has(name.toLowerCase());
-	}
-
-	/**
-	 * Check if a field name looks like it's meant to store credentials
-	 */
-	private isCredentialFieldName(name: string): boolean {
-		const patterns = [
-			/api[_-]?key/i,
-			/access[_-]?token/i,
-			/auth[_-]?token/i,
-			/bearer[_-]?token/i,
-			/secret[_-]?key/i,
-			/private[_-]?key/i,
-			/client[_-]?secret/i,
-			/password/i,
-			/credentials?/i,
-			/^token$/i,
-			/^secret$/i,
-			/^auth$/i,
-		];
-		return patterns.some((pattern) => pattern.test(name));
 	}
 
 	/**
@@ -1536,7 +1171,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		if (!assignments?.assignments) return;
 
 		for (const assignment of assignments.assignments) {
-			if (assignment.name && this.isCredentialFieldName(assignment.name)) {
+			if (assignment.name && isCredentialFieldName(assignment.name)) {
 				warnings.push(
 					new ValidationWarning(
 						'SET_CREDENTIAL_FIELD',
@@ -1617,25 +1252,6 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 	}
 
 	/**
-	 * Check if a node type is a tool node
-	 */
-	private isToolNode(type: string): boolean {
-		return type.includes('tool') || type.includes('Tool');
-	}
-
-	/**
-	 * Tools that don't require parameters
-	 */
-	private readonly toolsWithoutParameters = new Set([
-		'@n8n/n8n-nodes-langchain.toolCalculator',
-		'@n8n/n8n-nodes-langchain.toolVectorStore',
-		'@n8n/n8n-nodes-langchain.vectorStoreInMemory',
-		'@n8n/n8n-nodes-langchain.mcpClientTool',
-		'@n8n/n8n-nodes-langchain.toolWikipedia',
-		'@n8n/n8n-nodes-langchain.toolSerpApi',
-	]);
-
-	/**
 	 * Check Tool node for missing parameters
 	 */
 	private checkToolNode(
@@ -1646,7 +1262,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		const { ValidationWarning } = require('./validation/index');
 
 		// Skip tools that don't need parameters
-		if (this.toolsWithoutParameters.has(instance.type)) {
+		if (TOOLS_WITHOUT_PARAMETERS.has(instance.type)) {
 			return;
 		}
 
@@ -1688,7 +1304,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		const nodeRef = this.formatNodeRef(displayName, origForWarning, instance.type);
 
 		// Recursively search for $fromAI in all parameter values
-		if (this.containsFromAI(params)) {
+		if (containsFromAI(params)) {
 			warnings.push(
 				new ValidationWarning(
 					'FROM_AI_IN_NON_TOOL',
@@ -1698,42 +1314,6 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 				),
 			);
 		}
-	}
-
-	/**
-	 * Recursively find all string values that have {{ $... }} without = prefix
-	 */
-	private findMissingExpressionPrefixes(
-		value: unknown,
-		path: string = '',
-	): Array<{ path: string; value: string }> {
-		const issues: Array<{ path: string; value: string }> = [];
-
-		if (typeof value === 'string') {
-			// If string starts with '=', it's already an expression - {{ }} is valid template syntax inside
-			// Otherwise check if it contains {{ $ pattern (n8n variable reference without = prefix)
-			if (!value.startsWith('=') && value.includes('{{ $')) {
-				issues.push({ path, value });
-			}
-		} else if (Array.isArray(value)) {
-			value.forEach((item, index) => {
-				issues.push(...this.findMissingExpressionPrefixes(item, `${path}[${index}]`));
-			});
-		} else if (value && typeof value === 'object') {
-			// Skip PlaceholderValue objects - their hint property is documentation, not actual expressions
-			if (
-				'__placeholder' in value &&
-				(value as { __placeholder: boolean }).__placeholder === true
-			) {
-				return issues;
-			}
-			for (const [key, val] of Object.entries(value)) {
-				const newPath = path ? `${path}.${key}` : key;
-				issues.push(...this.findMissingExpressionPrefixes(val, newPath));
-			}
-		}
-
-		return issues;
 	}
 
 	/**
@@ -1754,7 +1334,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		const origForWarning = isRenamed ? originalName : undefined;
 		const nodeRef = this.formatNodeRef(displayName, origForWarning, instance.type);
 
-		const issues = this.findMissingExpressionPrefixes(params);
+		const issues = findMissingExpressionPrefixes(params);
 
 		for (const { path } of issues) {
 			warnings.push(
@@ -1787,7 +1367,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		const origForWarning = isRenamed ? originalName : undefined;
 		const nodeRef = this.formatNodeRef(displayName, origForWarning, instance.type);
 
-		const issues = this.findInvalidDateMethods(params);
+		const issues = findInvalidDateMethods(params);
 
 		for (const { path } of issues) {
 			warnings.push(
@@ -1800,87 +1380,6 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 				),
 			);
 		}
-	}
-
-	/**
-	 * Recursively find string values containing .toISOString() used with Luxon DateTime objects.
-	 * Only flags when used with $now, $today, or Luxon-like method chains, not with new Date().
-	 */
-	private findInvalidDateMethods(
-		value: unknown,
-		path: string = '',
-	): Array<{ path: string; value: string }> {
-		const issues: Array<{ path: string; value: string }> = [];
-
-		if (typeof value === 'string') {
-			if (this.hasLuxonToISOStringMisuse(value)) {
-				issues.push({ path, value });
-			}
-		} else if (Array.isArray(value)) {
-			value.forEach((item, index) => {
-				issues.push(...this.findInvalidDateMethods(item, `${path}[${index}]`));
-			});
-		} else if (value && typeof value === 'object') {
-			// Skip PlaceholderValue objects
-			if (
-				'__placeholder' in value &&
-				(value as { __placeholder: boolean }).__placeholder === true
-			) {
-				return issues;
-			}
-			for (const [key, val] of Object.entries(value)) {
-				const newPath = path ? `${path}.${key}` : key;
-				issues.push(...this.findInvalidDateMethods(val, newPath));
-			}
-		}
-
-		return issues;
-	}
-
-	/**
-	 * Check if a string contains .toISOString() misused with Luxon DateTime objects.
-	 * Detects patterns like $now.toISOString(), $today.toISOString(), etc.
-	 * Does NOT flag valid JS Date usage like new Date().toISOString().
-	 */
-	private hasLuxonToISOStringMisuse(value: string): boolean {
-		if (!value.includes('.toISOString()')) {
-			return false;
-		}
-
-		// Patterns that indicate Luxon DateTime misuse:
-		// - $now.toISOString() or $now.something().toISOString()
-		// - $today.toISOString() or $today.something().toISOString()
-		// - DateTime.now().toISOString() or DateTime.local().toISOString()
-		const luxonPatterns = [
-			/\$now\b[^;]*\.toISOString\(\)/,
-			/\$today\b[^;]*\.toISOString\(\)/,
-			/DateTime\s*\.\s*(now|local|utc|fromISO|fromJSDate)\s*\([^)]*\)[^;]*\.toISOString\(\)/,
-		];
-
-		return luxonPatterns.some((pattern) => pattern.test(value));
-	}
-
-	/**
-	 * Check if a value or nested object contains $fromAI expression
-	 */
-	private containsFromAI(value: unknown): boolean {
-		if (typeof value === 'string') {
-			return value.includes('$fromAI');
-		}
-		if (Array.isArray(value)) {
-			return value.some((item) => this.containsFromAI(item));
-		}
-		if (typeof value === 'object' && value !== null) {
-			return Object.values(value).some((v) => this.containsFromAI(v));
-		}
-		return false;
-	}
-
-	/**
-	 * Check if a node type is a trigger
-	 */
-	private isTriggerNode(type: string): boolean {
-		return isTriggerNodeType(type);
 	}
 
 	/**
@@ -2051,11 +1550,11 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			const params = graphNode.instance.config?.parameters;
 			if (!params) continue;
 
-			const expressions = this.extractExpressions(params);
+			const expressions = extractExpressions(params);
 			const predecessors = this.findPredecessors(mapKey);
 
 			for (const { expression, path } of expressions) {
-				const parsed = this.parseExpression(expression);
+				const parsed = parseExpression(expression);
 				// Filter out JS methods from field path (e.g., "output.includes" -> "output")
 				const filteredFieldPath = filterMethodsFromPath(parsed.fieldPath);
 
@@ -2102,7 +1601,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		for (const pred of predecessors) {
 			const shape = outputShapes.get(pred);
 			if (shape) {
-				if (this.hasPath(shape, fieldPath)) {
+				if (hasPath(shape, fieldPath)) {
 					validIn.push(pred);
 				} else {
 					invalidIn.push(pred);
@@ -2147,7 +1646,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		const { ValidationWarning } = require('./validation/index');
 		const shape = outputShapes.get(referencedNode);
 
-		if (shape && !this.hasPath(shape, fieldPath)) {
+		if (shape && !hasPath(shape, fieldPath)) {
 			warnings.push(
 				new ValidationWarning(
 					'INVALID_EXPRESSION_PATH',
@@ -2157,83 +1656,6 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 				),
 			);
 		}
-	}
-
-	/**
-	 * Extract all expressions from node parameters (recursive)
-	 */
-	private extractExpressions(params: unknown): Array<{ expression: string; path: string }> {
-		const results: Array<{ expression: string; path: string }> = [];
-
-		const recurse = (value: unknown, path: string) => {
-			if (typeof value === 'string') {
-				// Check if it's an expression (starts with =)
-				if (value.startsWith('=')) {
-					results.push({ expression: value, path });
-				}
-			} else if (Array.isArray(value)) {
-				value.forEach((item, index) => {
-					recurse(item, `${path}[${index}]`);
-				});
-			} else if (value && typeof value === 'object') {
-				for (const [key, val] of Object.entries(value)) {
-					const newPath = path ? `${path}.${key}` : key;
-					recurse(val, newPath);
-				}
-			}
-		};
-
-		recurse(params, '');
-		return results;
-	}
-
-	/**
-	 * Parse expression into structured form
-	 */
-	private parseExpression(expr: string): {
-		type: '$json' | '$node' | '$input' | 'other';
-		nodeName?: string;
-		fieldPath: string[];
-	} {
-		// Pattern for $json.field.path
-		const jsonMatch = expr.match(/\$json\.([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)/);
-		if (jsonMatch) {
-			return {
-				type: '$json',
-				fieldPath: jsonMatch[1].split('.'),
-			};
-		}
-
-		// Pattern for $('NodeName').item.json.field.path
-		const nodeMatch = expr.match(
-			/\$\(['"]([^'"]+)['"]\)\.item\.json\.([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)/,
-		);
-		if (nodeMatch) {
-			return {
-				type: '$node',
-				nodeName: nodeMatch[1],
-				fieldPath: nodeMatch[2].split('.'),
-			};
-		}
-
-		return { type: 'other', fieldPath: [] };
-	}
-
-	/**
-	 * Check if path exists in object shape
-	 */
-	private hasPath(shape: Record<string, unknown>, path: string[]): boolean {
-		let current: unknown = shape;
-		for (const key of path) {
-			if (current === null || current === undefined || typeof current !== 'object') {
-				return false;
-			}
-			if (!(key in current)) {
-				return false;
-			}
-			current = (current as Record<string, unknown>)[key];
-		}
-		return true;
 	}
 
 	/**
@@ -2381,99 +1803,6 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 	}
 
 	/**
-	 * Check if value is a SplitInBatchesBuilder or a chain (DoneChain/EachChain) from one
-	 */
-	private isSplitInBatchesBuilder(value: unknown): boolean {
-		if (value === null || typeof value !== 'object') return false;
-
-		// Direct builder check
-		if ('sibNode' in value && '_doneNodes' in value && '_eachNodes' in value) {
-			return true;
-		}
-
-		// Check if it's a DoneChain or EachChain with a _parent that's a builder
-		if ('_parent' in value && '_nodes' in value) {
-			const parent = (value as { _parent: unknown })._parent;
-			return (
-				parent !== null &&
-				typeof parent === 'object' &&
-				'sibNode' in parent &&
-				'_doneNodes' in parent &&
-				'_eachNodes' in parent
-			);
-		}
-
-		return false;
-	}
-
-	/**
-	 * A batch of nodes - either a single node or an array of nodes for fan-out
-	 */
-	// NodeBatch type alias is local to avoid circular dependencies
-
-	/**
-	 * Extract the SplitInBatchesBuilder from a value (handles both direct builder and chains)
-	 */
-	private extractSplitInBatchesBuilder(value: unknown): {
-		sibNode: NodeInstance<'n8n-nodes-base.splitInBatches', string, unknown>;
-		_doneNodes: NodeInstance<string, string, unknown>[];
-		_eachNodes: NodeInstance<string, string, unknown>[];
-		_doneBatches: Array<
-			NodeInstance<string, string, unknown> | NodeInstance<string, string, unknown>[]
-		>;
-		_eachBatches: Array<
-			NodeInstance<string, string, unknown> | NodeInstance<string, string, unknown>[]
-		>;
-		_hasLoop: boolean;
-		// Named syntax properties (optional - only present for splitInBatches(node, { done, each }))
-		_doneTarget?: unknown;
-		_eachTarget?: unknown;
-	} {
-		// Direct builder
-		if ('sibNode' in (value as object)) {
-			return value as {
-				sibNode: NodeInstance<'n8n-nodes-base.splitInBatches', string, unknown>;
-				_doneNodes: NodeInstance<string, string, unknown>[];
-				_eachNodes: NodeInstance<string, string, unknown>[];
-				_doneBatches: Array<
-					NodeInstance<string, string, unknown> | NodeInstance<string, string, unknown>[]
-				>;
-				_eachBatches: Array<
-					NodeInstance<string, string, unknown> | NodeInstance<string, string, unknown>[]
-				>;
-				_hasLoop: boolean;
-				_doneTarget?: unknown;
-				_eachTarget?: unknown;
-			};
-		}
-
-		// Chain with _parent - extract the parent builder
-		const chain = value as { _parent: unknown };
-		return chain._parent as {
-			sibNode: NodeInstance<'n8n-nodes-base.splitInBatches', string, unknown>;
-			_doneNodes: NodeInstance<string, string, unknown>[];
-			_eachNodes: NodeInstance<string, string, unknown>[];
-			_doneBatches: Array<
-				NodeInstance<string, string, unknown> | NodeInstance<string, string, unknown>[]
-			>;
-			_eachBatches: Array<
-				NodeInstance<string, string, unknown> | NodeInstance<string, string, unknown>[]
-			>;
-			_hasLoop: boolean;
-			_doneTarget?: unknown;
-			_eachTarget?: unknown;
-		};
-	}
-
-	/**
-	 * Check if value is a SwitchCaseComposite
-	 */
-	private isSwitchCaseComposite(value: unknown): boolean {
-		if (value === null || typeof value !== 'object') return false;
-		return 'switchNode' in value && 'cases' in value;
-	}
-
-	/**
 	 * Find the map key for a node instance by its ID.
 	 * This handles renamed duplicate nodes where the map key differs from instance.name.
 	 */
@@ -2524,17 +1853,17 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		}
 
 		// Check for SwitchCaseComposite
-		if (this.isSwitchCaseComposite(target)) {
+		if (isSwitchCaseComposite(target)) {
 			return getNodeName((target as SwitchCaseComposite).switchNode);
 		}
 
 		// Check for IfElseComposite
-		if (this.isIfElseComposite(target)) {
+		if (isIfElseComposite(target)) {
 			return getNodeName((target as IfElseComposite).ifNode);
 		}
 
 		// Check for MergeComposite
-		if (this.isMergeComposite(target)) {
+		if (isMergeComposite(target)) {
 			return getNodeName((target as MergeComposite).mergeNode);
 		}
 
@@ -2549,8 +1878,8 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		}
 
 		// Check for SplitInBatchesBuilder or its chains (EachChainImpl/DoneChainImpl)
-		if (this.isSplitInBatchesBuilder(target)) {
-			const builder = this.extractSplitInBatchesBuilder(target);
+		if (isSplitInBatchesBuilder(target)) {
+			const builder = extractSplitInBatchesBuilder(target);
 			return getNodeName(builder.sibNode);
 		}
 
@@ -2561,36 +1890,6 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 
 		// Regular NodeInstance
 		return getNodeName(target as NodeInstance<string, string, unknown>);
-	}
-
-	/**
-	 * Check if value is an IfElseComposite
-	 */
-	private isIfElseComposite(value: unknown): boolean {
-		if (value === null || typeof value !== 'object') return false;
-		return 'ifNode' in value && 'trueBranch' in value;
-	}
-
-	/**
-	 * Check if value is a MergeComposite
-	 */
-	private isMergeComposite(value: unknown): boolean {
-		if (value === null || typeof value !== 'object') return false;
-		return 'mergeNode' in value && 'branches' in value;
-	}
-
-	/**
-	 * Check if value is a NodeInstance (has type, version, config, then method)
-	 */
-	private isNodeInstance(value: unknown): boolean {
-		if (value === null || typeof value !== 'object') return false;
-		return (
-			'type' in value &&
-			'version' in value &&
-			'config' in value &&
-			'then' in value &&
-			typeof (value as NodeInstance<string, string, unknown>).then === 'function'
-		);
 	}
 
 	/**
@@ -2605,15 +1904,15 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		}
 
 		// Handle composites
-		if (this.isIfElseComposite(target)) {
+		if (isIfElseComposite(target)) {
 			return (target as IfElseComposite).ifNode.name;
 		}
 
-		if (this.isSwitchCaseComposite(target)) {
+		if (isSwitchCaseComposite(target)) {
 			return (target as SwitchCaseComposite).switchNode.name;
 		}
 
-		if (this.isMergeComposite(target)) {
+		if (isMergeComposite(target)) {
 			return (target as MergeComposite<NodeInstance<string, string, unknown>[]>).mergeNode.name;
 		}
 
@@ -2628,8 +1927,8 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		}
 
 		// Handle SplitInBatchesBuilder (including EachChain/DoneChain)
-		if (this.isSplitInBatchesBuilder(target)) {
-			const builder = this.extractSplitInBatchesBuilder(target);
+		if (isSplitInBatchesBuilder(target)) {
+			const builder = extractSplitInBatchesBuilder(target);
 			return builder.sibNode.name;
 		}
 
@@ -2654,10 +1953,10 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		const connections = chain.getConnections();
 		for (const { target } of connections) {
 			// Skip if target is a composite or builder (already handled elsewhere)
-			if (this.isSwitchCaseComposite(target)) continue;
-			if (this.isIfElseComposite(target)) continue;
-			if (this.isMergeComposite(target)) continue;
-			if (this.isSplitInBatchesBuilder(target)) continue;
+			if (isSwitchCaseComposite(target)) continue;
+			if (isIfElseComposite(target)) continue;
+			if (isMergeComposite(target)) continue;
+			if (isSplitInBatchesBuilder(target)) continue;
 			if (isIfElseBuilder(target)) continue;
 			if (isSwitchCaseBuilder(target)) continue;
 
@@ -2704,10 +2003,10 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		const connections = nodeInstance.getConnections();
 		for (const { target } of connections) {
 			// Skip if target is a composite or builder (already handled elsewhere)
-			if (this.isSwitchCaseComposite(target)) continue;
-			if (this.isIfElseComposite(target)) continue;
-			if (this.isMergeComposite(target)) continue;
-			if (this.isSplitInBatchesBuilder(target)) continue;
+			if (isSwitchCaseComposite(target)) continue;
+			if (isIfElseComposite(target)) continue;
+			if (isMergeComposite(target)) continue;
+			if (isSplitInBatchesBuilder(target)) continue;
 			if (isIfElseBuilder(target)) continue;
 			if (isSwitchCaseBuilder(target)) continue;
 
@@ -2814,7 +2113,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		}
 
 		// Handle nested IfElse composite - recursively add its nodes AND connections
-		if (this.isIfElseComposite(target)) {
+		if (isIfElseComposite(target)) {
 			const ifComposite = target as IfElseComposite;
 			// Only process if not already in the nodes map (prevent duplicate processing)
 			if (!nodes.has(ifComposite.ifNode.name)) {
@@ -2824,7 +2123,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		}
 
 		// Handle nested SwitchCase composite - recursively add its nodes AND connections
-		if (this.isSwitchCaseComposite(target)) {
+		if (isSwitchCaseComposite(target)) {
 			const switchComposite = target as SwitchCaseComposite;
 			// Only process if not already in the nodes map (prevent duplicate processing)
 			if (!nodes.has(switchComposite.switchNode.name)) {
@@ -2834,7 +2133,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		}
 
 		// Handle nested Merge composite
-		if (this.isMergeComposite(target)) {
+		if (isMergeComposite(target)) {
 			const mergeComposite = target as MergeComposite<NodeInstance<string, string, unknown>[]>;
 			// Only process if not already in the nodes map (prevent duplicate processing)
 			if (!nodes.has(mergeComposite.mergeNode.name)) {
@@ -2844,7 +2143,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		}
 
 		// Handle SplitInBatches builder
-		if (this.isSplitInBatchesBuilder(target)) {
+		if (isSplitInBatchesBuilder(target)) {
 			this.addSplitInBatchesChainNodes(nodes, target);
 			return;
 		}
@@ -2856,7 +2155,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		}
 
 		// Handle single NodeInstance
-		if (this.isNodeInstance(target)) {
+		if (isNodeInstanceShape(target)) {
 			this.addBranchToGraph(nodes, target as NodeInstance<string, string, unknown>);
 			return;
 		}
@@ -2917,7 +2216,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		sourceNode: NodeInstance<string, string, unknown>,
 		mergeTarget: unknown,
 	): number | undefined {
-		if (!this.isMergeComposite(mergeTarget)) return undefined;
+		if (!isMergeComposite(mergeTarget)) return undefined;
 		const mergeComposite = mergeTarget as MergeComposite<NodeInstance<string, string, unknown>[]>;
 		if (!isMergeNamedInputSyntax(mergeComposite)) return undefined;
 
@@ -3213,7 +2512,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		const branches = composite.branches;
 		branches.forEach((branch, index) => {
 			// Handle nested MergeComposite (from merge([merge([...]), ...]) pattern)
-			if (this.isMergeComposite(branch)) {
+			if (isMergeComposite(branch)) {
 				const nestedComposite = branch as unknown as MergeComposite<
 					NodeInstance<string, string, unknown>[]
 				>;
@@ -3271,7 +2570,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		sibChain: unknown,
 		nameMapping?: Map<string, string>,
 	): void {
-		const builder = this.extractSplitInBatchesBuilder(sibChain);
+		const builder = extractSplitInBatchesBuilder(sibChain);
 
 		// Check if we're already processing this builder (prevents infinite recursion)
 		// This happens when onEachBatch chain loops back to the same SIB builder
@@ -3821,7 +3120,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		// Check if the first element in allNodes is a merge composite with named input syntax
 		// If so, we need to fan out to the input heads instead of connecting to the merge node directly
 		const firstNode = chain.allNodes[0];
-		const firstNodeAsMerge = this.isMergeComposite(firstNode)
+		const firstNodeAsMerge = isMergeComposite(firstNode)
 			? (firstNode as unknown as MergeComposite<NodeInstance<string, string, unknown>[]>)
 			: null;
 		const hasMergeNamedInputs = firstNodeAsMerge && isMergeNamedInputSyntax(firstNodeAsMerge);
@@ -4034,10 +3333,10 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 				if (
 					typeof chainNode !== 'object' ||
 					(!('name' in chainNode) &&
-						!this.isSwitchCaseComposite(chainNode) &&
-						!this.isIfElseComposite(chainNode) &&
-						!this.isMergeComposite(chainNode) &&
-						!this.isSplitInBatchesBuilder(chainNode) &&
+						!isSwitchCaseComposite(chainNode) &&
+						!isIfElseComposite(chainNode) &&
+						!isMergeComposite(chainNode) &&
+						!isSplitInBatchesBuilder(chainNode) &&
 						!isIfElseBuilder(chainNode) &&
 						!isSwitchCaseBuilder(chainNode))
 				) {
@@ -4051,16 +3350,16 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 				} else if (isSwitchCaseBuilder(chainNode)) {
 					// Handle SwitchCaseBuilder (fluent API) chained via chain.then(switchNode.onCase(...))
 					this.addSwitchCaseBuilderNodes(nodes, chainNode as unknown as SwitchCaseBuilder<unknown>);
-				} else if (this.isSwitchCaseComposite(chainNode)) {
+				} else if (isSwitchCaseComposite(chainNode)) {
 					this.addSwitchCaseNodes(nodes, chainNode as unknown as SwitchCaseComposite);
-				} else if (this.isIfElseComposite(chainNode)) {
+				} else if (isIfElseComposite(chainNode)) {
 					this.addIfElseNodes(nodes, chainNode as unknown as IfElseComposite);
-				} else if (this.isMergeComposite(chainNode)) {
+				} else if (isMergeComposite(chainNode)) {
 					this.addMergeNodes(
 						nodes,
 						chainNode as unknown as MergeComposite<NodeInstance<string, string, unknown>[]>,
 					);
-				} else if (this.isSplitInBatchesBuilder(chainNode)) {
+				} else if (isSplitInBatchesBuilder(chainNode)) {
 					// Handle EachChainImpl/DoneChainImpl that got chained via node.then(splitInBatches()...)
 					this.addSplitInBatchesChainNodes(nodes, chainNode, effectiveNameMapping);
 				} else {
@@ -4089,10 +3388,10 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 					let nodeToCheck: NodeInstance<string, string, unknown> | null = null;
 					let nodeName: string | null = null;
 
-					if (this.isSplitInBatchesBuilder(chainNode)) {
+					if (isSplitInBatchesBuilder(chainNode)) {
 						// SplitInBatchesBuilder doesn't have getConnections - skip
 						continue;
-					} else if (this.isMergeComposite(chainNode)) {
+					} else if (isMergeComposite(chainNode)) {
 						const composite = chainNode as unknown as MergeComposite<
 							NodeInstance<string, string, unknown>[]
 						>;
@@ -4127,12 +3426,12 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 										if (!nodes.has(builder.switchNode.name)) {
 											this.addSwitchCaseBuilderNodes(nodes, builder);
 										}
-									} else if (this.isSwitchCaseComposite(chainNode)) {
+									} else if (isSwitchCaseComposite(chainNode)) {
 										const comp = chainNode as unknown as SwitchCaseComposite;
 										if (!nodes.has(comp.switchNode.name)) {
 											this.addSwitchCaseNodes(nodes, comp);
 										}
-									} else if (this.isIfElseComposite(chainNode)) {
+									} else if (isIfElseComposite(chainNode)) {
 										const comp = chainNode as unknown as IfElseComposite;
 										// Add the IF node first to mark as processed (prevents recursion)
 										if (!nodes.has(comp.ifNode.name)) {
@@ -4146,15 +3445,15 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 											// Now process branches safely
 											this.addIfElseNodes(nodes, comp);
 										}
-									} else if (this.isMergeComposite(chainNode)) {
+									} else if (isMergeComposite(chainNode)) {
 										const comp = chainNode as unknown as MergeComposite<
 											NodeInstance<string, string, unknown>[]
 										>;
 										if (!nodes.has(comp.mergeNode.name)) {
 											this.addMergeNodes(nodes, comp);
 										}
-									} else if (this.isSplitInBatchesBuilder(chainNode)) {
-										const builder = this.extractSplitInBatchesBuilder(chainNode);
+									} else if (isSplitInBatchesBuilder(chainNode)) {
+										const builder = extractSplitInBatchesBuilder(chainNode);
 										if (!nodes.has(builder.sibNode.name)) {
 											this.addSplitInBatchesChainNodes(nodes, chainNode);
 										}
@@ -4201,15 +3500,15 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			return headKey;
 		} else {
 			// Check if this is a composite that needs special handling
-			if (this.isSwitchCaseComposite(branch)) {
+			if (isSwitchCaseComposite(branch)) {
 				this.addSwitchCaseNodes(nodes, branch as unknown as SwitchCaseComposite);
 				// Return the switch node name (the head of this composite)
 				return (branch as unknown as SwitchCaseComposite).switchNode.name;
-			} else if (this.isIfElseComposite(branch)) {
+			} else if (isIfElseComposite(branch)) {
 				this.addIfElseNodes(nodes, branch as unknown as IfElseComposite);
 				// Return the IF node name (the head of this composite)
 				return (branch as unknown as IfElseComposite).ifNode.name;
-			} else if (this.isMergeComposite(branch)) {
+			} else if (isMergeComposite(branch)) {
 				this.addMergeNodes(
 					nodes,
 					branch as unknown as MergeComposite<NodeInstance<string, string, unknown>[]>,
@@ -4217,10 +3516,10 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 				// Return the merge node name (the head of this composite)
 				return (branch as unknown as MergeComposite<NodeInstance<string, string, unknown>[]>)
 					.mergeNode.name;
-			} else if (this.isSplitInBatchesBuilder(branch)) {
+			} else if (isSplitInBatchesBuilder(branch)) {
 				this.addSplitInBatchesChainNodes(nodes, branch, effectiveNameMapping);
 				// Return the split in batches node name
-				const builder = this.extractSplitInBatchesBuilder(branch);
+				const builder = extractSplitInBatchesBuilder(branch);
 				return builder.sibNode.name;
 			}
 
@@ -4550,7 +3849,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 	 */
 	private handleSplitInBatches(sibBuilder: unknown): WorkflowBuilder {
 		// Extract builder from direct builder or chain (DoneChain/EachChain)
-		const builder = this.extractSplitInBatchesBuilder(sibBuilder);
+		const builder = extractSplitInBatchesBuilder(sibBuilder);
 
 		const newNodes = new Map(this._nodes);
 

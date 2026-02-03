@@ -9,6 +9,20 @@ import type { SemanticGraph, SemanticNode, AiConnectionType } from './types';
 import type { Schema } from 'n8n-workflow';
 import type { NodeExecutionStatus } from './execution-status';
 import { generateSchemaJSDoc, schemaToOutputSample } from './execution-schema-jsdoc';
+import { escapeString, formatKey, escapeRegexChars } from './string-utils';
+import {
+	AI_CONNECTION_TO_CONFIG_KEY,
+	AI_CONNECTION_TO_BUILDER,
+	AI_ALWAYS_ARRAY_TYPES,
+	AI_OPTIONAL_ARRAY_TYPES,
+} from './constants';
+import { getVarName, getUniqueVarName } from './variable-names';
+import {
+	isTriggerType,
+	isStickyNote,
+	isMergeType,
+	generateDefaultNodeName,
+} from './node-type-utils';
 import type {
 	CompositeTree,
 	CompositeNode,
@@ -64,146 +78,6 @@ function getIndent(ctx: GenerationContext): string {
 }
 
 /**
- * Escape a string for use in generated code
- * Uses unicode escape sequences to preserve special characters through roundtrip
- */
-function escapeString(str: string): string {
-	return str
-		.replace(/\\/g, '\\\\')
-		.replace(/'/g, "\\'")
-		.replace(/\u2018/g, '\\u2018') // LEFT SINGLE QUOTATION MARK - preserve as unicode
-		.replace(/\u2019/g, '\\u2019') // RIGHT SINGLE QUOTATION MARK - preserve as unicode
-		.replace(/\u201C/g, '\\u201C') // LEFT DOUBLE QUOTATION MARK - preserve as unicode
-		.replace(/\u201D/g, '\\u201D') // RIGHT DOUBLE QUOTATION MARK - preserve as unicode
-		.replace(/\n/g, '\\n')
-		.replace(/\r/g, '\\r');
-}
-
-/**
- * Generate the default node name from a node type
- * e.g., 'n8n-nodes-base.httpRequest' -> 'HTTP Request'
- */
-function generateDefaultNodeName(type: string): string {
-	const parts = type.split('.');
-	const nodeName = parts[parts.length - 1];
-
-	return nodeName
-		.replace(/([a-z])([A-Z])/g, '$1 $2')
-		.replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-		.replace(/^./, (str) => str.toUpperCase())
-		.replace(/Http/g, 'HTTP')
-		.replace(/Api/g, 'API')
-		.replace(/Url/g, 'URL')
-		.replace(/Id/g, 'ID')
-		.replace(/Json/g, 'JSON')
-		.replace(/Xml/g, 'XML')
-		.replace(/Sql/g, 'SQL')
-		.replace(/Ai/g, 'AI')
-		.replace(/Aws/g, 'AWS')
-		.replace(/Gcp/g, 'GCP')
-		.replace(/Ssh/g, 'SSH')
-		.replace(/Ftp/g, 'FTP')
-		.replace(/Csv/g, 'CSV');
-}
-
-/**
- * Reserved keywords that cannot be used as variable names
- */
-const RESERVED_KEYWORDS = new Set([
-	// JavaScript reserved words
-	'break',
-	'case',
-	'catch',
-	'class',
-	'const',
-	'continue',
-	'debugger',
-	'default',
-	'delete',
-	'do',
-	'else',
-	'export',
-	'extends',
-	'finally',
-	'for',
-	'function',
-	'if',
-	'import',
-	'in',
-	'instanceof',
-	'let',
-	'new',
-	'return',
-	'static',
-	'super',
-	'switch',
-	'this',
-	'throw',
-	'try',
-	'typeof',
-	'var',
-	'void',
-	'while',
-	'with',
-	'yield',
-	// JavaScript literals
-	'null',
-	'true',
-	'false',
-	'undefined',
-	// SDK functions
-	'workflow',
-	'trigger',
-	'node',
-	'merge',
-	'splitInBatches',
-	'sticky',
-	'languageModel',
-	'tool',
-	'memory',
-	'outputParser',
-	'textSplitter',
-	'embeddings',
-	'vectorStore',
-	'retriever',
-	'document',
-	// Dangerous globals (blocked by AST interpreter)
-	'eval',
-	'Function',
-	'require',
-	'process',
-	'global',
-	'globalThis',
-	'window',
-	'setTimeout',
-	'setInterval',
-	'setImmediate',
-	'clearTimeout',
-	'clearInterval',
-	'clearImmediate',
-	'module',
-	'exports',
-	'Buffer',
-	'Reflect',
-	'Proxy',
-]);
-
-/**
- * Check if a key needs to be quoted to be a valid JS identifier
- */
-function needsQuoting(key: string): boolean {
-	// Valid JS identifier: starts with letter, _, or $, followed by letters, digits, _, or $
-	return !/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(key);
-}
-
-/**
- * Format an object key for code output
- */
-function formatKey(key: string): string {
-	return needsQuoting(key) ? `'${escapeString(key)}'` : key;
-}
-
-/**
  * Format a value for code output
  */
 function formatValue(value: unknown, ctx?: GenerationContext): string {
@@ -240,55 +114,6 @@ function formatValue(value: unknown, ctx?: GenerationContext): string {
 	}
 	return String(value);
 }
-
-/**
- * Check if node is a trigger type
- */
-function isTriggerType(type: string): boolean {
-	return type.toLowerCase().includes('trigger') || type === 'n8n-nodes-base.webhook';
-}
-
-/**
- * Map AI connection types to their config key names
- */
-const AI_CONNECTION_TO_CONFIG_KEY: Record<AiConnectionType, string> = {
-	ai_languageModel: 'model',
-	ai_memory: 'memory',
-	ai_tool: 'tools', // plural - can have multiple
-	ai_outputParser: 'outputParser',
-	ai_embedding: 'embedding',
-	ai_vectorStore: 'vectorStore',
-	ai_retriever: 'retriever',
-	ai_document: 'documentLoader',
-	ai_textSplitter: 'textSplitter',
-	ai_reranker: 'reranker',
-};
-
-/**
- * Map AI connection types to their builder function names
- */
-const AI_CONNECTION_TO_BUILDER: Record<AiConnectionType, string> = {
-	ai_languageModel: 'languageModel',
-	ai_memory: 'memory',
-	ai_tool: 'tool',
-	ai_outputParser: 'outputParser',
-	ai_embedding: 'embedding',
-	ai_vectorStore: 'vectorStore',
-	ai_retriever: 'retriever',
-	ai_document: 'documentLoader',
-	ai_textSplitter: 'textSplitter',
-	ai_reranker: 'reranker',
-};
-
-/**
- * AI connection types that are ALWAYS arrays (even with single item)
- */
-const AI_ALWAYS_ARRAY_TYPES = new Set<AiConnectionType>(['ai_tool']);
-
-/**
- * AI connection types that can be single or array (array only when multiple)
- */
-const AI_OPTIONAL_ARRAY_TYPES = new Set<AiConnectionType>(['ai_languageModel']);
 
 /**
  * Generate a subnode builder call (languageModel, tool, memory, etc.)
@@ -617,13 +442,6 @@ function getVarRefOrInlineNode(node: SemanticNode, ctx: GenerationContext): stri
 }
 
 /**
- * Check if node is a sticky note
- */
-function isStickyNote(type: string): boolean {
-	return type === 'n8n-nodes-base.stickyNote';
-}
-
-/**
  * Generate sticky note call
  */
 function generateStickyCall(node: SemanticNode): string {
@@ -653,13 +471,6 @@ function generateStickyCall(node: SemanticNode): string {
 
 	const optionsStr = options.length > 0 ? `, { ${options.join(', ')} }` : '';
 	return `sticky('${content}'${optionsStr})`;
-}
-
-/**
- * Check if node is a merge type
- */
-function isMergeType(type: string): boolean {
-	return type === 'n8n-nodes-base.merge';
 }
 
 /**
@@ -928,13 +739,6 @@ function stripTrailingVarRefFromCode(code: string, varName: string): string | nu
 }
 
 /**
- * Escape special regex characters in a string
- */
-function escapeRegexChars(str: string): string {
-	return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/**
  * Generate code for split in batches using fluent API syntax:
  * splitInBatches(sibVar).onEachBatch(eachCode.then(nextBatch(sibVar))).onDone(doneCode)
  */
@@ -1073,74 +877,6 @@ function generateComposite(node: CompositeNode, ctx: GenerationContext): string 
 		case 'multiOutput':
 			return generateMultiOutput(node, ctx);
 	}
-}
-
-/**
- * Generate variable name from node name
- */
-function toVarName(nodeName: string): string {
-	let varName = nodeName
-		.replace(/[^a-zA-Z0-9]/g, '_')
-		.replace(/_+/g, '_')
-		.replace(/_$/g, '') // Only remove trailing underscore, not leading
-		.replace(/^([A-Z])/, (c) => c.toLowerCase());
-
-	// If starts with digit, prefix with underscore
-	if (/^\d/.test(varName)) {
-		varName = '_' + varName;
-	}
-
-	// Remove leading underscore only if followed by letter (not digit)
-	// This preserves _2nd... but removes _Foo...
-	if (/^_[a-zA-Z]/.test(varName)) {
-		varName = varName.slice(1);
-	}
-
-	// Avoid reserved keywords
-	if (RESERVED_KEYWORDS.has(varName)) {
-		varName = varName + '_node';
-	}
-
-	return varName;
-}
-
-/**
- * Get the variable name for a node, looking up in the context's mapping.
- * If the node name has been assigned a variable name, returns that.
- * Otherwise returns the base variable name (which may collide).
- */
-function getVarName(nodeName: string, ctx: GenerationContext): string {
-	if (ctx.nodeNameToVarName.has(nodeName)) {
-		return ctx.nodeNameToVarName.get(nodeName)!;
-	}
-	return toVarName(nodeName);
-}
-
-/**
- * Generate a unique variable name for a node, avoiding collisions.
- * Tracks used names and appends a counter if needed.
- */
-function getUniqueVarName(nodeName: string, ctx: GenerationContext): string {
-	// If we already assigned a name for this node, return it
-	if (ctx.nodeNameToVarName.has(nodeName)) {
-		return ctx.nodeNameToVarName.get(nodeName)!;
-	}
-
-	const baseVarName = toVarName(nodeName);
-	let varName = baseVarName;
-	let counter = 1;
-
-	// Keep incrementing counter until we find an unused name
-	while (ctx.usedVarNames.has(varName)) {
-		varName = `${baseVarName}${counter}`;
-		counter++;
-	}
-
-	// Record the mapping and mark as used
-	ctx.usedVarNames.add(varName);
-	ctx.nodeNameToVarName.set(nodeName, varName);
-
-	return varName;
 }
 
 /**
