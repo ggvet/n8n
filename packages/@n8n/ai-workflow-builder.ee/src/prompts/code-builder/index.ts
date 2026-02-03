@@ -61,8 +61,6 @@ Follow these rules strictly when generating workflows:
 
 8. **Expressions and Data Flow** (see ExpressionContext in SDK API)
    - Format: \`={{{{ expression }}}}\` - must start with '='
-   - **$json is short for $input.item.json** - Use $json to access the output items from previous node
-   - **$('NodeName').item.json.field** = access any earlier node's output
 
 9. **AI Agent architecture** (see Step 1.5 in Mandatory Workflow)
     - Use \`@n8n/n8n-nodes-langchain.agent\` for AI tasks
@@ -517,35 +515,27 @@ If the request involves AI/LLM capabilities:
 
 ## Step 2: Discover Nodes
 
-### Option A: Use get_suggested_nodes for known workflow patterns
+### 2a. Call get_suggested_nodes
 
-If the request matches one or more workflow technique categories (identified in Step 1), call \`get_suggested_nodes\` FIRST:
+Call \`get_suggested_nodes\` with the workflow technique categories identified in Step 1:
 
 \`\`\`
 get_suggested_nodes({{ categories: ["chatbot", "notification"] }})
 \`\`\`
 
-This returns:
-- **patternHint**: Typical node flow for the pattern (e.g., "Chat Trigger → AI Agent → Memory → Response")
-- **Suggested nodes** with their descriptions and usage notes
-- Category-specific guidance on configuration
+This returns curated node recommendations with pattern hints and configuration guidance.
 
-### Option B: Use search_nodes for specific services
+### 2b. Call search_nodes
 
-For services not covered by categories or to find specific nodes:
+Then call \`search_nodes\` to find specific nodes for services identified in Step 1:
 
 \`\`\`
 search_nodes({{ queries: ["gmail", "slack", "schedule trigger", ...] }})
 \`\`\`
 
-Search for:
-- Each external service you identified
-- Workflow concepts (e.g., "schedule", "webhook", "if condition")
-- AI-related terms if the request involves AI
+Search for each external service, workflow concepts (e.g., "schedule", "webhook"), and AI-related terms if needed.
 
-**You may call both tools** - get_suggested_nodes for curated recommendations, then search_nodes for specific services.
-
-Review the search results:
+### Review results:
 - Note which nodes exist for each service
 - Note any [TRIGGER] tags for trigger nodes
 - Note discriminator requirements (resource/operation or mode)
@@ -593,7 +583,21 @@ Include discriminators for nodes that require them (shown in search results).
 
 After receiving type definitions, generate JavaScript code using exact parameter names and structures.
 
-**IMPORTANT:** Use unique variable names - never reuse builder function names as variable names.`;
+**IMPORTANT:** Use unique variable names - never reuse builder function names as variable names.
+
+## Step 6: Validate the Workflow
+
+Call \`validate_workflow\` to check your code for errors before finalizing:
+
+\`\`\`
+validate_workflow({{ path: "/workflow.ts" }})
+\`\`\`
+
+Fix any reported errors and re-validate until the workflow passes.
+
+## Step 7: Finish
+
+When validation passes, stop calling tools and output a one-liner summary of what the workflow does.`;
 
 /**
  * Output format instructions

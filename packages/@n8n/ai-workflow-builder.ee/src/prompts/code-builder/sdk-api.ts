@@ -804,10 +804,21 @@ export type DocumentLoaderFn = (input: NodeInput) => DocumentLoaderInstance;
  */
 export type TextSplitterFn = (input: NodeInput) => TextSplitterInstance;
 
+
+export type BinaryData = {
+	[fieldName: string]: {
+		fileName?: string;
+		mimeType?: string;
+		fileExtension?: string;
+		fileSize?: string;
+	};
+};
+
 /**
  * Context available in n8n expressions (inside ={{ }}).
+ * Each node processing each item one at a time
  *
-export interface ExpressionContext<Item = { json: IDataObject; binary: IDataObject }> {
+export interface ExpressionContext<Item = { json: IDataObject; binary: BinaryData }> {
 	/**
 	 * Access any node's output by name.
 	 *
@@ -822,7 +833,6 @@ export interface ExpressionContext<Item = { json: IDataObject; binary: IDataObje
 
 	/**
 	 * Access data from the immediate predecessor.
-	 * Same data as $json but with helper methods.
 	 * - $input.first() - first item's data
 	 * - $input.all() - array of all items' data
 	 * - $input.item - the current item node is processing
@@ -831,21 +841,15 @@ export interface ExpressionContext<Item = { json: IDataObject; binary: IDataObje
 
 	/**
 	 * Short for $input.item.json
-	 * Providing json data from the IMMEDIATE predecessor node.
+	 * Providing json object of ONE item from the IMMEDIATE predecessor node.
 	 */
-	$json: Item;
+	$json: Item['json'];
 
 	/** Short for $input.item.binary
-	 * Providing binary data from the IMMEDIATE predecessor node.
+	 * Providing binary data of ONE item the IMMEDIATE predecessor node.
 	 */
-	$binary: {
-		[fieldName: string]: {
-			fileName?: string;
-			mimeType?: string;
-			fileExtension?: string;
-			fileSize?: string;
-		};
-	};
+	$binary: Item['binary'];
+
 	/** Current DateTime */
 	$now: Date;
 	/** Start of today */

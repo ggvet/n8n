@@ -105,22 +105,6 @@ function calculateCost(inputTokens: number, outputTokens: number): number {
 }
 
 /**
- * Format duration in a human-readable way
- */
-function formatDuration(ms: number): string {
-	if (ms < 1000) {
-		return `${ms}ms`;
-	}
-	const seconds = ms / 1000;
-	if (seconds < 60) {
-		return `${seconds.toFixed(1)}s`;
-	}
-	const minutes = Math.floor(seconds / 60);
-	const remainingSeconds = seconds % 60;
-	return `${minutes}m ${remainingSeconds.toFixed(0)}s`;
-}
-
-/**
  * Structured output type for the LLM response
  */
 interface WorkflowCodeOutput {
@@ -924,18 +908,6 @@ ${'='.repeat(50)}
 				totalTokens,
 				estimatedCostUsd: estimatedCost,
 			});
-
-			// Stream stats message
-			const statsMessage = `Generated workflow in ${formatDuration(totalDuration)} | ${totalTokens.toLocaleString()} tokens (${totalInputTokens.toLocaleString()} in, ${totalOutputTokens.toLocaleString()} out) | Est. cost: $${estimatedCost.toFixed(4)}`;
-			yield {
-				messages: [
-					{
-						role: 'assistant',
-						type: 'message',
-						text: statsMessage,
-					} as AgentMessageChunk,
-				],
-			};
 
 			// Stream workflow update (includes source code for evaluation artifacts)
 			this.debugLog('CHAT', 'Streaming workflow update');
