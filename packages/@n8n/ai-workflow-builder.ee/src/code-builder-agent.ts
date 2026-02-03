@@ -780,7 +780,7 @@ ${'='.repeat(50)}
 							if (newWarnings.length > 0) {
 								this.debugLog('CHAT', 'New validation warnings found', {
 									newWarningCount: newWarnings.length,
-									newWarningCodes: newWarnings.map((w) => w.code),
+									warnings: newWarnings,
 								});
 
 								// Mark these warnings as sent (so we don't repeat)
@@ -1416,6 +1416,7 @@ ${'='.repeat(50)}
 					totalWarnings: result.warnings.length,
 					newWarnings: newWarnings.length,
 					repeatedWarnings: result.warnings.length - newWarnings.length,
+					warnings: result.warnings,
 				});
 
 				if (newWarnings.length > 0) {
