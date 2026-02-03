@@ -47,8 +47,6 @@ import type {
 	RerankerInstance,
 	DeclaredConnection,
 	NodeChain,
-	ToolConfigContext,
-	ToolConfigInput,
 	FromAIArgumentType,
 	InputTarget,
 	OutputSelector,
@@ -220,38 +218,8 @@ export function memory<TNode extends NodeInput>(
 }
 
 // =============================================================================
-// Tool Factory with $fromAI Support
+// Tool Factory
 // =============================================================================
-
-/**
- * Create the ToolConfigContext with fromAI helper
- */
-function createToolConfigContext(): ToolConfigContext {
-	return {
-		fromAI(
-			key: string,
-			description?: string,
-			type?: FromAIArgumentType,
-			defaultValue?: string | number | boolean | object,
-		): string {
-			return createFromAIExpression(key, description, type, defaultValue);
-		},
-	};
-}
-
-/**
- * Input type for tool() factory - accepts either NodeInput with static config
- * or NodeInput with config callback for $fromAI support.
- */
-interface ToolFactoryInput<
-	TType extends string = string,
-	TVersion extends number = number,
-	TParams = unknown,
-> {
-	type: TType;
-	version: TVersion;
-	config: ToolConfigInput<TParams>;
-}
 
 /**
  * Create a tool subnode instance.
@@ -259,10 +227,9 @@ interface ToolFactoryInput<
  * Use this for nodes that output `ai_tool` connection type,
  * such as Tool Code, Tool HTTP Request, Calculator, etc.
  *
- * Tools can use $.fromAI() in a config callback to let the AI agent
- * determine parameter values at runtime.
+ * Use fromAi() function to let the AI agent determine parameter values at runtime.
  *
- * @example Static config (no $fromAI)
+ * @example Static config
  * ```typescript
  * const calc = tool({
  *   type: '@n8n/n8n-nodes-langchain.toolCalculator',
@@ -271,32 +238,31 @@ interface ToolFactoryInput<
  * });
  * ```
  *
- * @example Config callback with $fromAI
+ * @example With fromAi() for AI-driven parameters
  * ```typescript
+ * import { tool, fromAi } from '@n8n/workflow-sdk';
+ *
  * const gmail = tool({
  *   type: 'n8n-nodes-base.gmailTool',
  *   version: 1,
- *   config: ($) => ({
+ *   config: {
  *     parameters: {
- *       sendTo: $.fromAI('to', 'Email address to send to'),
- *       subject: $.fromAI('subject', 'Email subject line'),
- *       message: $.fromAI('body', 'Email body content', 'string')
+ *       sendTo: fromAi('to', 'Email address to send to'),
+ *       subject: fromAi('subject', 'Email subject line'),
+ *       message: fromAi('body', 'Email body content', 'string')
  *     }
- *   })
+ *   }
  * });
  * ```
  */
-export function tool<TNode extends ToolFactoryInput>(
+export function tool<TNode extends NodeInput>(
 	input: TNode,
 ): ToolInstance<TNode['type'], `${TNode['version']}`, unknown> {
-	const config =
-		typeof input.config === 'function' ? input.config(createToolConfigContext()) : input.config;
-
 	const versionStr = String(input.version) as `${TNode['version']}`;
 	return new SubnodeInstanceImpl<TNode['type'], `${TNode['version']}`, unknown, 'ai_tool'>(
 		input.type,
 		versionStr,
-		config as NodeConfig,
+		input.config as NodeConfig,
 		'ai_tool',
 	);
 }
