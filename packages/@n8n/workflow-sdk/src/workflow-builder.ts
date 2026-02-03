@@ -1214,7 +1214,6 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			// Tool node checks
 			if (this.isToolNode(nodeType)) {
 				this.checkToolNode(graphNode.instance, warnings, mapKey);
-				this.checkDuplicateFromAIKeys(graphNode.instance, warnings, mapKey);
 			}
 
 			// Check $fromAI in non-tool nodes
@@ -1664,75 +1663,6 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 					'TOOL_NO_PARAMETERS',
 					`${nodeRef} has no parameters set.`,
 					displayName,
-					origForWarning,
-				),
-			);
-		}
-	}
-
-	/**
-	 * Extract all fromAI keys from a value recursively.
-	 * Finds patterns like $fromAI('key') or $fromAI("key") or $fromAI(`key`)
-	 */
-	private extractFromAIKeys(value: unknown): string[] {
-		const keys: string[] = [];
-		const regex = /\$fromAI\s*\(\s*['"`]([^'"`]+)['"`]/g;
-
-		const extract = (v: unknown): void => {
-			if (typeof v === 'string') {
-				let match;
-				while ((match = regex.exec(v)) !== null) {
-					keys.push(match[1]);
-				}
-				// Reset regex lastIndex for next string
-				regex.lastIndex = 0;
-			} else if (Array.isArray(v)) {
-				v.forEach(extract);
-			} else if (typeof v === 'object' && v !== null) {
-				Object.values(v).forEach(extract);
-			}
-		};
-
-		extract(value);
-		return keys;
-	}
-
-	/**
-	 * Check for duplicate fromAI keys within a tool node
-	 */
-	private checkDuplicateFromAIKeys(
-		instance: NodeInstance<string, string, unknown>,
-		warnings: import('./validation/index').ValidationWarning[],
-		mapKey: string,
-	): void {
-		const { ValidationWarning } = require('./validation/index');
-		const params = instance.config?.parameters;
-		if (!params) return;
-
-		const originalName = instance.name;
-		const isRenamed = this.isAutoRenamed(mapKey, originalName);
-		const displayName = isRenamed ? mapKey : originalName;
-		const origForWarning = isRenamed ? originalName : undefined;
-
-		const keys = this.extractFromAIKeys(params);
-		const seen = new Set<string>();
-		const duplicates = new Set<string>();
-
-		for (const key of keys) {
-			if (seen.has(key)) {
-				duplicates.add(key);
-			}
-			seen.add(key);
-		}
-
-		for (const key of duplicates) {
-			const nodeRef = this.formatNodeRef(displayName, origForWarning, instance.type);
-			warnings.push(
-				new ValidationWarning(
-					'DUPLICATE_FROM_AI_KEY',
-					`${nodeRef} has duplicate fromAI key "${key}". Each key must be unique within a tool.`,
-					displayName,
-					undefined,
 					origForWarning,
 				),
 			);

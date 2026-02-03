@@ -35,8 +35,7 @@ export type ValidationErrorCode =
 	| 'MAX_NODES_EXCEEDED'
 	| 'INVALID_EXPRESSION_PATH'
 	| 'PARTIAL_EXPRESSION_PATH'
-	| 'INVALID_DATE_METHOD'
-	| 'DUPLICATE_FROM_AI_KEY';
+	| 'INVALID_DATE_METHOD';
 
 /**
  * Validation error class

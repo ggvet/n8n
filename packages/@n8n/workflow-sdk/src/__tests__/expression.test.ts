@@ -100,9 +100,11 @@ describe('Expression System', () => {
 			expect(result).toBe('=Hello {{ $json.name }}');
 		});
 
-		it('should not modify string that already starts with =', () => {
+		it('should always add = prefix even if string starts with =', () => {
+			// This preserves double-equals expressions like =={{ $json.x }}
+			// which occur in some real workflows
 			const result = expr('={{ $json.name }}');
-			expect(result).toBe('={{ $json.name }}');
+			expect(result).toBe('=={{ $json.name }}');
 		});
 
 		it('should handle multiline templates', () => {
