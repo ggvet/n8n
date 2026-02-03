@@ -805,7 +805,7 @@ export type DocumentLoaderFn = (input: NodeInput) => DocumentLoaderInstance;
 export type TextSplitterFn = (input: NodeInput) => TextSplitterInstance;
 
 /**
- * Context available in n8n expressions (inside {{ }}).
+ * Context available in n8n expressions (inside ={{ }}).
  *
 export interface ExpressionContext<Item = { json: IDataObject; binary: IDataObject }> {
 	/**

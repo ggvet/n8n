@@ -9,7 +9,7 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { generateWorkflowCode } from '@n8n/workflow-sdk';
 import type { WorkflowJSON } from '@n8n/workflow-sdk';
 
-import { escapeCurlyBrackets } from './sdk-api';
+import { escapeCurlyBrackets, SDK_API_CONTENT_ESCAPED } from './sdk-api';
 import { formatCodeWithLineNumbers } from '../../tools/text-editor-handler';
 import { SDK_IMPORT_STATEMENT } from '../../utils/extract-code';
 
@@ -569,7 +569,7 @@ Continue your <n8n_thinking> with design decisions based on search results:
    - List values needing user input → use placeholder()
    - List credentials needed → use newCredential()
 
-5. **Prepare get_nodes Call**: Write the exact call including discriminators
+5. **Prepare get_node_types Call**: Write the exact call including discriminators
 
 ## Step 4: Get Type Definitions
 
@@ -626,7 +626,7 @@ Your code must:
 # Important Reminders
 
 1. **Planning first:** Always work through your planning inside <n8n_thinking> tags to analyze the request before generating code
-2. **Get type definitions:** Call \`get_nodes\` with ALL node types before writing code
+2. **Get type definitions:** Call \`get_node_types\` with ALL node types before writing code
 3. **Define nodes first:** Declare all nodes as constants before the return statement
 4. **Credentials:** Use \`newCredential('Name')\` for authentication
 5. **Descriptive names:** Give nodes clear, descriptive names
@@ -714,7 +714,13 @@ export function buildCodeBuilderPrompt(
 	historyContext?: HistoryContext,
 	options?: BuildCodeBuilderPromptOptions,
 ): ChatPromptTemplate {
-	const promptSections = [ROLE, WORKFLOW_RULES, WORKFLOW_PATTERNS, MANDATORY_WORKFLOW];
+	const promptSections = [
+		ROLE,
+		WORKFLOW_RULES,
+		WORKFLOW_PATTERNS,
+		`<sdk_api_reference>\n${SDK_API_CONTENT_ESCAPED}\n</sdk_api_reference>`,
+		MANDATORY_WORKFLOW,
+	];
 
 	// Add text editor instructions if enabled (replaces OUTPUT_FORMAT)
 	if (options?.enableTextEditor) {
