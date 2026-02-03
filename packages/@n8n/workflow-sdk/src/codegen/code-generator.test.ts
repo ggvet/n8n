@@ -2300,7 +2300,7 @@ describe('code-generator', () => {
 		});
 
 		describe('execution context annotations', () => {
-			it('adds JSDoc with @output schema above nodes with execution schema', () => {
+			it('adds output property with schema data on nodes with execution schema', () => {
 				const json: WorkflowJSON = {
 					name: 'Test',
 					nodes: [
@@ -2336,11 +2336,9 @@ describe('code-generator', () => {
 
 				const code = generateCode(tree, json, graph, { nodeSchemas });
 
-				expect(code).toContain("@output - access via $('Fetch Users').item.json");
-				expect(code).toContain('id: string');
-				expect(code).toContain('@example "usr_123"');
-				expect(code).toContain('name: string');
-				expect(code).toContain('@example "John"');
+				// Should have output property with sample data, not @output JSDoc
+				expect(code).not.toContain('@output');
+				expect(code).toContain("output: [{ id: 'usr_123', name: 'John' }]");
 			});
 
 			it('adds @status success/error annotations in JSDoc', () => {

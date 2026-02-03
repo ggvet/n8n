@@ -172,9 +172,9 @@ describe('codegen index', () => {
 
 				const code = generateWorkflowCode({ workflow: json, executionSchema });
 
-				expect(code).toContain("@output - access via $('Fetch Users').item.json");
-				expect(code).toContain('id: string');
-				expect(code).toContain('@example "usr_123"');
+				// Should have output property with sample data, not @output JSDoc
+				expect(code).not.toContain('@output');
+				expect(code).toContain("output: [{ id: 'usr_123', name: 'John' }]");
 			});
 
 			it('accepts options object with expression values', () => {

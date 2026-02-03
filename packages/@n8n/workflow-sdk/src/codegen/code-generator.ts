@@ -8,7 +8,7 @@ import type { WorkflowJSON } from '../types/base';
 import type { SemanticGraph, SemanticNode, AiConnectionType } from './types';
 import type { Schema } from 'n8n-workflow';
 import type { NodeExecutionStatus } from './execution-status';
-import { generateSchemaJSDoc, schemaToOutputSample } from './execution-schema-jsdoc';
+import { schemaToOutputSample } from './execution-schema-jsdoc';
 import type {
 	CompositeTree,
 	CompositeNode,
@@ -597,6 +597,9 @@ function generateNodeConfig(node: SemanticNode, ctx: GenerationContext): string 
 		const outputSample = schemaToOutputSample(schema);
 		if (outputSample && Object.keys(outputSample).length > 0) {
 			parts.push(`${innerIndent}output: [${formatValue(outputSample, ctx)}]`);
+		} else {
+			// Schema exists but is empty - show output: [{}]
+			parts.push(`${innerIndent}output: [{}]`);
 		}
 	}
 
@@ -1149,13 +1152,7 @@ function getUniqueVarName(nodeName: string, ctx: GenerationContext): string {
 function generateNodeJSDoc(nodeName: string, ctx: GenerationContext): string | null {
 	const jsdocParts: string[] = [];
 
-	// Add output schema if available
-	const schema = ctx.nodeSchemas?.get(nodeName);
-	if (schema) {
-		jsdocParts.push(generateSchemaJSDoc(nodeName, schema));
-	}
-
-	// Add execution status if available
+	// Add execution status if available (output schema is now in the output property)
 	const status = ctx.nodeExecutionStatus?.get(nodeName);
 	if (status?.status === 'error') {
 		jsdocParts.push(`@status error - ${status.errorMessage}`);
