@@ -2409,6 +2409,75 @@ describe('code-generator', () => {
 				expect(code).toContain('// @example "John Doe"');
 			});
 
+			it('places comma before @example comment, not after', () => {
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Set',
+							type: 'n8n-nodes-base.set',
+							typeVersion: 3.4,
+							position: [0, 0],
+							parameters: {
+								// Expression is first, followed by another property - comma should be before comment
+								expressionField: '={{ $json.name }}',
+								staticField: 'static value',
+							},
+						},
+					],
+					connections: {},
+				};
+
+				const graph = buildSemanticGraph(json);
+				annotateGraph(graph);
+				const tree = buildCompositeTree(graph);
+
+				const expressionAnnotations = new Map([['={{ $json.name }}', '"John Doe"']]);
+
+				const code = generateCode(tree, json, graph, { expressionAnnotations });
+
+				// Comma should be BEFORE the comment, not after
+				expect(code).toContain("expr('{{ $json.name }}'),  // @example");
+				// Should NOT have comma after the comment (which would break JS syntax)
+				expect(code).not.toMatch(/\/\/ @example "[^"]*",\n/);
+			});
+
+			it('uses multi-line format when expression annotations are present', () => {
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Set',
+							type: 'n8n-nodes-base.set',
+							typeVersion: 3.4,
+							position: [0, 0],
+							parameters: {
+								mode: 'manual',
+								fields: {
+									values: [{ name: 'greeting', stringValue: '={{ $json.name }}' }],
+								},
+							},
+						},
+					],
+					connections: {},
+				};
+
+				const graph = buildSemanticGraph(json);
+				annotateGraph(graph);
+				const tree = buildCompositeTree(graph);
+
+				const expressionAnnotations = new Map([['={{ $json.name }}', '"John Doe"']]);
+
+				const code = generateCode(tree, json, graph, { expressionAnnotations });
+
+				// Config should be multi-line when it contains comments
+				expect(code).toMatch(/config: \{\n/);
+				// Parameters object should also be multi-line
+				expect(code).toMatch(/parameters: \{\n/);
+			});
+
 			it('adds workflow-level execution status JSDoc above return workflow()', () => {
 				const json: WorkflowJSON = {
 					name: 'Test',

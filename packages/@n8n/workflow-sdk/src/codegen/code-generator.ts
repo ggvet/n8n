@@ -240,7 +240,16 @@ function formatValue(value: unknown, ctx?: GenerationContext): string {
 		const result = formatted.join(', ');
 		// If result contains // comments (expression annotations), use multi-line format
 		if (result.includes('//')) {
-			return `{\n    ${formatted.join(',\n    ')}\n  }`;
+			// Join with commas, but put comma BEFORE any // comment, not after
+			const withCommas = formatted.map((entry, i) => {
+				if (i === formatted.length - 1) return entry; // Last entry, no comma
+				// Insert comma before // comment if present
+				if (entry.includes('  //')) {
+					return entry.replace('  //', ',  //');
+				}
+				return entry + ',';
+			});
+			return `{\n    ${withCommas.join('\n    ')}\n  }`;
 		}
 		return `{ ${result} }`;
 	}
@@ -595,8 +604,17 @@ function generateNodeConfig(node: SemanticNode, ctx: GenerationContext): string 
 		// If config contains // comments (expression annotations), use multi-line format
 		if (configStr.includes('//')) {
 			const configIndent = getIndent({ ...ctx, indent: ctx.indent + 2 });
+			// Join with commas, but put comma BEFORE any // comment, not after
+			const withCommas = configParts.map((entry, i) => {
+				if (i === configParts.length - 1) return entry; // Last entry, no comma
+				// Insert comma before // comment if present
+				if (entry.includes('  //')) {
+					return entry.replace('  //', ',  //');
+				}
+				return entry + ',';
+			});
 			parts.push(
-				`${innerIndent}config: {\n${configParts.map((p) => `${configIndent}${p}`).join(',\n')}\n${innerIndent}}`,
+				`${innerIndent}config: {\n${withCommas.map((p) => `${configIndent}${p}`).join('\n')}\n${innerIndent}}`,
 			);
 		} else {
 			parts.push(`${innerIndent}config: { ${configStr} }`);
