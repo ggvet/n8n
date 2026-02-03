@@ -452,6 +452,57 @@ return workflow('test-id', 'Test Workflow')
 		});
 	});
 
+	describe('Subnode Validation (strict mode)', () => {
+		// OpenAI v2.1 text/response only accepts tools and memory subnodes (not outputParser)
+		// Schema: ~/.n8n/generated-types/nodes/n8n-nodes-langchain/openAi/v21/resource_text/operation_response.schema.js
+
+		it('accepts valid subnodes (tools, memory) for OpenAI text/response', () => {
+			const result = validateNodeConfig('@n8n/n8n-nodes-langchain.openAi', 2.1, {
+				parameters: {
+					resource: 'text',
+					operation: 'response',
+				},
+				subnodes: {
+					tools: [{ type: 'some-tool', version: 1, parameters: {} }],
+					memory: { type: 'some-memory', version: 1, parameters: {} },
+				},
+			});
+			expect(result.valid).toBe(true);
+			expect(result.errors).toEqual([]);
+		});
+
+		it('rejects unsupported subnode (outputParser) for OpenAI text/response', () => {
+			const result = validateNodeConfig('@n8n/n8n-nodes-langchain.openAi', 2.1, {
+				parameters: {
+					resource: 'text',
+					operation: 'response',
+				},
+				subnodes: {
+					outputParser: { type: 'some-parser', version: 1, parameters: {} },
+				},
+			});
+			expect(result.valid).toBe(false);
+			expect(result.errors.length).toBeGreaterThan(0);
+			// The error should mention unrecognized/unknown keys
+			expect(result.errors.some((e) => e.message.includes('outputParser'))).toBe(true);
+		});
+
+		it('rejects multiple unsupported subnodes', () => {
+			const result = validateNodeConfig('@n8n/n8n-nodes-langchain.openAi', 2.1, {
+				parameters: {
+					resource: 'text',
+					operation: 'response',
+				},
+				subnodes: {
+					outputParser: { type: 'some-parser', version: 1, parameters: {} },
+					vectorStore: { type: 'some-vector-store', version: 1, parameters: {} },
+				},
+			});
+			expect(result.valid).toBe(false);
+			expect(result.errors.length).toBeGreaterThan(0);
+		});
+	});
+
 	describe('Edge Cases', () => {
 		it('handles missing parameters object gracefully', () => {
 			const result = validateNodeConfig('n8n-nodes-base.set', 3, {});

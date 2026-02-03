@@ -436,11 +436,36 @@ export function validateWorkflow(
 
 			if (!schemaResult.valid) {
 				for (const error of schemaResult.errors) {
+					let message = error.message;
+
+					// Enhance subnode errors with valid options when nodeTypesProvider is available
+					if (
+						error.path === 'subnodes' &&
+						message.includes('Unknown field') &&
+						options.nodeTypesProvider
+					) {
+						const nodeType = options.nodeTypesProvider.getByNameAndVersion(node.type, version);
+						const validInputs = nodeType?.description?.builderHint?.inputs;
+						if (validInputs) {
+							const validSubnodes = Object.keys(validInputs)
+								.map((k) => AI_CONNECTION_TO_SUBNODE_FIELD[k])
+								.filter(Boolean);
+							if (validSubnodes.length > 0) {
+								// Transform message from "Unknown field(s) at "subnodes": "x", "y"."
+								// to "Invalid subnode(s) "x", "y". This node only accepts: a, b."
+								message = message.replace(
+									/Unknown field\(s\) at "subnodes": (.+)\./,
+									`Invalid subnode(s) $1. This node only accepts: ${validSubnodes.join(', ')}.`,
+								);
+							}
+						}
+					}
+
 					// Report as WARNING (non-blocking) to maintain backwards compatibility
 					warnings.push(
 						new ValidationWarning(
 							'INVALID_PARAMETER',
-							`Node "${node.name}": ${error.message}`,
+							`Node "${node.name}": ${message}`,
 							node.name,
 						),
 					);

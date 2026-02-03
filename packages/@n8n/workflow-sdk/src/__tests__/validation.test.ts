@@ -1528,7 +1528,7 @@ describe('Validation', () => {
 				config: {
 					name: 'Set',
 					parameters: {
-						// This is actually fine if someone is intentionally using JS Date
+						// This is valid JS - using toISOString() on a native Date object
 						value: '={{ new Date().toISOString() }}',
 					},
 				},
@@ -1537,10 +1537,9 @@ describe('Validation', () => {
 			const wf = workflow('test', 'Test').add(t).then(setNode);
 			const result = wf.validate();
 
-			// We still warn because .toISOString() is generally a mistake in n8n context
-			// The LLM should use $now.toISO() instead of new Date().toISOString()
+			// new Date().toISOString() is valid JS, only Luxon misuse should be flagged
 			const dateMethodWarnings = result.warnings.filter((w) => w.code === 'INVALID_DATE_METHOD');
-			expect(dateMethodWarnings).toHaveLength(1);
+			expect(dateMethodWarnings).toHaveLength(0);
 		});
 
 		it('should include node name in the warning', () => {
@@ -1879,6 +1878,128 @@ describe('Validation', () => {
 			const warning = result.warnings.find((w) => w.code === 'SUBNODE_PARAMETER_MISMATCH');
 			expect(warning).toBeDefined();
 			expect(warning?.parameterPath).toBe('mode');
+		});
+	});
+
+	describe('Invalid subnode error message enhancement', () => {
+		// Mock node types provider that returns builderHint.inputs for OpenAI
+		const mockNodeTypesProviderForOpenAi = {
+			getByNameAndVersion: (type: string, _version?: number) => {
+				if (type === '@n8n/n8n-nodes-langchain.openAi') {
+					return {
+						description: {
+							inputs: ['main'],
+							builderHint: {
+								inputs: {
+									ai_tool: { required: false },
+									ai_memory: { required: false },
+								},
+							},
+						},
+					};
+				}
+				return { description: { inputs: ['main'] } };
+			},
+			getByName: (type: string) => mockNodeTypesProviderForOpenAi.getByNameAndVersion(type),
+			getKnownTypes: () => ({}),
+		};
+
+		it('should enhance error message with valid subnodes when nodeTypesProvider is available', () => {
+			// OpenAI text/response only accepts tools and memory subnodes
+			// When passing outputParser (invalid), error should list valid subnodes
+			const workflowJson = {
+				id: 'test',
+				name: 'Test',
+				nodes: [
+					{
+						id: 'trigger-1',
+						name: 'Manual Trigger',
+						type: 'n8n-nodes-base.manualTrigger',
+						typeVersion: 1,
+						position: [0, 0] as [number, number],
+						parameters: {},
+					},
+					{
+						id: 'openai-1',
+						name: 'OpenAI',
+						type: '@n8n/n8n-nodes-langchain.openAi',
+						typeVersion: 2.1,
+						position: [200, 0] as [number, number],
+						parameters: {
+							resource: 'text',
+							operation: 'response',
+						},
+						subnodes: {
+							// Invalid: outputParser is not supported for text/response
+							outputParser: { type: 'some-parser', version: 1, parameters: {} },
+						},
+					},
+				],
+				connections: {
+					'Manual Trigger': {
+						main: [[{ node: 'OpenAI', type: 'main', index: 0 }]],
+					},
+				},
+			};
+
+			const result = validateWorkflow(workflowJson, {
+				nodeTypesProvider: mockNodeTypesProviderForOpenAi as never,
+			});
+
+			const invalidParamWarnings = result.warnings.filter((w) => w.code === 'INVALID_PARAMETER');
+			expect(invalidParamWarnings.length).toBeGreaterThan(0);
+			// The error message should mention the invalid subnode
+			expect(invalidParamWarnings.some((w) => w.message.includes('outputParser'))).toBe(true);
+			// And should mention valid subnodes
+			expect(invalidParamWarnings.some((w) => w.message.includes('tools'))).toBe(true);
+			expect(invalidParamWarnings.some((w) => w.message.includes('memory'))).toBe(true);
+		});
+
+		it('should show raw error message when nodeTypesProvider is not available', () => {
+			const workflowJson = {
+				id: 'test',
+				name: 'Test',
+				nodes: [
+					{
+						id: 'trigger-1',
+						name: 'Manual Trigger',
+						type: 'n8n-nodes-base.manualTrigger',
+						typeVersion: 1,
+						position: [0, 0] as [number, number],
+						parameters: {},
+					},
+					{
+						id: 'openai-1',
+						name: 'OpenAI',
+						type: '@n8n/n8n-nodes-langchain.openAi',
+						typeVersion: 2.1,
+						position: [200, 0] as [number, number],
+						parameters: {
+							resource: 'text',
+							operation: 'response',
+						},
+						subnodes: {
+							outputParser: { type: 'some-parser', version: 1, parameters: {} },
+						},
+					},
+				],
+				connections: {
+					'Manual Trigger': {
+						main: [[{ node: 'OpenAI', type: 'main', index: 0 }]],
+					},
+				},
+			};
+
+			// No nodeTypesProvider - error should be the raw Zod error
+			const result = validateWorkflow(workflowJson);
+
+			const invalidParamWarnings = result.warnings.filter((w) => w.code === 'INVALID_PARAMETER');
+			expect(invalidParamWarnings.length).toBeGreaterThan(0);
+			expect(invalidParamWarnings.some((w) => w.message.includes('outputParser'))).toBe(true);
+			// Should NOT mention valid subnodes (no provider to look them up)
+			expect(invalidParamWarnings.some((w) => w.message.includes('This node only accepts'))).toBe(
+				false,
+			);
 		});
 	});
 });

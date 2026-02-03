@@ -1069,7 +1069,7 @@ export function generateSingleVersionSchemaFile(
 				lines.push(`${INDENT.repeat(3)}${fieldInfo.fieldName}: ${schemaStr},`);
 			}
 		}
-		lines.push(`${INDENT.repeat(2)}});`);
+		lines.push(`${INDENT.repeat(2)}}).strict();`);
 		lines.push(`${INDENT}}`);
 	}
 
@@ -1097,7 +1097,7 @@ export function generateSingleVersionSchemaFile(
 				lines.push(`${INDENT.repeat(2)}${fieldInfo.fieldName}: ${schemaStr},`);
 			}
 		}
-		lines.push(`${INDENT}});`);
+		lines.push(`${INDENT}}).strict();`);
 	}
 
 	// Generate parameters schema
@@ -1326,7 +1326,7 @@ export function generateDiscriminatorSchemaFile(
 				lines.push(`${INDENT.repeat(3)}${fieldInfo.fieldName}: ${schemaStr},`);
 			}
 		}
-		lines.push(`${INDENT.repeat(2)}});`);
+		lines.push(`${INDENT.repeat(2)}}).strict();`);
 		lines.push(`${INDENT}}`);
 	}
 
@@ -1354,7 +1354,7 @@ export function generateDiscriminatorSchemaFile(
 				lines.push(`${INDENT.repeat(2)}${fieldInfo.fieldName}: ${schemaStr},`);
 			}
 		}
-		lines.push(`${INDENT}});`);
+		lines.push(`${INDENT}}).strict();`);
 	}
 
 	// Return the schema
