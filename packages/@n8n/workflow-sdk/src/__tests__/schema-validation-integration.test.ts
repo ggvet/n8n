@@ -130,19 +130,21 @@ describe('Schema Validation Integration', () => {
 		// Schema: ~/.n8n/generated-types/nodes/n8n-nodes-base/webhook/v1.schema.js
 		// responseData: optional, show: { responseMode: ['lastNode'] } - only visible when responseMode is 'lastNode'
 		// responseCode: optional, show: { @version: [1, 1.1] }, hide: { responseMode: ['responseNode'] }
-		// responseBinaryPropertyName: required, show: { responseData: ['firstEntryBinary'] }
+		// responseBinaryPropertyName: has required: true but also has default: 'data'
+		//   - Fields with defaults are optional in schema validation (the default is used at runtime)
 
-		it('returns warning when required responseBinaryPropertyName is missing but show condition is met', () => {
+		it('accepts missing responseBinaryPropertyName when show condition is met (field has default)', () => {
+			// responseBinaryPropertyName has required: true but also has default: 'data'
+			// In n8n semantics, fields with defaults are optional (the default is used if not provided)
 			const result = validateNodeConfig('n8n-nodes-base.webhook', 1, {
 				parameters: {
 					responseMode: 'lastNode', // Required to make responseData visible
 					responseData: 'firstEntryBinary',
-					// responseBinaryPropertyName is required when responseData is 'firstEntryBinary'
-					// but it's missing
+					// responseBinaryPropertyName is not provided, default 'data' will be used at runtime
 				},
 			});
-			expect(result.valid).toBe(false);
-			expect(result.errors.some((e) => e.path.includes('responseBinaryPropertyName'))).toBe(true);
+			expect(result.valid).toBe(true);
+			expect(result.errors).toEqual([]);
 		});
 
 		it('does not require responseBinaryPropertyName when show condition is not met', () => {
@@ -196,21 +198,22 @@ describe('Schema Validation Integration', () => {
 
 	describe('Twitter v2 (Required + hide)', () => {
 		// Schema: ~/.n8n/generated-types/nodes/n8n-nodes-base/twitter/v2/resource_user/operation_search_user.schema.js
-		// user: required, hide: { me: [true] }
+		// user: has required: true but also has default: { mode: 'username', value: '' }
+		//   - Fields with defaults are optional in schema validation (the default is used at runtime)
 
-		it('returns warning when required user is missing and hide condition is NOT met', () => {
+		it('accepts missing user when hide condition is NOT met (field has default)', () => {
+			// user has required: true but also has default: { mode: 'username', value: '' }
+			// In n8n semantics, fields with defaults are optional (the default is used if not provided)
 			const result = validateNodeConfig('n8n-nodes-base.twitter', 2, {
 				parameters: {
 					resource: 'user',
 					operation: 'searchUser',
 					me: false,
-					// user is required when me is false, but it's missing
+					// user is not provided, default { mode: 'username', value: '' } will be used at runtime
 				},
 			});
-			// For discriminated unions, Zod reports union mismatch errors
-			// The validation fails because the user/searchUser schema requires user when me is false
-			expect(result.valid).toBe(false);
-			expect(result.errors.length).toBeGreaterThan(0);
+			expect(result.valid).toBe(true);
+			expect(result.errors).toEqual([]);
 		});
 
 		it('does not require user when hide condition IS met (me is true)', () => {
