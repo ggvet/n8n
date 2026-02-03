@@ -115,11 +115,6 @@ export class AwsSecretsManager extends SecretsProvider {
 			clientConfig.credentials = { accessKeyId, secretAccessKey };
 		}
 
-		// Support endpoint override for testing with LocalStack
-		if (process.env.AWS_ENDPOINT_URL) {
-			clientConfig.endpoint = process.env.AWS_ENDPOINT_URL;
-		}
-
 		const { SecretsManager } = await import('@aws-sdk/client-secrets-manager');
 		this.client = new SecretsManager(clientConfig);
 

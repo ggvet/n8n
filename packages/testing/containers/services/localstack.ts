@@ -1,3 +1,10 @@
+import {
+	CreateSecretCommand,
+	DeleteSecretCommand,
+	GetSecretValueCommand,
+	ListSecretsCommand,
+	SecretsManagerClient as AwsSecretsManagerClient,
+} from '@aws-sdk/client-secrets-manager';
 import type { StartedNetwork } from 'testcontainers';
 import { GenericContainer, Wait } from 'testcontainers';
 
@@ -91,9 +98,21 @@ export const localstack: Service<LocalStackResult> = {
 
 /**
  * Client for interacting with AWS Secrets Manager via LocalStack.
+ * Uses the official AWS SDK for proper API compatibility.
  */
 export class SecretsManagerClient {
-	constructor(private readonly endpoint: string) {}
+	private readonly client: AwsSecretsManagerClient;
+
+	constructor(endpoint: string) {
+		this.client = new AwsSecretsManagerClient({
+			endpoint,
+			region: DEFAULT_REGION,
+			credentials: {
+				accessKeyId: 'test',
+				secretAccessKey: 'test',
+			},
+		});
+	}
 
 	/**
 	 * Create a secret.
@@ -103,16 +122,12 @@ export class SecretsManagerClient {
 	async createSecret(name: string, value: string | Record<string, unknown>): Promise<void> {
 		const secretString = typeof value === 'string' ? value : JSON.stringify(value);
 
-		const response = await this.makeRequest('CreateSecret', {
-			Name: name,
-			SecretString: secretString,
-			ClientRequestToken: crypto.randomUUID(),
-		});
-
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(`Failed to create secret '${name}': ${error}`);
-		}
+		await this.client.send(
+			new CreateSecretCommand({
+				Name: name,
+				SecretString: secretString,
+			}),
+		);
 	}
 
 	/**
@@ -121,20 +136,16 @@ export class SecretsManagerClient {
 	 * @returns The secret string value
 	 */
 	async getSecret(name: string): Promise<string> {
-		const response = await this.makeRequest('GetSecretValue', {
-			SecretId: name,
-		});
+		const response = await this.client.send(
+			new GetSecretValueCommand({
+				SecretId: name,
+			}),
+		);
 
-		if (!response.ok) {
-			const error = await response.text();
-			throw new Error(`Failed to get secret '${name}': ${error}`);
-		}
-
-		const data = (await response.json()) as { SecretString?: string };
-		if (!data.SecretString) {
+		if (!response.SecretString) {
 			throw new Error(`Secret '${name}' has no string value`);
 		}
-		return data.SecretString;
+		return response.SecretString;
 	}
 
 	/**
@@ -143,16 +154,17 @@ export class SecretsManagerClient {
 	 * @param forceDelete - If true, deletes immediately without recovery window
 	 */
 	async deleteSecret(name: string, forceDelete = true): Promise<void> {
-		const response = await this.makeRequest('DeleteSecret', {
-			SecretId: name,
-			ForceDeleteWithoutRecovery: forceDelete,
-		});
-
-		if (!response.ok) {
-			const error = await response.text();
+		try {
+			await this.client.send(
+				new DeleteSecretCommand({
+					SecretId: name,
+					ForceDeleteWithoutRecovery: forceDelete,
+				}),
+			);
+		} catch (error) {
 			// Ignore "not found" errors during cleanup
-			if (!error.includes('ResourceNotFoundException')) {
-				throw new Error(`Failed to delete secret '${name}': ${error}`);
+			if (error instanceof Error && error.name !== 'ResourceNotFoundException') {
+				throw error;
 			}
 		}
 	}
@@ -166,25 +178,17 @@ export class SecretsManagerClient {
 		let nextToken: string | undefined;
 
 		do {
-			const response = await this.makeRequest('ListSecrets', {
-				...(nextToken && { NextToken: nextToken }),
-			});
+			const response = await this.client.send(
+				new ListSecretsCommand({
+					NextToken: nextToken,
+				}),
+			);
 
-			if (!response.ok) {
-				const error = await response.text();
-				throw new Error(`Failed to list secrets: ${error}`);
-			}
-
-			const data = (await response.json()) as {
-				SecretList?: Array<{ Name?: string }>;
-				NextToken?: string;
-			};
-
-			for (const secret of data.SecretList ?? []) {
+			for (const secret of response.SecretList ?? []) {
 				if (secret.Name) names.push(secret.Name);
 			}
 
-			nextToken = data.NextToken;
+			nextToken = response.NextToken;
 		} while (nextToken);
 
 		return names;
@@ -221,17 +225,6 @@ export class SecretsManagerClient {
 		}
 
 		throw new Error(`Secret '${name}' not found within ${timeoutMs}ms`);
-	}
-
-	private async makeRequest(action: string, payload: Record<string, unknown>): Promise<Response> {
-		return await fetch(this.endpoint, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/x-amz-json-1.1',
-				'X-Amz-Target': `secretsmanager.${action}`,
-			},
-			body: JSON.stringify(payload),
-		});
 	}
 }
 
