@@ -238,15 +238,33 @@ function formatValue(value: unknown, ctx?: GenerationContext): string {
 		if (entries.length === 0) return '{}';
 		const formatted = entries.map(([k, v]) => `${formatKey(k)}: ${formatValue(v, ctx)}`);
 		const result = formatted.join(', ');
-		// If result contains // comments (expression annotations), use multi-line format
-		if (result.includes('//')) {
-			// Join with commas, but put comma BEFORE any // comment, not after
+		// If result contains // comments (expression annotations) OR multi-line content, use multi-line format
+		const hasComments = result.includes('//');
+		const hasMultiline = formatted.some((entry) => entry.includes('\n'));
+		if (hasComments || hasMultiline) {
+			// Join with commas, ensuring each entry (except last) ends with a comma
 			const withCommas = formatted.map((entry, i) => {
 				if (i === formatted.length - 1) return entry; // Last entry, no comma
-				// Insert comma before // comment if present
-				if (entry.includes('  //')) {
-					return entry.replace('  //', ',  //');
+
+				// For multi-line entries, check only the LAST line for comment/comma placement
+				// (nested content may have its own commas which shouldn't affect our decision)
+				const lastLineStart = entry.lastIndexOf('\n');
+				const lastLine = lastLineStart >= 0 ? entry.substring(lastLineStart) : entry;
+
+				// If the entry's last line has a comment, insert comma before it
+				if (lastLine.includes('  //') && !lastLine.includes(',  //')) {
+					return (
+						entry.substring(0, entry.length - lastLine.length + lastLineStart + 1) +
+						lastLine.replace('  //', ',  //')
+					);
 				}
+
+				// If last line already has comma before comment, no change needed
+				if (lastLine.includes(',  //')) {
+					return entry;
+				}
+
+				// Otherwise, add comma at the end
 				return entry + ',';
 			});
 			return `{\n    ${withCommas.join('\n    ')}\n  }`;
@@ -601,16 +619,34 @@ function generateNodeConfig(node: SemanticNode, ctx: GenerationContext): string 
 	// Always include config (required by parser), even if empty
 	if (configParts.length > 0) {
 		const configStr = configParts.join(', ');
-		// If config contains // comments (expression annotations), use multi-line format
-		if (configStr.includes('//')) {
+		// If config contains // comments (expression annotations) OR multi-line content, use multi-line format
+		const hasComments = configStr.includes('//');
+		const hasMultiline = configParts.some((entry) => entry.includes('\n'));
+		if (hasComments || hasMultiline) {
 			const configIndent = getIndent({ ...ctx, indent: ctx.indent + 2 });
-			// Join with commas, but put comma BEFORE any // comment, not after
+			// Join with commas, ensuring each entry (except last) ends with a comma
 			const withCommas = configParts.map((entry, i) => {
 				if (i === configParts.length - 1) return entry; // Last entry, no comma
-				// Insert comma before // comment if present
-				if (entry.includes('  //')) {
-					return entry.replace('  //', ',  //');
+
+				// For multi-line entries, check only the LAST line for comment/comma placement
+				// (nested content may have its own commas which shouldn't affect our decision)
+				const lastLineStart = entry.lastIndexOf('\n');
+				const lastLine = lastLineStart >= 0 ? entry.substring(lastLineStart) : entry;
+
+				// If the entry's last line has a comment, insert comma before it
+				if (lastLine.includes('  //') && !lastLine.includes(',  //')) {
+					return (
+						entry.substring(0, entry.length - lastLine.length + lastLineStart + 1) +
+						lastLine.replace('  //', ',  //')
+					);
 				}
+
+				// If last line already has comma before comment, no change needed
+				if (lastLine.includes(',  //')) {
+					return entry;
+				}
+
+				// Otherwise, add comma at the end
 				return entry + ',';
 			});
 			parts.push(

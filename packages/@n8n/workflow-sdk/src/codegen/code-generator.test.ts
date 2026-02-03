@@ -2478,6 +2478,92 @@ describe('code-generator', () => {
 				expect(code).toMatch(/parameters: \{\n/);
 			});
 
+			it('does not add multiple commas for nested objects with expression annotations', () => {
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Set',
+							type: 'n8n-nodes-base.set',
+							typeVersion: 3.4,
+							position: [0, 0],
+							parameters: {
+								fields: {
+									values: [{ name: 'greeting', stringValue: '={{ $json.name }}' }],
+								},
+								otherField: 'static',
+							},
+						},
+					],
+					connections: {},
+				};
+
+				const graph = buildSemanticGraph(json);
+				annotateGraph(graph);
+				const tree = buildCompositeTree(graph);
+
+				const expressionAnnotations = new Map([['={{ $json.name }}', '"John Doe"']]);
+
+				const code = generateCode(tree, json, graph, { expressionAnnotations });
+
+				// Should have exactly ONE comma before comment, not multiple
+				expect(code).not.toMatch(/,,,/);
+				expect(code).not.toMatch(/,,/);
+			});
+
+			it('adds comma after nested object containing expression annotations when followed by sibling property', () => {
+				// This reproduces the bug where:
+				// assignments: { assignments: [...expression with comment...] }
+				// includeOtherFields: false  <-- missing comma before this line
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Edit Fields',
+							type: 'n8n-nodes-base.set',
+							typeVersion: 3.4,
+							position: [0, 0],
+							parameters: {
+								mode: 'manual',
+								duplicateItem: false,
+								assignments: {
+									assignments: [
+										{
+											id: 'test-id',
+											name: 'valid_key',
+											value: '={{ $json.name }}',
+											type: 'string',
+										},
+									],
+								},
+								includeOtherFields: false,
+								options: {},
+							},
+						},
+					],
+					connections: {},
+				};
+
+				const graph = buildSemanticGraph(json);
+				annotateGraph(graph);
+				const tree = buildCompositeTree(graph);
+
+				const expressionAnnotations = new Map([['={{ $json.name }}', '"John Doe"']]);
+
+				const code = generateCode(tree, json, graph, { expressionAnnotations });
+
+				// The generated code should be valid JavaScript - try parsing it
+				// If there's a missing comma, this regex will match
+				// Pattern: closing brace } followed by newline and identifier (missing comma)
+				const missingCommaPattern = /\}\s*\n\s*[a-zA-Z_][a-zA-Z0-9_]*:/;
+				expect(code).not.toMatch(missingCommaPattern);
+
+				// Also verify the structure is correct: after assignments object, there should be a comma
+				expect(code).toMatch(/assignments:\s*\{[\s\S]*?\}\s*,\s*\n/);
+			});
+
 			it('adds workflow-level execution status JSDoc above return workflow()', () => {
 				const json: WorkflowJSON = {
 					name: 'Test',
