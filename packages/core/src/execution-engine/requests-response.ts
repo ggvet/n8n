@@ -61,6 +61,7 @@ function initializeNodeRunData(
 	actionMetadata: ActionMetadata | undefined,
 	runIndex: number,
 	parentOutputData: INodeExecutionData[][],
+	toolInputKeys?: string[],
 ): number {
 	runData[nodeName] ||= [];
 	const nodeRunData = runData[nodeName];
@@ -81,6 +82,7 @@ function initializeNodeRunData(
 		executionIndex: 0,
 		executionTime: 0,
 		startTime: 0,
+		metadata: toolInputKeys ? { toolInputKeys } : undefined,
 	});
 
 	return nodeRunIndex;
@@ -126,6 +128,9 @@ function prepareRequestedNodesForExecution(
 			toolCallId: action.id,
 		};
 
+		// Track which keys came from the tool input (for filtering in the frontend)
+		const toolInputKeys = [...Object.keys(action.input), 'toolCallId'];
+
 		const parentOutputData = buildParentOutputData(
 			mergedJson,
 			parentRunIndex,
@@ -142,6 +147,7 @@ function prepareRequestedNodesForExecution(
 			actionMetadata,
 			runIndex,
 			parentOutputData,
+			toolInputKeys,
 		);
 
 		nodesToBeExecuted.push({

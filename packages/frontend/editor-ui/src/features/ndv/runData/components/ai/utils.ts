@@ -1,12 +1,37 @@
 import type { IAiDataContent } from '@/Interface';
-import type { ITaskData, ITaskDataConnections, NodeConnectionType } from 'n8n-workflow';
+import type {
+	INodeExecutionData,
+	ITaskData,
+	ITaskDataConnections,
+	NodeConnectionType,
+} from 'n8n-workflow';
 import { splitTextBySearch } from '@/app/utils/stringUtils';
 import { escapeHtml } from 'xss';
 import type MarkdownIt from 'markdown-it';
 import { unescapeAll } from 'markdown-it/lib/common/utils';
 
+/**
+ * Filters node execution data to only include keys that are in the toolInputKeys list.
+ * This is used to filter out agent input data from AI tool execution logs,
+ * showing only the tool arguments that were passed by the AI model.
+ */
+function filterByToolInputKeys(
+	data: INodeExecutionData[] | null,
+	toolInputKeys: string[],
+): INodeExecutionData[] | null {
+	if (!data) return null;
+
+	return data.map((item) => ({
+		...item,
+		json: Object.fromEntries(
+			Object.entries(item.json).filter(([key]) => toolInputKeys.includes(key)),
+		),
+	}));
+}
+
 export function getReferencedData(taskData: ITaskData): IAiDataContent[] {
 	const returnData: IAiDataContent[] = [];
+	const toolInputKeys = taskData.metadata?.toolInputKeys;
 
 	function addFunction(data: ITaskDataConnections | undefined, inOut: 'input' | 'output') {
 		if (!data) {
@@ -14,8 +39,15 @@ export function getReferencedData(taskData: ITaskData): IAiDataContent[] {
 		}
 
 		Object.keys(data).map((type) => {
+			let processedData = data[type][0];
+
+			// Filter input data to only show tool arguments (not agent input)
+			if (inOut === 'input' && toolInputKeys && processedData) {
+				processedData = filterByToolInputKeys(processedData, toolInputKeys);
+			}
+
 			returnData.push({
-				data: data[type][0],
+				data: processedData,
 				inOut,
 				type: type as NodeConnectionType,
 				// Include source information in AI content to track which node triggered the execution

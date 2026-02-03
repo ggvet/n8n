@@ -547,4 +547,74 @@ describe('handleRequests', () => {
 		expect(resumingNode.metadata).not.toHaveProperty('preserveSourceOverwrite');
 		expect(resumingNode.metadata).not.toHaveProperty('preservedSourceOverwrite');
 	});
+
+	test('stores toolInputKeys in runData metadata for tool executions', () => {
+		// ARRANGE
+		const toolNode = createNodeData({ name: 'Gmail Tool', type: types.passThrough });
+		const agentNode = createNodeData({ name: 'AI Agent', type: types.passThrough });
+
+		const workflow = new DirectedGraph()
+			.addNodes(toolNode, agentNode)
+			.toWorkflow({ name: '', active: false, nodeTypes });
+
+		const agentInputData: INodeExecutionData[] = [
+			{
+				json: {
+					prompt: 'Send an email',
+					chatInput: 'hello',
+					existingData: 'from workflow',
+				},
+			},
+		];
+
+		const executionData: IExecuteData = {
+			data: {
+				main: [agentInputData],
+			},
+			source: {
+				main: [
+					{
+						previousNode: 'Trigger',
+						previousNodeOutput: 0,
+						previousNodeRun: 0,
+					},
+				],
+			},
+			node: agentNode,
+		};
+
+		const request: EngineRequest = {
+			actions: [
+				{
+					actionType: 'ExecutionNodeAction',
+					nodeName: 'Gmail Tool',
+					input: { subject: 'Test Email', body: 'Hello World' },
+					type: 'ai_tool',
+					id: 'tool_call_123',
+					metadata: { itemIndex: 0 },
+				},
+			],
+			metadata: {},
+		};
+
+		const runData: IRunData = {};
+
+		// ACT
+		handleRequest({
+			workflow,
+			currentNode: agentNode,
+			request,
+			runIndex: 0,
+			executionData,
+			runData,
+		});
+
+		// ASSERT
+		expect(runData['Gmail Tool']).toBeDefined();
+		expect(runData['Gmail Tool'][0].metadata).toBeDefined();
+		expect(runData['Gmail Tool'][0].metadata?.toolInputKeys).toEqual(
+			expect.arrayContaining(['subject', 'body', 'toolCallId']),
+		);
+		expect(runData['Gmail Tool'][0].metadata?.toolInputKeys).toHaveLength(3);
+	});
 });

@@ -2600,6 +2600,12 @@ export interface ITaskMetadata {
 	nodeWasResumed?: boolean;
 
 	/**
+	 * Keys from the tool input (action.input) and toolCallId.
+	 * Used to filter agent input data from the input log view.
+	 */
+	toolInputKeys?: string[];
+
+	/**
 	 * Time saved by this workflow execution in minutes. Used by SavedTime nodes to track
 	 * dynamic time savings that can be calculated based on execution data (e.g., number of
 	 * items processed). The behavior determines how this value interacts with the workflow's
