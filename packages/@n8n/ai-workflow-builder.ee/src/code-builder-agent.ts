@@ -50,7 +50,7 @@ import { NodeTypeParser } from './utils/node-type-parser';
 import type { ChatPayload } from './workflow-builder-agent';
 
 /** Maximum iterations for the agentic loop to prevent infinite loops */
-const MAX_AGENT_ITERATIONS = 25;
+const MAX_AGENT_ITERATIONS = 50;
 
 /** Maximum validate attempts before giving up in text editor mode */
 const MAX_VALIDATE_ATTEMPTS = 10;
