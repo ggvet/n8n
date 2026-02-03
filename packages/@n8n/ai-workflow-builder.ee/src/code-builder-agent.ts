@@ -1455,6 +1455,20 @@ ${'='.repeat(50)}
 						}),
 					);
 					state.setWorkflow(null);
+
+					// Stream partial workflow to frontend for progressive rendering
+					// even when there are warnings, so users can see progress
+					yield {
+						messages: [
+							{
+								role: 'assistant',
+								type: 'workflow-updated',
+								codeSnippet: JSON.stringify(result.workflow, null, 2),
+								sourceCode: code,
+							} as WorkflowUpdateChunk,
+						],
+					};
+
 					yield {
 						messages: [
 							{
@@ -1511,7 +1525,8 @@ ${'='.repeat(50)}
 					} as ToolProgressChunk,
 				],
 			};
-			// Don't set workflow ready - let auto-finalize happen when LLM stops calling tools
+			// Workflow is saved above, but return workflowReady: false to let auto-finalize
+			// happen when LLM stops calling tools (if we're not on the last iteration)
 			return { workflowReady: false };
 		} catch (error) {
 			const parseDuration = Date.now() - parseStartTime;
