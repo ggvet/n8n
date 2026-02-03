@@ -55,10 +55,6 @@ const props = defineProps<{
 	role: Role;
 }>();
 
-const emit = defineEmits<{
-	viewDetails: [role: Role];
-}>();
-
 const i18n = useI18n();
 const router = useRouter();
 const usersStore = useUsersStore();
@@ -79,12 +75,17 @@ const buttonText = computed(() =>
 
 const onButtonClick = () => {
 	if (canEditRole.value) {
+		// Admin + custom role → edit route
 		void router.push({
 			name: VIEWS.PROJECT_ROLE_SETTINGS,
 			params: { roleSlug: props.role.slug },
 		});
 	} else {
-		emit('viewDetails', props.role);
+		// Non-admin OR system role → view route
+		void router.push({
+			name: VIEWS.PROJECT_ROLE_VIEW,
+			params: { roleSlug: props.role.slug },
+		});
 	}
 };
 </script>

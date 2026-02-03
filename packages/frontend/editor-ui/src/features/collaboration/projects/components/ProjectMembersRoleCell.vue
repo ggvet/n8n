@@ -15,7 +15,6 @@ import type {
 import RoleHoverPopover from './RoleHoverPopover.vue';
 import ProjectRoleContactAdminModal from './ProjectRoleContactAdminModal.vue';
 import ProjectCustomRolesUpgradeModal from './ProjectCustomRolesUpgradeModal.vue';
-import RoleDetailsModal from './RoleDetailsModal.vue';
 
 interface RoleSelectItem extends SelectItemProps {
 	role?: Role;
@@ -39,8 +38,6 @@ const usersStore = useUsersStore();
 const dropdownOpen = ref(false);
 const contactAdminModalVisible = ref(false);
 const upgradeModalVisible = ref(false);
-const roleDetailsModalVisible = ref(false);
-const selectedRoleForDetails = ref<Role | null>(null);
 
 const closeDropdown = () => {
 	dropdownOpen.value = false;
@@ -127,12 +124,6 @@ const onAddCustomRoleClick = () => {
 		void router.push({ name: VIEWS.PROJECT_NEW_ROLE });
 	}
 };
-
-const onViewRoleDetails = (role: Role) => {
-	closeDropdown();
-	selectedRoleForDetails.value = role;
-	roleDetailsModalVisible.value = true;
-};
 </script>
 
 <template>
@@ -156,10 +147,7 @@ const onViewRoleDetails = (role: Role) => {
 			<!-- Custom item rendering with hover popover -->
 			<template #item="{ item }">
 				<template v-if="(item as RoleSelectItem).role">
-					<RoleHoverPopover
-						:role="(item as RoleSelectItem).role!"
-						@view-details="onViewRoleDetails"
-					>
+					<RoleHoverPopover :role="(item as RoleSelectItem).role!">
 						<N8nSelect2Item v-bind="item" :class="$style.selectItem">
 							<template #item-label>
 								<N8nText
@@ -220,7 +208,6 @@ const onViewRoleDetails = (role: Role) => {
 			:custom-roles-exist="customRoles.length > 0"
 		/>
 		<ProjectCustomRolesUpgradeModal v-model="upgradeModalVisible" />
-		<RoleDetailsModal v-model="roleDetailsModalVisible" :role="selectedRoleForDetails" />
 	</div>
 	<span v-else>{{ selectedRole?.displayName }}</span>
 </template>
