@@ -423,4 +423,122 @@ describe('WorkflowBuilder plugin integration', () => {
 			expect(mockAddNodes).toHaveBeenCalled();
 		});
 	});
+
+	describe('Phase 6.5: No duplicate validation', () => {
+		it('validates each node exactly once per validator (no duplicates)', () => {
+			// This test verifies that validation is not duplicated
+			// After Phase 6.5, plugin validators run INSTEAD of inline checks, not in addition
+			const validateCallCounts: Map<string, number> = new Map();
+
+			const countingValidator: ValidatorPlugin = {
+				id: 'test:counter',
+				name: 'Counting Validator',
+				nodeTypes: ['n8n-nodes-base.set'],
+				validateNode: (nodeInstance) => {
+					const nodeName = nodeInstance.name;
+					validateCallCounts.set(nodeName, (validateCallCounts.get(nodeName) ?? 0) + 1);
+					return [];
+				},
+			};
+			testRegistry.registerValidator(countingValidator);
+
+			const setNode = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'Set Data', parameters: { values: [] } },
+			});
+
+			const wf = workflow('test', 'Test', { registry: testRegistry }).add(
+				trigger({
+					type: 'n8n-nodes-base.manualTrigger',
+					version: 1,
+					config: { name: 'Start' },
+				}).then(setNode),
+			);
+
+			wf.validate();
+
+			// The Set node should be validated exactly ONCE by the plugin validator
+			// If the old inline checks are still running, this would be called twice
+			expect(validateCallCounts.get('Set Data')).toBe(1);
+		});
+
+		it('uses global plugin registry when no registry is provided', () => {
+			// Import the global registry to add a test validator
+			const { pluginRegistry } = require('../plugins/registry');
+			const { registerDefaultPlugins } = require('../plugins/defaults');
+
+			// Ensure default plugins are registered
+			registerDefaultPlugins(pluginRegistry);
+
+			// Create a workflow WITHOUT explicitly passing a registry
+			const wf = workflow('test', 'Test').add(
+				trigger({
+					type: 'n8n-nodes-base.manualTrigger',
+					version: 1,
+					config: { name: 'Start' },
+				}).then(
+					node({
+						type: '@n8n/n8n-nodes-langchain.agent',
+						version: 1.7,
+						config: {
+							name: 'Agent',
+							parameters: {
+								promptType: 'define',
+								text: 'static prompt without expression', // This should trigger AGENT_STATIC_PROMPT
+							},
+						},
+					}),
+				),
+			);
+
+			const result = wf.validate();
+
+			// The agentValidator plugin should run and detect the static prompt
+			expect(result.warnings.some((w) => w.code === 'AGENT_STATIC_PROMPT')).toBe(true);
+		});
+
+		it('inline check methods do not duplicate plugin validation warnings', () => {
+			// This test ensures that when a custom registry with plugins is used,
+			// the inline check* methods are NOT called (they are replaced by plugins)
+
+			// Create a registry with the agent validator
+			const { agentValidator } = require('../plugins/validators/agent-validator');
+			testRegistry.registerValidator(agentValidator);
+
+			// Create an agent node with issues that both inline and plugin would catch
+			const agentNode = node({
+				type: '@n8n/n8n-nodes-langchain.agent',
+				version: 1.7,
+				config: {
+					name: 'Agent',
+					parameters: {
+						promptType: 'define',
+						text: 'static prompt', // No expression - triggers warning
+						options: {}, // No systemMessage - triggers warning
+					},
+				},
+			});
+
+			const wf = workflow('test', 'Test', { registry: testRegistry }).add(
+				trigger({
+					type: 'n8n-nodes-base.manualTrigger',
+					version: 1,
+					config: { name: 'Start' },
+				}).then(agentNode),
+			);
+
+			const result = wf.validate();
+
+			// Count warnings of each type - should be exactly 1, not 2 (no duplicates)
+			const staticPromptWarnings = result.warnings.filter((w) => w.code === 'AGENT_STATIC_PROMPT');
+			const noSystemMessageWarnings = result.warnings.filter(
+				(w) => w.code === 'AGENT_NO_SYSTEM_MESSAGE',
+			);
+
+			// Each warning should appear exactly once (from plugin only, not duplicated)
+			expect(staticPromptWarnings.length).toBe(1);
+			expect(noSystemMessageWarnings.length).toBe(1);
+		});
+	});
 });

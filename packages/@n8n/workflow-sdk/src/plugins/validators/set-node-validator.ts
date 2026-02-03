@@ -4,7 +4,14 @@
  * Validates Set nodes for security issues like credential-like field names.
  */
 
-import type { ValidatorPlugin, ValidationIssue, PluginContext } from '../types';
+import {
+	type ValidatorPlugin,
+	type ValidationIssue,
+	type PluginContext,
+	findMapKey,
+	isAutoRenamed,
+	formatNodeRef,
+} from '../types';
 import type { GraphNode, NodeInstance } from '../../types/base';
 import { isCredentialFieldName } from '../../workflow-builder/validation-helpers';
 
@@ -22,8 +29,8 @@ export const setNodeValidator: ValidatorPlugin = {
 
 	validateNode(
 		node: NodeInstance<string, string, unknown>,
-		_graphNode: GraphNode,
-		_ctx: PluginContext,
+		graphNode: GraphNode,
+		ctx: PluginContext,
 	): ValidationIssue[] {
 		const issues: ValidationIssue[] = [];
 		const params = node.config?.parameters as Record<string, unknown> | undefined;
@@ -31,6 +38,14 @@ export const setNodeValidator: ValidatorPlugin = {
 		if (!params) {
 			return issues;
 		}
+
+		// Find the map key for this node (may be renamed from node.name)
+		const mapKey = findMapKey(graphNode, ctx);
+		const originalName = node.name;
+		const renamed = isAutoRenamed(mapKey, originalName);
+		const displayName = renamed ? mapKey : originalName;
+		const origForWarning = renamed ? originalName : undefined;
+		const nodeRef = formatNodeRef(displayName, origForWarning, node.type);
 
 		const assignments = params.assignments as
 			| { assignments?: Array<{ name?: string; value?: unknown; type?: string }> }
@@ -44,9 +59,10 @@ export const setNodeValidator: ValidatorPlugin = {
 			if (assignment.name && isCredentialFieldName(assignment.name)) {
 				issues.push({
 					code: 'SET_CREDENTIAL_FIELD',
-					message: `'${node.name}' has a field named "${assignment.name}" which appears to be storing credentials. Use n8n's credential system instead.`,
+					message: `${nodeRef} has a field named "${assignment.name}" which appears to be storing credentials. Use n8n's credential system instead.`,
 					severity: 'warning',
-					nodeName: node.name,
+					nodeName: displayName,
+					originalName: origForWarning,
 				});
 			}
 		}

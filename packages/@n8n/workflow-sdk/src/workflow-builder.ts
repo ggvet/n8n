@@ -20,8 +20,12 @@ import type {
 	GeneratePinDataOptions,
 	WorkflowBuilderOptions,
 } from './types/base';
-import type { PluginRegistry } from './plugins/registry';
+import { pluginRegistry, type PluginRegistry } from './plugins/registry';
+import { registerDefaultPlugins } from './plugins/defaults';
 import type { PluginContext, MutablePluginContext, ValidationIssue } from './plugins/types';
+
+// Ensure default plugins are registered on module load
+registerDefaultPlugins(pluginRegistry);
 import { isNodeChain } from './types/base';
 import {
 	isInputTarget,
@@ -30,7 +34,6 @@ import {
 	cloneNodeWithId,
 } from './node-builder';
 import {
-	filterMethodsFromPath,
 	parseVersion,
 	normalizeResourceLocators,
 	escapeNewlinesInExpressionStrings,
@@ -46,21 +49,7 @@ import {
 	isMergeComposite,
 	isNodeInstanceShape,
 } from './workflow-builder/type-guards';
-import {
-	containsExpression,
-	containsMalformedExpression,
-	isSensitiveHeader,
-	isCredentialFieldName,
-	isToolNode,
-	containsFromAI,
-	isTriggerNode,
-	findMissingExpressionPrefixes,
-	findInvalidDateMethods,
-	extractExpressions,
-	parseExpression,
-	hasPath,
-	TOOLS_WITHOUT_PARAMETERS,
-} from './workflow-builder/validation-helpers';
+import { isTriggerNode } from './workflow-builder/validation-helpers';
 import type { IfElseBuilder, SwitchCaseBuilder } from './types/base';
 
 /**
@@ -945,96 +934,32 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			}
 		}
 
-		// Node-specific checks
-		for (const [mapKey, graphNode] of this._nodes) {
+		// Run plugin-based validators (use provided registry or global)
+		const registry = this._registry ?? pluginRegistry;
+		const pluginCtx: PluginContext = {
+			nodes: this._nodes,
+			workflowId: this.id,
+			workflowName: this.name,
+			settings: this._settings,
+			pinData: this._pinData,
+		};
+
+		// Run validators for each node
+		for (const [_mapKey, graphNode] of this._nodes) {
 			const nodeType = graphNode.instance.type;
+			const validators = registry.getValidatorsForNodeType(nodeType);
 
-			// Agent node checks
-			if (nodeType === '@n8n/n8n-nodes-langchain.agent') {
-				this.checkAgentNode(graphNode.instance, warnings, mapKey);
+			for (const validator of validators) {
+				const issues = validator.validateNode(graphNode.instance, graphNode, pluginCtx);
+				this.collectValidationIssues(issues, errors, warnings, ValidationError, ValidationWarning);
 			}
-
-			// ChainLlm node checks - only for versions >= 1.4 (when promptType was introduced)
-			if (nodeType === '@n8n/n8n-nodes-langchain.chainLlm') {
-				const version = parseVersion(graphNode.instance.version);
-				if (version >= 1.4) {
-					this.checkChainLlmNode(graphNode.instance, warnings, mapKey);
-				}
-			}
-
-			// HTTP Request node checks
-			if (nodeType === 'n8n-nodes-base.httpRequest') {
-				this.checkHttpRequestNode(graphNode.instance, warnings, mapKey);
-			}
-
-			// Set node checks
-			if (nodeType === 'n8n-nodes-base.set') {
-				this.checkSetNode(graphNode.instance, warnings, mapKey);
-			}
-
-			// Merge node checks
-			if (nodeType === 'n8n-nodes-base.merge') {
-				this.checkMergeNode(graphNode, warnings, mapKey);
-			}
-
-			// Tool node checks
-			if (isToolNode(nodeType)) {
-				this.checkToolNode(graphNode.instance, warnings, mapKey);
-			}
-
-			// Check $fromAI in non-tool nodes
-			if (!isToolNode(nodeType)) {
-				this.checkFromAiInNonToolNode(graphNode.instance, warnings, mapKey);
-			}
-
-			// Check for {{ $... }} without = prefix (skip sticky notes - they're just documentation)
-			if (graphNode.instance.type !== 'n8n-nodes-base.stickyNote') {
-				this.checkMissingExpressionPrefix(graphNode.instance, warnings, mapKey);
-			}
-
-			// Check for .toISOString() which should be .toISO() for Luxon DateTime
-			this.checkInvalidDateMethod(graphNode.instance, warnings, mapKey);
 		}
 
-		// Run plugin-based validators (if registry is provided)
-		if (this._registry) {
-			const pluginCtx: PluginContext = {
-				nodes: this._nodes,
-				workflowId: this.id,
-				workflowName: this.name,
-				settings: this._settings,
-				pinData: this._pinData,
-			};
-
-			// Run validators for each node
-			for (const [_mapKey, graphNode] of this._nodes) {
-				const nodeType = graphNode.instance.type;
-				const validators = this._registry.getValidatorsForNodeType(nodeType);
-
-				for (const validator of validators) {
-					const issues = validator.validateNode(graphNode.instance, graphNode, pluginCtx);
-					this.collectValidationIssues(
-						issues,
-						errors,
-						warnings,
-						ValidationError,
-						ValidationWarning,
-					);
-				}
-			}
-
-			// Run workflow-level validators
-			for (const validator of this._registry.getValidators()) {
-				if (validator.validateWorkflow) {
-					const issues = validator.validateWorkflow(pluginCtx);
-					this.collectValidationIssues(
-						issues,
-						errors,
-						warnings,
-						ValidationError,
-						ValidationWarning,
-					);
-				}
+		// Run workflow-level validators
+		for (const validator of registry.getValidators()) {
+			if (validator.validateWorkflow) {
+				const issues = validator.validateWorkflow(pluginCtx);
+				this.collectValidationIssues(issues, errors, warnings, ValidationError, ValidationWarning);
 			}
 		}
 
@@ -1060,9 +985,6 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 				}
 			}
 		}
-
-		// Check: Expression paths reference valid output fields (uses pinData)
-		this.checkExpressionPaths(warnings);
 
 		return {
 			valid: errors.length === 0,
@@ -1109,415 +1031,16 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			if (issue.severity === 'error') {
 				errors.push(new ValidationErrorClass(code, issue.message, issue.nodeName));
 			} else {
-				warnings.push(new ValidationWarningClass(code, issue.message, issue.nodeName));
-			}
-		}
-	}
-
-	/**
-	 * Check Agent node for common issues
-	 */
-	private checkAgentNode(
-		instance: NodeInstance<string, string, unknown>,
-		warnings: import('./validation/index').ValidationWarning[],
-		mapKey: string,
-	): void {
-		const { ValidationWarning } = require('./validation/index');
-		const params = instance.config?.parameters as Record<string, unknown> | undefined;
-		if (!params) return;
-
-		const originalName = instance.name;
-		const isRenamed = this.isAutoRenamed(mapKey, originalName);
-		const displayName = isRenamed ? mapKey : originalName;
-		const origForWarning = isRenamed ? originalName : undefined;
-		const nodeRef = this.formatNodeRef(displayName, origForWarning, instance.type);
-
-		const promptType = params.promptType as string | undefined;
-
-		// Skip checks for auto/guardrails mode (undefined defaults to auto)
-		if (!promptType || promptType === 'auto' || promptType === 'guardrails') {
-			return;
-		}
-
-		// Check: Static prompt (no expression)
-		const text = params.text;
-		const hasValidExpression = containsExpression(text);
-		const hasMalformedExpression = containsMalformedExpression(text);
-
-		// Only warn about static prompt if there's NO expression at all
-		// (MISSING_EXPRESSION_PREFIX will handle malformed expressions)
-		if (!text || (!hasValidExpression && !hasMalformedExpression)) {
-			warnings.push(
-				new ValidationWarning(
-					'AGENT_STATIC_PROMPT',
-					` Is input data required for ${nodeRef}? If so, add an expression to the prompt. When following a chat trigger node, use { promptType: 'auto', text: '={{ $json.chatInput }}' }. Or use { promptType: 'define', text: '={{ ... }}' } to add dynamic data like input data.`,
-					displayName,
-					origForWarning,
-				),
-			);
-		}
-
-		// Check: No system message
-		const options = params.options as Record<string, unknown> | undefined;
-		const systemMessage = options?.systemMessage;
-		if (
-			!systemMessage ||
-			(typeof systemMessage === 'string' && systemMessage.trim().length === 0)
-		) {
-			warnings.push(
-				new ValidationWarning(
-					'AGENT_NO_SYSTEM_MESSAGE',
-					`${nodeRef} has no system message. System-level instructions should be in the system message field.`,
-					displayName,
-					origForWarning,
-				),
-			);
-		}
-	}
-
-	/**
-	 * Check ChainLlm node for static prompts (v1.4+ only)
-	 */
-	private checkChainLlmNode(
-		instance: NodeInstance<string, string, unknown>,
-		warnings: import('./validation/index').ValidationWarning[],
-		mapKey: string,
-	): void {
-		const { ValidationWarning } = require('./validation/index');
-		const params = instance.config?.parameters as Record<string, unknown> | undefined;
-		if (!params) return;
-
-		const originalName = instance.name;
-		const isRenamed = this.isAutoRenamed(mapKey, originalName);
-		const displayName = isRenamed ? mapKey : originalName;
-		const origForWarning = isRenamed ? originalName : undefined;
-		const nodeRef = this.formatNodeRef(displayName, origForWarning, instance.type);
-
-		const promptType = params.promptType as string | undefined;
-
-		// Only check when promptType is 'define' (explicit prompt definition)
-		if (promptType !== 'define') {
-			return;
-		}
-
-		// Check: Static prompt (no expression)
-		const text = params.text;
-		const hasValidExpression = containsExpression(text);
-		const hasMalformedExpression = containsMalformedExpression(text);
-
-		// Only warn about static prompt if there's NO expression at all
-		// (MISSING_EXPRESSION_PREFIX will handle malformed expressions)
-		if (!text || (!hasValidExpression && !hasMalformedExpression)) {
-			warnings.push(
-				new ValidationWarning(
-					'AGENT_STATIC_PROMPT',
-					`${nodeRef} has no expression in its prompt. Parameter values must start with '=' to evaluate correctly as expressions. For example '={{ $json.input }}'.`,
-					displayName,
-					origForWarning,
-				),
-			);
-		}
-	}
-
-	/**
-	 * Check HTTP Request node for hardcoded credentials
-	 */
-	private checkHttpRequestNode(
-		instance: NodeInstance<string, string, unknown>,
-		warnings: import('./validation/index').ValidationWarning[],
-		mapKey: string,
-	): void {
-		const { ValidationWarning } = require('./validation/index');
-		const params = instance.config?.parameters as Record<string, unknown> | undefined;
-		if (!params) return;
-
-		const originalName = instance.name;
-		const isRenamed = this.isAutoRenamed(mapKey, originalName);
-		const displayName = isRenamed ? mapKey : originalName;
-		const origForWarning = isRenamed ? originalName : undefined;
-		const nodeRef = this.formatNodeRef(displayName, origForWarning, instance.type);
-
-		// Check header parameters for sensitive headers
-		const headerParams = params.headerParameters as
-			| { parameters?: Array<{ name?: string; value?: unknown }> }
-			| undefined;
-		if (headerParams?.parameters) {
-			for (const header of headerParams.parameters) {
-				if (
-					header.name &&
-					isSensitiveHeader(header.name) &&
-					header.value &&
-					!containsExpression(String(header.value))
-				) {
-					warnings.push(
-						new ValidationWarning(
-							'HARDCODED_CREDENTIALS',
-							`${nodeRef} has a hardcoded value for sensitive header "${header.name}". Use n8n credentials instead.`,
-							displayName,
-							origForWarning,
-						),
-					);
-				}
-			}
-		}
-
-		// Check query parameters for credential-like names
-		const queryParams = params.queryParameters as
-			| { parameters?: Array<{ name?: string; value?: unknown }> }
-			| undefined;
-		if (queryParams?.parameters) {
-			for (const param of queryParams.parameters) {
-				if (
-					param.name &&
-					isCredentialFieldName(param.name) &&
-					param.value &&
-					!containsExpression(String(param.value))
-				) {
-					warnings.push(
-						new ValidationWarning(
-							'HARDCODED_CREDENTIALS',
-							`${nodeRef} has a hardcoded value for credential-like query parameter "${param.name}". Use n8n credentials instead.`,
-							displayName,
-							origForWarning,
-						),
-					);
-				}
-			}
-		}
-	}
-
-	/**
-	 * Check Set node for credential-like field names
-	 */
-	private checkSetNode(
-		instance: NodeInstance<string, string, unknown>,
-		warnings: import('./validation/index').ValidationWarning[],
-		mapKey: string,
-	): void {
-		const { ValidationWarning } = require('./validation/index');
-		const params = instance.config?.parameters as Record<string, unknown> | undefined;
-		if (!params) return;
-
-		const originalName = instance.name;
-		const isRenamed = this.isAutoRenamed(mapKey, originalName);
-		const displayName = isRenamed ? mapKey : originalName;
-		const origForWarning = isRenamed ? originalName : undefined;
-		const nodeRef = this.formatNodeRef(displayName, origForWarning, instance.type);
-
-		const assignments = params.assignments as
-			| { assignments?: Array<{ name?: string; value?: unknown; type?: string }> }
-			| undefined;
-		if (!assignments?.assignments) return;
-
-		for (const assignment of assignments.assignments) {
-			if (assignment.name && isCredentialFieldName(assignment.name)) {
 				warnings.push(
-					new ValidationWarning(
-						'SET_CREDENTIAL_FIELD',
-						`${nodeRef} has a field named "${assignment.name}" which appears to be storing credentials. Use n8n's credential system instead.`,
-						displayName,
-						undefined, // parameterPath
-						origForWarning,
+					new ValidationWarningClass(
+						code,
+						issue.message,
+						issue.nodeName,
+						issue.parameterPath,
+						issue.originalName,
 					),
 				);
 			}
-		}
-	}
-
-	/**
-	 * Check Merge node for proper input connections
-	 */
-	private checkMergeNode(
-		graphNode: GraphNode,
-		warnings: import('./validation/index').ValidationWarning[],
-		mapKey: string,
-	): void {
-		const { ValidationWarning } = require('./validation/index');
-		const instance = graphNode.instance;
-		const originalName = instance.name;
-		const isRenamed = this.isAutoRenamed(mapKey, originalName);
-		const displayName = isRenamed ? mapKey : originalName;
-		const origForWarning = isRenamed ? originalName : undefined;
-		const nodeRef = this.formatNodeRef(displayName, origForWarning, instance.type);
-
-		// Track which distinct input indices have connections
-		const connectedInputIndices = new Set<number>();
-
-		// Check all other nodes' connections (graphNode.connections stores OUTGOING connections)
-		// We need to find connections where this merge node is the TARGET
-		for (const [_name, otherNode] of this._nodes) {
-			const mainConns = otherNode.connections.get('main');
-			if (mainConns) {
-				for (const [_outputIndex, targets] of mainConns) {
-					for (const target of targets) {
-						// Compare against mapKey (the actual key in the workflow, potentially renamed)
-						if (target.node === mapKey) {
-							connectedInputIndices.add(target.index);
-						}
-					}
-				}
-			}
-
-			// Also check connections declared via .then() from NodeInstances
-			if (typeof otherNode.instance.getConnections === 'function') {
-				const conns = otherNode.instance.getConnections();
-				for (const conn of conns) {
-					// Handle both NodeInstance and InputTarget
-					const targetNode = isInputTarget(conn.target) ? conn.target.node : conn.target;
-					const targetNodeName =
-						typeof targetNode === 'object' && 'name' in targetNode ? targetNode.name : undefined;
-					if (targetNode === instance || targetNodeName === originalName) {
-						// For InputTarget, use the specified index; for regular connections use targetInputIndex; default to 0
-						const targetIndex = isInputTarget(conn.target)
-							? conn.target.inputIndex
-							: (conn.targetInputIndex ?? 0);
-						connectedInputIndices.add(targetIndex);
-					}
-				}
-			}
-		}
-
-		const inputCount = connectedInputIndices.size;
-		if (inputCount < 2) {
-			warnings.push(
-				new ValidationWarning(
-					'MERGE_SINGLE_INPUT',
-					`${nodeRef} has only ${inputCount} input connection(s). Merge nodes require at least 2 inputs.`,
-					displayName,
-					origForWarning,
-				),
-			);
-		}
-	}
-
-	/**
-	 * Check Tool node for missing parameters
-	 */
-	private checkToolNode(
-		instance: NodeInstance<string, string, unknown>,
-		warnings: import('./validation/index').ValidationWarning[],
-		mapKey: string,
-	): void {
-		const { ValidationWarning } = require('./validation/index');
-
-		// Skip tools that don't need parameters
-		if (TOOLS_WITHOUT_PARAMETERS.has(instance.type)) {
-			return;
-		}
-
-		const originalName = instance.name;
-		const isRenamed = this.isAutoRenamed(mapKey, originalName);
-		const displayName = isRenamed ? mapKey : originalName;
-		const origForWarning = isRenamed ? originalName : undefined;
-		const nodeRef = this.formatNodeRef(displayName, origForWarning, instance.type);
-
-		const params = instance.config?.parameters;
-		if (!params || Object.keys(params).length === 0) {
-			warnings.push(
-				new ValidationWarning(
-					'TOOL_NO_PARAMETERS',
-					`${nodeRef} has no parameters set.`,
-					displayName,
-					origForWarning,
-				),
-			);
-		}
-	}
-
-	/**
-	 * Check for $fromAI usage in non-tool nodes
-	 */
-	private checkFromAiInNonToolNode(
-		instance: NodeInstance<string, string, unknown>,
-		warnings: import('./validation/index').ValidationWarning[],
-		mapKey: string,
-	): void {
-		const { ValidationWarning } = require('./validation/index');
-		const params = instance.config?.parameters;
-		if (!params) return;
-
-		const originalName = instance.name;
-		const isRenamed = this.isAutoRenamed(mapKey, originalName);
-		const displayName = isRenamed ? mapKey : originalName;
-		const origForWarning = isRenamed ? originalName : undefined;
-		const nodeRef = this.formatNodeRef(displayName, origForWarning, instance.type);
-
-		// Recursively search for $fromAI in all parameter values
-		if (containsFromAI(params)) {
-			warnings.push(
-				new ValidationWarning(
-					'FROM_AI_IN_NON_TOOL',
-					`${nodeRef} uses $fromAI() which is only valid in tool nodes connected to an AI agent.`,
-					displayName,
-					origForWarning,
-				),
-			);
-		}
-	}
-
-	/**
-	 * Check for {{ $... }} patterns without the required = prefix
-	 */
-	private checkMissingExpressionPrefix(
-		instance: NodeInstance<string, string, unknown>,
-		warnings: import('./validation/index').ValidationWarning[],
-		mapKey: string,
-	): void {
-		const { ValidationWarning } = require('./validation/index');
-		const params = instance.config?.parameters;
-		if (!params) return;
-
-		const originalName = instance.name;
-		const isRenamed = this.isAutoRenamed(mapKey, originalName);
-		const displayName = isRenamed ? mapKey : originalName;
-		const origForWarning = isRenamed ? originalName : undefined;
-		const nodeRef = this.formatNodeRef(displayName, origForWarning, instance.type);
-
-		const issues = findMissingExpressionPrefixes(params);
-
-		for (const { path } of issues) {
-			warnings.push(
-				new ValidationWarning(
-					'MISSING_EXPRESSION_PREFIX',
-					`${nodeRef} has parameter "${path}" containing {{ $... }} without '=' prefix. ` +
-						`n8n expressions must start with '=' like '={{ $json.field }}'.`,
-					displayName,
-					origForWarning,
-				),
-			);
-		}
-	}
-
-	/**
-	 * Check for .toISOString() usage which should be .toISO() for Luxon DateTime
-	 */
-	private checkInvalidDateMethod(
-		instance: NodeInstance<string, string, unknown>,
-		warnings: import('./validation/index').ValidationWarning[],
-		mapKey: string,
-	): void {
-		const { ValidationWarning } = require('./validation/index');
-		const params = instance.config?.parameters;
-		if (!params) return;
-
-		const originalName = instance.name;
-		const isRenamed = this.isAutoRenamed(mapKey, originalName);
-		const displayName = isRenamed ? mapKey : originalName;
-		const origForWarning = isRenamed ? originalName : undefined;
-		const nodeRef = this.formatNodeRef(displayName, origForWarning, instance.type);
-
-		const issues = findInvalidDateMethods(params);
-
-		for (const { path } of issues) {
-			warnings.push(
-				new ValidationWarning(
-					'INVALID_DATE_METHOD',
-					`${nodeRef} parameter "${path}" uses .toISOString() which is a JS Date method. ` +
-						`Use .toISO() for Luxon DateTime ($now, $today).`,
-					displayName,
-					origForWarning,
-				),
-			);
 		}
 	}
 
@@ -1654,181 +1177,6 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			}
 		}
 		return false;
-	}
-
-	/**
-	 * Check that $json and $('NodeName') expressions reference fields that exist
-	 * in the predecessor node's output (from pinData)
-	 */
-	private checkExpressionPaths(warnings: import('./validation/index').ValidationWarning[]): void {
-		// Build output shapes from node config's output property first, then fall back to pinData
-		const outputShapes = new Map<string, Record<string, unknown>>();
-
-		// First: collect output declarations from node configs (LLM-generated)
-		for (const [mapKey, graphNode] of this._nodes) {
-			const output = graphNode.instance.config?.output;
-			if (output && output.length > 0) {
-				outputShapes.set(mapKey, output[0] as Record<string, unknown>);
-			}
-		}
-
-		// Second: fall back to pinData for nodes without output declarations
-		if (this._pinData) {
-			for (const [nodeName, pinData] of Object.entries(this._pinData)) {
-				// Only use pinData if we don't already have output from config
-				if (!outputShapes.has(nodeName) && pinData.length > 0) {
-					outputShapes.set(nodeName, pinData[0] as Record<string, unknown>);
-				}
-			}
-		}
-
-		// Skip if no output data declared
-		if (outputShapes.size === 0) return;
-
-		for (const [mapKey, graphNode] of this._nodes) {
-			const params = graphNode.instance.config?.parameters;
-			if (!params) continue;
-
-			const expressions = extractExpressions(params);
-			const predecessors = this.findPredecessors(mapKey);
-
-			for (const { expression, path } of expressions) {
-				const parsed = parseExpression(expression);
-				// Filter out JS methods from field path (e.g., "output.includes" -> "output")
-				const filteredFieldPath = filterMethodsFromPath(parsed.fieldPath);
-
-				if (parsed.type === '$json' && filteredFieldPath.length > 0) {
-					this.validateJsonPath(
-						mapKey,
-						path,
-						filteredFieldPath,
-						predecessors,
-						outputShapes,
-						warnings,
-					);
-				}
-
-				if (parsed.type === '$node' && parsed.nodeName && filteredFieldPath.length > 0) {
-					this.validateNodePath(
-						mapKey,
-						path,
-						parsed.nodeName,
-						filteredFieldPath,
-						outputShapes,
-						warnings,
-					);
-				}
-			}
-		}
-	}
-
-	/**
-	 * Validate that $json.path exists in predecessor outputs
-	 */
-	private validateJsonPath(
-		nodeName: string,
-		paramPath: string,
-		fieldPath: string[],
-		predecessors: string[],
-		outputShapes: Map<string, Record<string, unknown>>,
-		warnings: import('./validation/index').ValidationWarning[],
-	): void {
-		const { ValidationWarning } = require('./validation/index');
-		const validIn: string[] = [];
-		const invalidIn: string[] = [];
-
-		for (const pred of predecessors) {
-			const shape = outputShapes.get(pred);
-			if (shape) {
-				if (hasPath(shape, fieldPath)) {
-					validIn.push(pred);
-				} else {
-					invalidIn.push(pred);
-				}
-			}
-		}
-
-		const fieldPathStr = fieldPath.join('.');
-
-		if (invalidIn.length > 0 && validIn.length === 0) {
-			warnings.push(
-				new ValidationWarning(
-					'INVALID_EXPRESSION_PATH',
-					`'${nodeName}' parameter '${paramPath}' uses $json.${fieldPathStr} but no predecessor outputs this field.`,
-					nodeName,
-					paramPath,
-				),
-			);
-		} else if (invalidIn.length > 0 && validIn.length > 0) {
-			warnings.push(
-				new ValidationWarning(
-					'PARTIAL_EXPRESSION_PATH',
-					`'${nodeName}' parameter '${paramPath}' uses $json.${fieldPathStr} - exists in [${validIn.join(', ')}] but NOT in [${invalidIn.join(', ')}].`,
-					nodeName,
-					paramPath,
-				),
-			);
-		}
-	}
-
-	/**
-	 * Validate that $('NodeName').item.json.path references a valid field
-	 */
-	private validateNodePath(
-		nodeName: string,
-		paramPath: string,
-		referencedNode: string,
-		fieldPath: string[],
-		outputShapes: Map<string, Record<string, unknown>>,
-		warnings: import('./validation/index').ValidationWarning[],
-	): void {
-		const { ValidationWarning } = require('./validation/index');
-		const shape = outputShapes.get(referencedNode);
-
-		if (shape && !hasPath(shape, fieldPath)) {
-			warnings.push(
-				new ValidationWarning(
-					'INVALID_EXPRESSION_PATH',
-					`'${nodeName}' parameter '${paramPath}' uses $('${referencedNode}').item.json.${fieldPath.join('.')} but '${referencedNode}' doesn't output this field.`,
-					nodeName,
-					paramPath,
-				),
-			);
-		}
-	}
-
-	/**
-	 * Find all possible predecessors for a node (handles branches)
-	 */
-	private findPredecessors(nodeName: string): string[] {
-		const predecessors: string[] = [];
-
-		// Scan all nodes' connections to find which ones connect to this node
-		for (const [sourceNodeName, graphNode] of this._nodes) {
-			const mainConns = graphNode.connections.get('main');
-			if (mainConns) {
-				for (const [_outputIndex, targets] of mainConns) {
-					for (const target of targets) {
-						if (typeof target === 'object' && 'node' in target && target.node === nodeName) {
-							predecessors.push(sourceNodeName);
-						}
-					}
-				}
-			}
-
-			// Also check connections declared via node's .then()
-			if (typeof graphNode.instance.getConnections === 'function') {
-				const connections = graphNode.instance.getConnections();
-				for (const conn of connections) {
-					const targetName = this.resolveTargetNodeName(conn.target);
-					if (targetName === nodeName) {
-						predecessors.push(sourceNodeName);
-					}
-				}
-			}
-		}
-
-		return [...new Set(predecessors)]; // Deduplicate
 	}
 
 	toString(): string {

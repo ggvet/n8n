@@ -15,6 +15,31 @@ import {
 import { filterMethodsFromPath } from '../../workflow-builder/string-utils';
 
 /**
+ * Resolve the target node name from a connection target.
+ * Handles both NodeInstance and InputTarget.
+ */
+function resolveTargetNodeName(target: unknown): string | undefined {
+	if (!target) return undefined;
+
+	// InputTarget shape: { node: NodeInstance, inputIndex: number }
+	if (
+		typeof target === 'object' &&
+		'node' in target &&
+		typeof (target as { node: unknown }).node === 'object'
+	) {
+		const nodeTarget = (target as { node: { name?: string } }).node;
+		return nodeTarget?.name;
+	}
+
+	// Direct NodeInstance shape
+	if (typeof target === 'object' && 'name' in target) {
+		return (target as { name: string }).name;
+	}
+
+	return undefined;
+}
+
+/**
  * Find all predecessors for a node by scanning all outgoing connections.
  */
 function findPredecessors(nodeName: string, nodes: ReadonlyMap<string, GraphNode>): string[] {
@@ -29,6 +54,17 @@ function findPredecessors(nodeName: string, nodes: ReadonlyMap<string, GraphNode
 					if (target.node === nodeName) {
 						predecessors.push(sourceNodeName);
 					}
+				}
+			}
+		}
+
+		// Also check connections declared via node's .then()
+		if (typeof graphNode.instance.getConnections === 'function') {
+			const connections = graphNode.instance.getConnections();
+			for (const conn of connections) {
+				const targetName = resolveTargetNodeName(conn.target);
+				if (targetName === nodeName) {
+					predecessors.push(sourceNodeName);
 				}
 			}
 		}
@@ -145,7 +181,17 @@ export const expressionPathValidator: ValidatorPlugin = {
 			}
 		}
 
-		// Second: fall back to pinData for nodes without output declarations
+		// Second: fall back to node config pinData for nodes without output declarations
+		for (const [mapKey, graphNode] of ctx.nodes) {
+			if (!outputShapes.has(mapKey)) {
+				const nodePinData = graphNode.instance.config?.pinData as IDataObject[] | undefined;
+				if (nodePinData && nodePinData.length > 0) {
+					outputShapes.set(mapKey, nodePinData[0] as Record<string, unknown>);
+				}
+			}
+		}
+
+		// Third: fall back to workflow-level pinData for nodes without output or config pinData
 		if (ctx.pinData) {
 			for (const [nodeName, pinData] of Object.entries(ctx.pinData)) {
 				// Only use pinData if we don't already have output from config

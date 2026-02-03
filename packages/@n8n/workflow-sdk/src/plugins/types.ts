@@ -8,6 +8,49 @@
 import type { GraphNode, NodeInstance, IDataObject } from '../types/base';
 
 // =============================================================================
+// Utility Functions for Validators
+// =============================================================================
+
+/**
+ * Find the map key for a given graphNode by searching the nodes map.
+ * Nodes can be auto-renamed (e.g., "Merge" -> "Merge 1") so we need
+ * to find the actual key, not rely on node.name.
+ */
+export function findMapKey(graphNode: GraphNode, ctx: PluginContext): string {
+	for (const [mapKey, node] of ctx.nodes) {
+		if (node === graphNode) {
+			return mapKey;
+		}
+	}
+	return graphNode.instance.name; // Fallback to instance name
+}
+
+/**
+ * Check if a node was auto-renamed (pattern: "Name" -> "Name 1", "Name 2", etc.)
+ */
+export function isAutoRenamed(mapKey: string, originalName: string): boolean {
+	if (mapKey === originalName) return false;
+	if (!mapKey.startsWith(originalName + ' ')) return false;
+	const suffix = mapKey.slice(originalName.length + 1);
+	return /^\d+$/.test(suffix);
+}
+
+/**
+ * Format a node reference for warning messages, including node type and original name if renamed
+ */
+export function formatNodeRef(
+	displayName: string,
+	originalName?: string,
+	nodeType?: string,
+): string {
+	const typeSuffix = nodeType ? ` [${nodeType}]` : '';
+	if (originalName && originalName !== displayName) {
+		return `'${displayName}' (originally '${originalName}')${typeSuffix}`;
+	}
+	return `'${displayName}'${typeSuffix}`;
+}
+
+// =============================================================================
 // Validation Issue
 // =============================================================================
 
@@ -25,6 +68,8 @@ export interface ValidationIssue {
 	readonly nodeName?: string;
 	/** Path to the parameter that caused the issue (optional) */
 	readonly parameterPath?: string;
+	/** Original name if node was auto-renamed (optional) */
+	readonly originalName?: string;
 }
 
 // =============================================================================
