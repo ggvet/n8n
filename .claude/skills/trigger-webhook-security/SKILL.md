@@ -26,12 +26,7 @@ Given a Linear ticket (NODE-XXXX) for a trigger node, implement webhook signatur
 - Typeform: `nodes/Typeform/TypeformTrigger.node.ts` + `TypeformTriggerHelpers.ts` (uses shared utility)
 - Slack: `nodes/Slack/SlackTrigger.node.ts` + `SlackTriggerHelpers.ts` (uses shared utility)
 - Currents: `nodes/Currents/CurrentsTrigger.node.ts` + `CurrentsTriggerHelpers.ts` (uses shared utility)
-- GitHub: `nodes/Github/GithubTrigger.node.ts` + `GithubTriggerHelpers.ts` (inline implementation)
 
-**Test examples** (study these for patterns):
-- `nodes/Typeform/test/TypeformTriggerHelpers.test.ts`
-- `nodes/Slack/test/SlackTriggerHelpers.test.ts`
-- `nodes/Currents/test/CurrentsTriggerHelpers.test.ts`
 
 ## Shared Utility Usage
 
@@ -66,12 +61,14 @@ import { verifySignature } from '../../utils/webhook-signature-verification';
 
 **Every changed file must have a corresponding test file covering the changes.**
 
+
 ## Key Requirements
 
 - **Use the shared utility** `utils/webhook-signature-verification.ts` (handles `timingSafeEqual` internally)
+- **Use `getNodeWebhookUrl('default')`** for URL construction
 - Backwards compatible: return `true` if no secret configured (use `skipIfNoExpectedSignature`)
 - Return 401 Unauthorized for invalid signatures
-- Store secret in `webhookData.webhookSecret` (workflow static data)
+- Store secret in `webhookData.webhookSecret` (workflow static data) when auto-generating
 - **All tests must pass before creating PR**
 
 ## Workflow
@@ -83,7 +80,9 @@ import { verifySignature } from '../../utils/webhook-signature-verification';
 5. **Implement** using shared utility `utils/webhook-signature-verification.ts`
 6. **Write tests** for every changed file (study existing test files for patterns)
 7. **Run tests** → `pnpm test {NodeName}` - must all pass
-8. **Validate** → run from `packages/nodes-base/`: `pnpm lint`, `pnpm typecheck`
+8. **Validate** → run from `packages/nodes-base/`:
+   - `pnpm typecheck` (fast)
+   - `pnpm eslint nodes/{NodeName}/` (lint only changed node, much faster than full lint)
 9. **Create PR** using `/create-pr` skill
 
 ## If API Doesn't Support Signatures
@@ -107,6 +106,6 @@ The repo is public. Keep PR descriptions neutral and feature-focused.
 - [ ] Signature verification implemented
 - [ ] Every changed file has corresponding test file
 - [ ] All tests pass
-- [ ] Lint passes (in `packages/nodes-base/`)
 - [ ] Typecheck passes (in `packages/nodes-base/`)
+- [ ] Lint passes on changed files
 - [ ] PR created: `feat({NodeName} Trigger Node): Add webhook signature verification`
