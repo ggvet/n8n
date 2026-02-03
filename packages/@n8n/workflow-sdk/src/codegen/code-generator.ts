@@ -210,6 +210,18 @@ function formatValue(value: unknown, ctx?: GenerationContext): string {
 	if (value === null) return 'null';
 	if (value === undefined) return 'undefined';
 	if (typeof value === 'string') {
+		// Check if this is an n8n expression (starts with '=')
+		if (value.startsWith('=')) {
+			// Remove '=' prefix, expr() will add it back
+			const inner = value.slice(1);
+			const formatted = `expr('${escapeString(inner)}')`;
+			// Add expression annotation if available
+			if (ctx?.expressionAnnotations?.has(value)) {
+				return `${formatted}  // @example ${ctx.expressionAnnotations.get(value)}`;
+			}
+			return formatted;
+		}
+		// Regular string
 		const formatted = `'${escapeString(value)}'`;
 		// Add expression annotation if available
 		if (ctx?.expressionAnnotations?.has(value)) {

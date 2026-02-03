@@ -169,25 +169,26 @@ export function serializeExpression<T>(fn: Expression<T>): string {
 }
 
 /**
- * Create a raw n8n expression string
+ * Mark a string as an n8n expression by adding the required '=' prefix.
  *
- * Use this for complex expressions that can't be represented with the
- * serializeExpression proxy approach, such as:
- * - Node references: $('NodeName').item.json.x
- * - Template literals: `Bearer ${$env.API_TOKEN}`
- * - Array operations: $json.items.map(i => i.name).join(", ")
+ * Use this for any parameter value that contains {{ }} expression syntax.
+ * Simply adds '=' prefix if not already present.
  *
- * @param expression - The inner expression (without {{ }})
- * @returns n8n expression string like '={{ expression }}'
+ * @param expression - Expression string (should contain {{ }} syntax)
+ * @returns String with '=' prefix
  *
  * @example
  * ```typescript
- * expr("$('Config').item.json.apiUrl")  // "={{ $('Config').item.json.apiUrl }}"
- * expr('`Bearer ${$env.API_TOKEN}`')    // '={{ `Bearer ${$env.API_TOKEN}` }}'
+ * expr('{{ $json.name }}')           // '={{ $json.name }}'
+ * expr('Hello {{ $json.name }}')     // '=Hello {{ $json.name }}'
+ * expr('={{ $json.x }}')             // '={{ $json.x }}' (already has =)
  * ```
  */
 export function expr(expression: string): string {
-	return `={{ ${expression} }}`;
+	if (expression.startsWith('=')) {
+		return expression;
+	}
+	return '=' + expression;
 }
 
 // =============================================================================

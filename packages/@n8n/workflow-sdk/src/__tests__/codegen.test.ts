@@ -61,6 +61,57 @@ describe('generateWorkflowCode', () => {
 		expect(code).toContain('.then(');
 	});
 
+	it('should output expression strings using expr() helper', () => {
+		const json: WorkflowJSON = {
+			id: 'expr-test',
+			name: 'Expression Test',
+			nodes: [
+				{
+					id: 'node-1',
+					name: 'Manual Trigger',
+					type: 'n8n-nodes-base.manualTrigger',
+					typeVersion: 1,
+					position: [0, 0],
+				},
+				{
+					id: 'node-2',
+					name: 'Set',
+					type: 'n8n-nodes-base.set',
+					typeVersion: 3.4,
+					position: [200, 0],
+					parameters: {
+						assignments: {
+							assignments: [
+								{
+									name: 'greeting',
+									value: '=Hello {{ $json.name }}',
+								},
+								{
+									name: 'data',
+									value: '={{ $json.field }}',
+								},
+							],
+						},
+					},
+				},
+			],
+			connections: {
+				'Manual Trigger': {
+					main: [[{ node: 'Set', type: 'main', index: 0 }]],
+				},
+			},
+		};
+
+		const code = generateWorkflowCode(json);
+
+		// Expressions should be output using expr() helper, not as raw strings
+		expect(code).toContain("expr('Hello {{ $json.name }}')");
+		expect(code).toContain("expr('{{ $json.field }}')");
+		// Should NOT contain raw expression strings
+		expect(code).not.toMatch(/'=Hello \{\{ \$json\.name \}\}'/);
+		expect(code).not.toMatch(/'=\{\{ \$json\.field \}\}'/);
+	});
+
 	it('should generate code for nodes with credentials', () => {
 		const json: WorkflowJSON = {
 			id: 'cred-test',

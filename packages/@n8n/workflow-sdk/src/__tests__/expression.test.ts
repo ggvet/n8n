@@ -83,25 +83,32 @@ describe('Expression System', () => {
 		});
 	});
 
-	describe('expr() helper for raw expressions', () => {
-		it('should create raw n8n expression for node references', () => {
-			const result = expr("$('Config').item.json.apiUrl");
+	describe('expr() helper for expressions', () => {
+		it('should add = prefix to expression with {{ }}', () => {
+			const result = expr('{{ $json.name }}');
+			expect(result).toBe('={{ $json.name }}');
+		});
+
+		it('should add = prefix to template with embedded expression', () => {
+			const result = expr('Hello {{ $json.name }}');
+			expect(result).toBe('=Hello {{ $json.name }}');
+		});
+
+		it('should not modify string that already starts with =', () => {
+			const result = expr('={{ $json.name }}');
+			expect(result).toBe('={{ $json.name }}');
+		});
+
+		it('should handle multiline templates', () => {
+			const input = `You are a helper.
+- Email: {{ $json.email }}
+- Name: {{ $json.name }}`;
+			expect(expr(input)).toBe('=' + input);
+		});
+
+		it('should add = prefix to node reference expression', () => {
+			const result = expr("{{ $('Config').item.json.apiUrl }}");
 			expect(result).toBe("={{ $('Config').item.json.apiUrl }}");
-		});
-
-		it('should create raw n8n expression for template literals', () => {
-			const result = expr('`Bearer ${$env.API_TOKEN}`');
-			expect(result).toBe('={{ `Bearer ${$env.API_TOKEN}` }}');
-		});
-
-		it('should create raw n8n expression for binary keys', () => {
-			const result = expr('Object.keys($binary)[0]');
-			expect(result).toBe('={{ Object.keys($binary)[0] }}');
-		});
-
-		it('should create raw n8n expression for complex operations', () => {
-			const result = expr('$json.items.map(i => i.name).join(", ")');
-			expect(result).toBe('={{ $json.items.map(i => i.name).join(", ") }}');
 		});
 	});
 

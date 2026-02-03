@@ -202,6 +202,7 @@ describe('SDK_IMPORT_STATEMENT', () => {
 		expect(SDK_IMPORT_STATEMENT).toContain('sticky');
 		expect(SDK_IMPORT_STATEMENT).toContain('placeholder');
 		expect(SDK_IMPORT_STATEMENT).toContain('newCredential');
+		expect(SDK_IMPORT_STATEMENT).toContain('expr');
 	});
 
 	it('should contain control flow functions', () => {

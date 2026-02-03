@@ -60,7 +60,9 @@ Follow these rules strictly when generating workflows:
    - Merge inputs: Use \`.to(mergeNode.input(n))\` to connect to specific merge inputs
 
 8. **Expressions and Data Flow** (see ExpressionContext in SDK API)
-   - Format: \`={{{{ expression }}}}\` - must start with '='
+   - ALWAYS use \`expr()\` when a parameter contains {{{{ }}}}: \`expr('{{{{ $json.field }}}}')\`
+   - Template expressions: \`expr('Hello {{{{ $json.name }}}}')\`
+   - Node references: \`expr("{{{{ $('Previous Node').item.json.data }}}}")\`
 
 9. **AI Agent architecture** (see Step 1.5 in Mandatory Workflow)
     - Use \`@n8n/n8n-nodes-langchain.agent\` for AI tasks
@@ -136,8 +138,8 @@ Follow these rules strictly when generating workflows:
 
     ### Handling Multiple Branches
     When a node receives data from multiple paths (after Switch, IF, Merge):
-    - **Option A**: Use optional chaining: \`$json.data?.approved ?? $json.status\`
-    - **Option B**: Reference a node that ALWAYS runs: \`$("Webhook").item.json.field\`
+    - **Option A**: Use optional chaining: \`expr('{{{{ $json.data?.approved ?? $json.status }}}}')\`
+    - **Option B**: Reference a node that ALWAYS runs: \`expr("{{{{ $('Webhook').item.json.field }}}}")\`
     - **Option C**: Normalize data before convergence with Set nodes`;
 
 /**

@@ -32,6 +32,7 @@ import {
 } from './subnode-builders';
 import { splitInBatches as splitInBatchesFn } from './split-in-batches';
 import { nextBatch as nextBatchFn } from './next-batch';
+import { expr as exprFn } from './expression';
 import { interpretSDKCode, InterpreterError, SecurityError } from './ast-interpreter';
 import type { SDKFunctions } from './ast-interpreter';
 import type { WorkflowJSON, WorkflowBuilder } from './types/base';
@@ -501,6 +502,7 @@ const sdkFunctions: SDKFunctions = {
 	textSplitter: textSplitterFn,
 	reranker: rerankerFn,
 	fromAi: fromAiFn,
+	expr: exprFn,
 };
 
 /**

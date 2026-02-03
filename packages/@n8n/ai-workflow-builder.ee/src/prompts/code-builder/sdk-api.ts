@@ -597,6 +597,26 @@ export type PlaceholderFn = (hint: string) => PlaceholderValue;
 export type NewCredentialFn = (name: string) => CredentialReference;
 
 /**
+ * expr(template) - Marks a string as an n8n expression by adding the '=' prefix.
+ *
+ * ALWAYS use expr() when a parameter contains {{ }} expression syntax.
+ * This ensures the expression is properly recognized by n8n.
+ *
+ * @param template - String containing {{ }} expression syntax
+ *
+ * @example
+ * // Simple expression
+ * parameters: { value: expr('{{ $json.name }}') }
+ *
+ * // Template with embedded expression
+ * parameters: { message: expr('Hello {{ $json.name }}, welcome!') }
+ *
+ * // Node reference
+ * parameters: { data: expr("{{ $('Previous Node').item.json.result }}") }
+ */
+export type ExprFn<T> = (template: string) => Expression<T>;
+
+/**
  * merge({ version, config? }) - Creates a merge node for combining multiple branches
  *
  * Use .input(n) to connect sources to specific input indices.
@@ -663,41 +683,18 @@ export type NextBatchFn = (
 ) => NodeInstance<'n8n-nodes-base.splitInBatches', string, unknown>;
 
 /**
- * Valid types for \$fromAI parameter values
- */
-export type FromAIArgumentType = 'string' | 'number' | 'boolean' | 'json';
-
-/**
- * fromAi(key, description?, type?, defaultValue?) - Creates a \$fromAI placeholder
- *
+ * fromAi(key, description?, type?, defaultValue?)
  * Use in tool parameters to let the AI agent determine values at runtime.
- * This is a top-level SDK function, not a callback.
- *
- * @param key - Unique identifier for the parameter (1-64 chars, alphanumeric/underscore/hyphen)
- * @param description - Description to help the AI understand what value to provide
- * @param type - Expected value type: 'string' | 'number' | 'boolean' | 'json' (default: 'string')
- * @param defaultValue - Fallback value if AI doesn't provide one
- * @returns Expression string like "={{ \$fromAI('key', 'desc', 'type') }}"
- *
- * @example Basic usage
- * fromAi('recipient_email')
- * // Returns: "={{ /*n8n-auto-generated-fromAI-override*/ \$fromAI('recipient_email') }}"
- *
- * @example With description (helps AI understand the parameter)
- * fromAi('subject', 'The email subject line')
- *
- * @example With type
- * fromAi('count', 'Number of items to fetch', 'number')
  *
  * @example With default value
- * fromAi('limit', 'Max results', 'number', 10)
+ * fromAi('limit_key', 'Max results', 'number', 10)
  */
 export type FromAiFn = (
-	key: string,
-	description?: string,
-	type?: FromAIArgumentType,
+	key: string, // alphanumeric unique identifier for parameter
+	description?: string, // description to help Agent understand what value to provide
+	type?: 'string' | 'number' | 'boolean' | 'json',
 	defaultValue?: string | number | boolean | object,
-) => string;
+) => Expression<string>;
 
 /**
  * Input for tool() factory.
@@ -714,10 +711,6 @@ export interface ToolInput<
 	/** Tool configuration - use fromAi() for AI-driven parameter values */
 	config: NodeConfig<TParams>;
 }
-
-// =============================================================================
-// Subnode Builder Functions (for AI/LangChain nodes)
-// =============================================================================
 
 /**
  * languageModel(input) - Creates a language model subnode
@@ -844,7 +837,7 @@ interface LuxonDateTime {
 }
 
 /**
- * Context available in n8n expressions (inside ={{ }}).
+ * Context available in n8n expressions (inside expr("{{ }}")).
  * Each node processing each item one at a time
  *
 export interface ExpressionContext<Item = { json: IDataObject; binary: BinaryData }> {
