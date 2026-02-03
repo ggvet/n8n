@@ -79,19 +79,19 @@ function isWorkflowUpdateChunk(chunk: StreamChunk): chunk is WorkflowUpdateChunk
  * Callbacks are passed explicitly from the runner to ensure correct trace context
  * under high concurrency (avoids AsyncLocalStorage race conditions).
  *
- * IMPORTANT: This generator explicitly sets codeWorkflowBuilder: false to ensure the
+ * IMPORTANT: This generator explicitly sets codeBuilder: false to ensure the
  * multi-agent system is used. The WorkflowBuilderAgent.chat() method defaults
- * to codeWorkflowBuilder: true, so we must override it here.
+ * to codeBuilder: true, so we must override it here.
  */
 function createWorkflowGenerator(
 	parsedNodeTypes: INodeTypeDescription[],
 	llms: ResolvedStageLLMs,
 	featureFlags?: BuilderFeatureFlags,
 ): (prompt: string, collectors?: GenerationCollectors) => Promise<SimpleWorkflow> {
-	// Ensure codeWorkflowBuilder is explicitly set to false for multi-agent evaluation
+	// Ensure codeBuilder is explicitly set to false for multi-agent evaluation
 	const multiAgentFeatureFlags: BuilderFeatureFlags = {
 		...featureFlags,
-		codeWorkflowBuilder: false,
+		codeBuilder: false,
 	};
 
 	return async (prompt: string, collectors?: GenerationCollectors): Promise<SimpleWorkflow> => {
@@ -188,7 +188,7 @@ function createCodeWorkflowBuilderGenerator(
 			evalType: EVAL_TYPES.LANGSMITH,
 			message: prompt,
 			workflowId: runId,
-			featureFlags: { codeWorkflowBuilder: true },
+			featureFlags: { codeBuilder: true },
 		});
 
 		let workflow: SimpleWorkflow | null = null;

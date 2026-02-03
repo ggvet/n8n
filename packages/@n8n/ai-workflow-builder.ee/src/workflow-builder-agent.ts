@@ -83,7 +83,7 @@ export interface ExpressionValue {
 export interface BuilderFeatureFlags {
 	templateExamples?: boolean;
 	/** Enable CodeWorkflowBuilder (default: true). When false, uses legacy multi-agent system. */
-	codeWorkflowBuilder?: boolean;
+	codeBuilder?: boolean;
 }
 
 export interface ChatPayload {
@@ -168,7 +168,7 @@ export class WorkflowBuilderAgent {
 		this.validateMessageLength(payload.message);
 
 		// Feature flag: Route to CodeWorkflowBuilder if enabled (default: true)
-		const useCodeWorkflowBuilder = payload.featureFlags?.codeWorkflowBuilder ?? true;
+		const useCodeWorkflowBuilder = payload.featureFlags?.codeBuilder ?? true;
 
 		if (useCodeWorkflowBuilder) {
 			this.logger?.debug('Routing to CodeWorkflowBuilder', { userId });

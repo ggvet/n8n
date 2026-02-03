@@ -120,7 +120,7 @@ describe('CodeWorkflowBuilder Integration', () => {
 	});
 
 	describe('routing to CodeWorkflowBuilder', () => {
-		it('should route to CodeWorkflowBuilder when codeWorkflowBuilder is true (default)', async () => {
+		it('should route to CodeWorkflowBuilder when codeBuilder is true (default)', async () => {
 			const mockStreamOutput: StreamOutput = {
 				messages: [
 					{
@@ -139,7 +139,7 @@ describe('CodeWorkflowBuilder Integration', () => {
 			const payload: ChatPayload = {
 				id: 'test-123',
 				message: 'Create a workflow that sends emails',
-				// codeWorkflowBuilder defaults to true, so we don't need to set it
+				// codeBuilder defaults to true, so we don't need to set it
 			};
 
 			const generator = agent.chat(payload, 'user-123');
@@ -161,7 +161,7 @@ describe('CodeWorkflowBuilder Integration', () => {
 			expect(result.value).toEqual(mockStreamOutput);
 		});
 
-		it('should route to CodeWorkflowBuilder when codeWorkflowBuilder is explicitly true', async () => {
+		it('should route to CodeWorkflowBuilder when codeBuilder is explicitly true', async () => {
 			const mockStreamOutput: StreamOutput = {
 				messages: [
 					{
@@ -180,7 +180,7 @@ describe('CodeWorkflowBuilder Integration', () => {
 				id: 'test-456',
 				message: 'Create a chatbot workflow',
 				featureFlags: {
-					codeWorkflowBuilder: true,
+					codeBuilder: true,
 				},
 			};
 
@@ -292,12 +292,12 @@ describe('CodeWorkflowBuilder Integration', () => {
 	});
 
 	describe('multi-agent system fallback', () => {
-		it('should NOT route to CodeWorkflowBuilder when codeWorkflowBuilder is false', async () => {
+		it('should NOT route to CodeWorkflowBuilder when codeBuilder is false', async () => {
 			const payload: ChatPayload = {
 				id: 'test-multi-agent',
 				message: 'Create a workflow',
 				featureFlags: {
-					codeWorkflowBuilder: false,
+					codeBuilder: false,
 				},
 			};
 
