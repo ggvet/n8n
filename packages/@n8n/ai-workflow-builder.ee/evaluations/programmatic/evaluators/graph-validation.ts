@@ -4,6 +4,7 @@
  */
 import { parseWorkflowCodeToBuilder } from '@n8n/workflow-sdk';
 
+import { stripImportStatements } from '@/utils/extract-code';
 import type {
 	ProgrammaticViolation,
 	ProgrammaticViolationName,
@@ -106,8 +107,11 @@ export function evaluateGraphValidation(generatedCode: string | undefined): Sing
 	const violations: ProgrammaticViolation[] = [];
 
 	try {
+		// Strip import statements before parsing (Acorn uses sourceType: 'script')
+		const cleanCode = stripImportStatements(generatedCode);
+
 		// Parse code to WorkflowBuilder
-		const builder = parseWorkflowCodeToBuilder(generatedCode);
+		const builder = parseWorkflowCodeToBuilder(cleanCode);
 
 		// Run graph validation
 		const validation = builder.validate();
