@@ -9,7 +9,7 @@ import type { SemanticGraph, SemanticNode, AiConnectionType } from './types';
 import type { Schema } from 'n8n-workflow';
 import type { NodeExecutionStatus } from './execution-status';
 import { generateSchemaJSDoc, schemaToOutputSample } from './execution-schema-jsdoc';
-import { escapeString, formatKey, escapeRegexChars } from './string-utils';
+import { escapeString, escapeRegexChars } from './string-utils';
 import {
 	AI_CONNECTION_TO_CONFIG_KEY,
 	AI_CONNECTION_TO_BUILDER,
@@ -23,6 +23,7 @@ import {
 	isMergeType,
 	generateDefaultNodeName,
 } from './node-type-utils';
+import { formatValue } from './subnode-generator';
 import type {
 	CompositeTree,
 	CompositeNode,
@@ -75,44 +76,6 @@ interface GenerationContext {
  */
 function getIndent(ctx: GenerationContext): string {
 	return '  '.repeat(ctx.indent);
-}
-
-/**
- * Format a value for code output
- */
-function formatValue(value: unknown, ctx?: GenerationContext): string {
-	if (value === null) return 'null';
-	if (value === undefined) return 'undefined';
-	if (typeof value === 'string') {
-		// Check if this is an n8n expression (starts with '=')
-		if (value.startsWith('=')) {
-			// Remove '=' prefix, expr() will add it back
-			const inner = value.slice(1);
-			const formatted = `expr('${escapeString(inner)}')`;
-			// Add expression annotation if available
-			if (ctx?.expressionAnnotations?.has(value)) {
-				return `${formatted}  // @example ${ctx.expressionAnnotations.get(value)}`;
-			}
-			return formatted;
-		}
-		// Regular string
-		const formatted = `'${escapeString(value)}'`;
-		// Add expression annotation if available
-		if (ctx?.expressionAnnotations?.has(value)) {
-			return `${formatted}  // @example ${ctx.expressionAnnotations.get(value)}`;
-		}
-		return formatted;
-	}
-	if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-	if (Array.isArray(value)) {
-		return `[${value.map((v) => formatValue(v, ctx)).join(', ')}]`;
-	}
-	if (typeof value === 'object') {
-		const entries = Object.entries(value as Record<string, unknown>);
-		if (entries.length === 0) return '{}';
-		return `{ ${entries.map(([k, v]) => `${formatKey(k)}: ${formatValue(v, ctx)}`).join(', ')} }`;
-	}
-	return String(value);
 }
 
 /**

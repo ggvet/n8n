@@ -42,9 +42,16 @@ function getVarName(nodeName: string, ctx: SubnodeGenerationContext): string {
 }
 
 /**
+ * Context for formatValue - requires only expressionAnnotations
+ */
+export interface FormatValueContext {
+	expressionAnnotations?: Map<string, string>;
+}
+
+/**
  * Format a value for code output
  */
-function formatValue(value: unknown, ctx?: SubnodeGenerationContext): string {
+export function formatValue(value: unknown, ctx?: FormatValueContext): string {
 	if (value === null) return 'null';
 	if (value === undefined) return 'undefined';
 	if (typeof value === 'string') {

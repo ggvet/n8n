@@ -9,7 +9,6 @@ import type { SemanticGraph, SemanticNode } from './types';
 import type {
 	CompositeTree,
 	CompositeNode,
-	LeafNode,
 	VariableReference,
 	IfElseCompositeNode,
 	SwitchCaseCompositeNode,
@@ -20,205 +19,20 @@ import type {
 	MultiOutputNode,
 } from './composite-tree';
 import { getCompositeType } from './semantic-registry';
-
-/**
- * Deferred input connection - imported from composite-tree for consistency
- */
-interface DeferredInputConnection {
-	targetNode: SemanticNode;
-	targetInputIndex: number;
-	sourceNodeName: string;
-	sourceOutputIndex: number;
-}
-
-/**
- * Deferred merge downstream - imported from composite-tree for consistency
- */
-interface DeferredMergeDownstream {
-	mergeNode: SemanticNode;
-	downstreamChain: CompositeNode | null;
-}
-
-/**
- * Context for building composites
- */
-interface BuildContext {
-	graph: SemanticGraph;
-	visited: Set<string>;
-	variables: Map<string, SemanticNode>;
-	/** Are we currently inside an IF/Switch branch? */
-	isBranchContext: boolean;
-	/** Connections to express at root level with .input(n) syntax */
-	deferredConnections: DeferredInputConnection[];
-	/** Merge nodes whose downstreams need separate generation */
-	deferredMergeDownstreams: DeferredMergeDownstream[];
-	/** Merge nodes that have been deferred (to avoid building downstream multiple times) */
-	deferredMergeNodes: Set<string>;
-}
-
-/**
- * Reserved keywords that cannot be used as variable names
- */
-const RESERVED_KEYWORDS = new Set([
-	// JavaScript reserved
-	'break',
-	'case',
-	'catch',
-	'class',
-	'const',
-	'continue',
-	'debugger',
-	'default',
-	'delete',
-	'do',
-	'else',
-	'export',
-	'extends',
-	'finally',
-	'for',
-	'function',
-	'if',
-	'import',
-	'in',
-	'instanceof',
-	'let',
-	'new',
-	'return',
-	'static',
-	'super',
-	'switch',
-	'this',
-	'throw',
-	'try',
-	'typeof',
-	'var',
-	'void',
-	'while',
-	'with',
-	'yield',
-	// SDK functions
-	'workflow',
-	'trigger',
-	'node',
-	'merge',
-	'ifElse',
-	'switchCase',
-	'splitInBatches',
-	'sticky',
-	'languageModel',
-	'tool',
-	'memory',
-	'outputParser',
-	'textSplitter',
-	'embeddings',
-	'vectorStore',
-	'retriever',
-	'document',
-	// Dangerous globals (blocked by AST interpreter)
-	'eval',
-	'Function',
-	'require',
-	'process',
-	'global',
-	'globalThis',
-	'window',
-	'setTimeout',
-	'setInterval',
-	'setImmediate',
-	'clearTimeout',
-	'clearInterval',
-	'clearImmediate',
-	'module',
-	'exports',
-	'Buffer',
-	'Reflect',
-	'Proxy',
-]);
-
-/**
- * Generate a variable name from node name
- */
-function toVarName(nodeName: string): string {
-	// Convert to camelCase and sanitize for JS variable name
-	let varName = nodeName
-		.replace(/[^a-zA-Z0-9]/g, '_')
-		.replace(/_+/g, '_')
-		.replace(/_$/g, '') // Only remove trailing underscore, not leading
-		.replace(/^([A-Z])/, (c) => c.toLowerCase());
-
-	// If starts with digit, prefix with underscore
-	if (/^\d/.test(varName)) {
-		varName = '_' + varName;
-	}
-
-	// Remove leading underscore only if followed by letter (not digit)
-	// This preserves _2nd... but removes _Foo...
-	if (/^_[a-zA-Z]/.test(varName)) {
-		varName = varName.slice(1);
-	}
-
-	// Avoid reserved keywords
-	if (RESERVED_KEYWORDS.has(varName)) {
-		varName = varName + '_node';
-	}
-
-	return varName;
-}
-
-/**
- * Create a leaf node
- */
-function createLeaf(node: SemanticNode, errorHandler?: CompositeNode): LeafNode {
-	const leaf: LeafNode = { kind: 'leaf', node };
-	if (errorHandler) {
-		leaf.errorHandler = errorHandler;
-	}
-	return leaf;
-}
-
-/**
- * Check if a node has error output (onError: 'continueErrorOutput')
- */
-function hasErrorOutput(node: SemanticNode): boolean {
-	return node.json.onError === 'continueErrorOutput';
-}
-
-/**
- * Get error output targets from a node
- */
-function getErrorOutputTargets(node: SemanticNode): string[] {
-	const errorConnections = node.outputs.get('error');
-	if (!errorConnections || errorConnections.length === 0) {
-		return [];
-	}
-	return errorConnections.map((c) => c.target);
-}
-
-/**
- * Create a variable reference
- */
-function createVarRef(nodeName: string): VariableReference {
-	return {
-		kind: 'varRef',
-		varName: toVarName(nodeName),
-		nodeName,
-	};
-}
-
-/**
- * Get all output connection targets from the first output slot
- * Excludes error outputs (handled separately via .onError())
- */
-function getAllFirstOutputTargets(node: SemanticNode): string[] {
-	// Get all targets from first non-empty, non-error output
-	for (const [outputName, connections] of node.outputs) {
-		if (outputName === 'error') continue; // Skip error output
-		if (connections.length > 0) {
-			return connections.map((c) => c.target);
-		}
-	}
-	return [];
-}
+import {
+	type BuildContext,
+	createLeaf,
+	createVarRef,
+	shouldBeVariable,
+	isMergeType,
+	isSwitchType,
+	extractInputIndex,
+	getOutputIndex,
+	getOutputSlotName,
+	getAllFirstOutputTargets,
+	hasErrorOutput,
+	getErrorOutputTargets,
+} from './composite-handlers/build-utils';
 
 /**
  * Get all output connection targets from ALL output slots
@@ -288,26 +102,6 @@ function hasConsecutiveOutputSlots(node: SemanticNode): boolean {
 }
 
 /**
- * Extract output index from semantic output name (e.g., 'output0' → 0, 'output1' → 1)
- */
-function getOutputIndex(outputName: string): number {
-	const match = outputName.match(/^output(\d+)$/);
-	if (match) {
-		return parseInt(match[1], 10);
-	}
-	return 0;
-}
-
-/**
- * Convert output index to semantic output slot name.
- * For Switch nodes, uses 'caseN' format; for regular nodes, uses 'outputN' format.
- * This is used to look up merge input indices when we know the source's output index.
- */
-function getOutputSlotName(outputIndex: number, isSwitch = false): string {
-	return isSwitch ? `case${outputIndex}` : `output${outputIndex}`;
-}
-
-/**
  * Target info for multi-output nodes including the target input slot
  */
 interface OutputTargetInfo {
@@ -365,20 +159,6 @@ function hasOutputsOutsideMerge(node: SemanticNode, mergeNode: SemanticNode): bo
 		}
 	}
 	return false;
-}
-
-/**
- * Check if a node is a merge node
- */
-function isMergeType(type: string): boolean {
-	return type === 'n8n-nodes-base.merge';
-}
-
-/**
- * Check if a node is a switch node
- */
-function isSwitchType(type: string): boolean {
-	return type === 'n8n-nodes-base.switch';
 }
 
 /**
@@ -497,20 +277,6 @@ function detectMergePattern(
 	}
 
 	return null;
-}
-
-/**
- * Check if node should be a variable.
- * In the variables-first format, all regular nodes become variables.
- * Sticky notes are excluded since they have no connections.
- */
-function shouldBeVariable(node: SemanticNode): boolean {
-	// Sticky notes don't need to be variables (they have no connections)
-	if (node.type === 'n8n-nodes-base.stickyNote') {
-		return false;
-	}
-	// All regular nodes become variables for cleaner code
-	return true;
 }
 
 /**
@@ -1011,14 +777,6 @@ function buildSwitchCase(node: SemanticNode, ctx: BuildContext): SwitchCaseCompo
 		cases,
 		caseIndices,
 	};
-}
-
-/**
- * Extract input index from input slot name (e.g., "branch0" → 0, "input2" → 2)
- */
-function extractInputIndex(slotName: string): number {
-	const match = slotName.match(/(\d+)$/);
-	return match ? parseInt(match[1], 10) : 0;
 }
 
 /**

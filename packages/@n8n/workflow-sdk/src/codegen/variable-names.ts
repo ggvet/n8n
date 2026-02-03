@@ -52,6 +52,8 @@ export const RESERVED_KEYWORDS = new Set([
 	'trigger',
 	'node',
 	'merge',
+	'ifElse',
+	'switchCase',
 	'splitInBatches',
 	'sticky',
 	'languageModel',

@@ -8,24 +8,17 @@
 
 import type { SemanticNode } from './types';
 import type { CompositeNode } from './composite-tree';
+import {
+	type DeferredInputConnection,
+	type DeferredMergeDownstream,
+	extractInputIndex,
+} from './composite-handlers/build-utils';
 
-/**
- * Deferred input connection for merge nodes
- */
-export interface DeferredInputConnection {
-	targetNode: SemanticNode;
-	targetInputIndex: number;
-	sourceNodeName: string;
-	sourceOutputIndex: number;
-}
-
-/**
- * Deferred merge downstream
- */
-export interface DeferredMergeDownstream {
-	mergeNode: SemanticNode;
-	downstreamChain: CompositeNode | null;
-}
+// Re-export types for consumers
+export type {
+	DeferredInputConnection,
+	DeferredMergeDownstream,
+} from './composite-handlers/build-utils';
 
 /**
  * Context type that includes deferred connections
@@ -62,14 +55,6 @@ export function createDeferredConnection(
 		sourceNodeName: params.sourceNodeName,
 		sourceOutputIndex: params.sourceOutputIndex,
 	});
-}
-
-/**
- * Extract input index from input slot name (e.g., "branch0" → 0, "input2" → 2)
- */
-function extractInputIndex(slotName: string): number {
-	const match = slotName.match(/(\d+)$/);
-	return match ? parseInt(match[1], 10) : 0;
 }
 
 /**

@@ -5,104 +5,18 @@
  */
 
 import type { SemanticGraph, SemanticNode } from '../types';
-import type { CompositeNode, LeafNode, VariableReference } from '../composite-tree';
+import type {
+	CompositeNode,
+	LeafNode,
+	VariableReference,
+	DeferredInputConnection,
+	DeferredMergeDownstream,
+} from '../composite-tree';
+import { toVarName } from '../variable-names';
 
-/**
- * Reserved keywords that cannot be used as variable names
- */
-const RESERVED_KEYWORDS = new Set([
-	// JavaScript reserved
-	'break',
-	'case',
-	'catch',
-	'class',
-	'const',
-	'continue',
-	'debugger',
-	'default',
-	'delete',
-	'do',
-	'else',
-	'export',
-	'extends',
-	'finally',
-	'for',
-	'function',
-	'if',
-	'import',
-	'in',
-	'instanceof',
-	'let',
-	'new',
-	'return',
-	'static',
-	'super',
-	'switch',
-	'this',
-	'throw',
-	'try',
-	'typeof',
-	'var',
-	'void',
-	'while',
-	'with',
-	'yield',
-	// SDK functions
-	'workflow',
-	'trigger',
-	'node',
-	'merge',
-	'ifElse',
-	'switchCase',
-	'splitInBatches',
-	'sticky',
-	'languageModel',
-	'tool',
-	'memory',
-	'outputParser',
-	'textSplitter',
-	'embeddings',
-	'vectorStore',
-	'retriever',
-	'document',
-	// Dangerous globals (blocked by AST interpreter)
-	'eval',
-	'Function',
-	'require',
-	'process',
-	'global',
-	'globalThis',
-	'window',
-	'setTimeout',
-	'setInterval',
-	'setImmediate',
-	'clearTimeout',
-	'clearInterval',
-	'clearImmediate',
-	'module',
-	'exports',
-	'Buffer',
-	'Reflect',
-	'Proxy',
-]);
-
-/**
- * Deferred input connection for merge nodes
- */
-export interface DeferredInputConnection {
-	targetNode: SemanticNode;
-	targetInputIndex: number;
-	sourceNodeName: string;
-	sourceOutputIndex: number;
-}
-
-/**
- * Deferred merge downstream
- */
-export interface DeferredMergeDownstream {
-	mergeNode: SemanticNode;
-	downstreamChain: CompositeNode | null;
-}
+// Re-export for consumers
+export { toVarName } from '../variable-names';
+export type { DeferredInputConnection, DeferredMergeDownstream } from '../composite-tree';
 
 /**
  * Context for building composites
@@ -119,31 +33,6 @@ export interface BuildContext {
 	deferredMergeDownstreams: DeferredMergeDownstream[];
 	/** Merge nodes that have been deferred (to avoid building downstream multiple times) */
 	deferredMergeNodes: Set<string>;
-}
-
-/**
- * Generate a variable name from node name
- */
-export function toVarName(nodeName: string): string {
-	let varName = nodeName
-		.replace(/[^a-zA-Z0-9]/g, '_')
-		.replace(/_+/g, '_')
-		.replace(/_$/g, '')
-		.replace(/^([A-Z])/, (c) => c.toLowerCase());
-
-	if (/^\d/.test(varName)) {
-		varName = '_' + varName;
-	}
-
-	if (/^_[a-zA-Z]/.test(varName)) {
-		varName = varName.slice(1);
-	}
-
-	if (RESERVED_KEYWORDS.has(varName)) {
-		varName = varName + '_node';
-	}
-
-	return varName;
 }
 
 /**
