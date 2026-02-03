@@ -1881,6 +1881,140 @@ describe('Validation', () => {
 		});
 	});
 
+	describe('DUPLICATE_FROM_AI_KEY validation', () => {
+		it('should warn when tool has duplicate fromAI keys', () => {
+			const t = trigger({ type: 'n8n-nodes-base.webhookTrigger', version: 1, config: {} });
+
+			const codeTool = tool({
+				type: '@n8n/n8n-nodes-langchain.toolCode',
+				version: 1.1,
+				config: {
+					name: 'Code Tool',
+					parameters: {
+						// Using the same key 'email' twice
+						jsCode: `
+							const email1 = $fromAI('email', 'First email');
+							const email2 = $fromAI('email', 'Second email');
+							return { email1, email2 };
+						`,
+					},
+				},
+			});
+
+			const agent = node({
+				type: '@n8n/n8n-nodes-langchain.agent',
+				version: 1.7,
+				config: {
+					parameters: { text: 'Hello' },
+					subnodes: {
+						model: languageModel({
+							type: '@n8n/n8n-nodes-langchain.lmChatOpenAi',
+							version: 1.2,
+							config: { parameters: { model: 'gpt-4' } },
+						}),
+						tools: [codeTool],
+					},
+				},
+			});
+
+			const wf = workflow('test', 'Test').add(t).then(agent);
+			const result = wf.validate();
+
+			const duplicateKeyWarnings = result.warnings.filter(
+				(w) => w.code === 'DUPLICATE_FROM_AI_KEY',
+			);
+			expect(duplicateKeyWarnings).toHaveLength(1);
+			expect(duplicateKeyWarnings[0].message).toContain('email');
+			expect(duplicateKeyWarnings[0].message).toContain('duplicate');
+		});
+
+		it('should not warn when tool has unique fromAI keys', () => {
+			const t = trigger({ type: 'n8n-nodes-base.webhookTrigger', version: 1, config: {} });
+
+			const codeTool = tool({
+				type: '@n8n/n8n-nodes-langchain.toolCode',
+				version: 1.1,
+				config: {
+					name: 'Code Tool',
+					parameters: {
+						jsCode: `
+							const email = $fromAI('email', 'User email');
+							const name = $fromAI('name', 'User name');
+							return { email, name };
+						`,
+					},
+				},
+			});
+
+			const agent = node({
+				type: '@n8n/n8n-nodes-langchain.agent',
+				version: 1.7,
+				config: {
+					parameters: { text: 'Hello' },
+					subnodes: {
+						model: languageModel({
+							type: '@n8n/n8n-nodes-langchain.lmChatOpenAi',
+							version: 1.2,
+							config: { parameters: { model: 'gpt-4' } },
+						}),
+						tools: [codeTool],
+					},
+				},
+			});
+
+			const wf = workflow('test', 'Test').add(t).then(agent);
+			const result = wf.validate();
+
+			const duplicateKeyWarnings = result.warnings.filter(
+				(w) => w.code === 'DUPLICATE_FROM_AI_KEY',
+			);
+			expect(duplicateKeyWarnings).toHaveLength(0);
+		});
+
+		it('should detect duplicates across nested parameters', () => {
+			const t = trigger({ type: 'n8n-nodes-base.webhookTrigger', version: 1, config: {} });
+
+			const httpTool = tool({
+				type: '@n8n/n8n-nodes-langchain.toolHttpRequest',
+				version: 1.1,
+				config: {
+					name: 'HTTP Tool',
+					parameters: {
+						url: "={{ $fromAI('endpoint', 'API endpoint') }}",
+						headers: {
+							'X-Custom': "={{ $fromAI('endpoint', 'Different endpoint') }}",
+						},
+					},
+				},
+			});
+
+			const agent = node({
+				type: '@n8n/n8n-nodes-langchain.agent',
+				version: 1.7,
+				config: {
+					parameters: { text: 'Hello' },
+					subnodes: {
+						model: languageModel({
+							type: '@n8n/n8n-nodes-langchain.lmChatOpenAi',
+							version: 1.2,
+							config: { parameters: { model: 'gpt-4' } },
+						}),
+						tools: [httpTool],
+					},
+				},
+			});
+
+			const wf = workflow('test', 'Test').add(t).then(agent);
+			const result = wf.validate();
+
+			const duplicateKeyWarnings = result.warnings.filter(
+				(w) => w.code === 'DUPLICATE_FROM_AI_KEY',
+			);
+			expect(duplicateKeyWarnings).toHaveLength(1);
+			expect(duplicateKeyWarnings[0].message).toContain('endpoint');
+		});
+	});
+
 	describe('Invalid subnode error message enhancement', () => {
 		// Mock node types provider that returns builderHint.inputs for OpenAI
 		const mockNodeTypesProviderForOpenAi = {

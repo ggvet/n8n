@@ -5,4 +5,5 @@ export {
 	isExpression,
 	expr,
 	createFromAIExpression,
+	sanitizeFromAIKey,
 } from './expression/index';

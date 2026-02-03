@@ -196,6 +196,26 @@ export function expr(expression: string): string {
 // =============================================================================
 
 /**
+ * Sanitize a key for use in $fromAI expression.
+ * Keys must be 1-64 characters, alphanumeric with underscores and hyphens only.
+ *
+ * @param key - The original key string
+ * @returns Sanitized key that meets $fromAI requirements
+ */
+export function sanitizeFromAIKey(key: string): string {
+	// Replace non-alphanumeric (except underscore/hyphen) with underscores
+	let sanitized = key.replace(/[^a-zA-Z0-9_-]/g, '_');
+	// Collapse consecutive underscores
+	sanitized = sanitized.replace(/_+/g, '_');
+	// Trim leading/trailing underscores
+	sanitized = sanitized.replace(/^_+|_+$/g, '');
+	// Truncate to 64 chars max
+	sanitized = sanitized.slice(0, 64);
+	// Fallback to 'param' if empty
+	return sanitized || 'param';
+}
+
+/**
  * Escape a string for use in a quoted argument.
  * Handles backslashes and the quote character being used.
  */
@@ -269,8 +289,9 @@ export function createFromAIExpression(
 	const args: string[] = [];
 	const marker = FROM_AI_AUTO_GENERATED_MARKER;
 
-	// key is required
-	args.push(escapeArg(key));
+	// Sanitize and push key
+	const sanitizedKey = sanitizeFromAIKey(key);
+	args.push(escapeArg(sanitizedKey));
 
 	// description (use empty string if needed for positional args)
 	if (description !== undefined || type !== 'string' || defaultValue !== undefined) {
