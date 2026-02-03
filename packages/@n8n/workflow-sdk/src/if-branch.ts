@@ -9,6 +9,7 @@ import type {
 	InputTarget,
 	OutputSelector,
 } from './types/base';
+import { isNodeInstance } from './types/base';
 import { isInputTarget } from './node-builder';
 
 /**
@@ -132,21 +133,6 @@ class IfNodeInstance implements NodeInstance<'n8n-nodes-base.if', string, unknow
 	getConnections(): DeclaredConnection[] {
 		return [...this._connections];
 	}
-}
-
-/**
- * Check if an object is a NodeInstance (has type, version, config, then method)
- */
-function isNodeInstance(obj: unknown): obj is NodeInstance<string, string, unknown> {
-	return (
-		obj !== null &&
-		typeof obj === 'object' &&
-		'type' in obj &&
-		'version' in obj &&
-		'config' in obj &&
-		'then' in obj &&
-		typeof (obj as NodeInstance<string, string, unknown>).then === 'function'
-	);
 }
 
 /**

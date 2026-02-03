@@ -82,8 +82,8 @@ export type {
 	FromAIArgumentType,
 } from './types/base';
 
-// Type guard for NodeChain
-export { isNodeChain } from './types/base';
+// Type guards
+export { isNodeChain, isNodeInstance } from './types/base';
 
 // Workflow builder
 export { workflow } from './workflow-builder';

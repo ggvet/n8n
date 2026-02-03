@@ -11,6 +11,7 @@ import type {
 	IfElseBuilder,
 	SwitchCaseBuilder,
 } from './types/base';
+import { isNodeChain, isNodeInstance } from './types/base';
 import { isIfElseBuilder, isSwitchCaseBuilder } from './node-builder';
 
 /**
@@ -112,21 +113,6 @@ export interface SplitInBatchesBranches {
 	done: BranchTarget;
 	/** Target for each output (output 1) - executes for each batch, can loop back */
 	each: BranchTarget;
-}
-
-/**
- * Check if an object is a NodeInstance (has type, version, config, then method)
- */
-function isNodeInstance(obj: unknown): obj is NodeInstance<string, string, unknown> {
-	return (
-		obj !== null &&
-		typeof obj === 'object' &&
-		'type' in obj &&
-		'version' in obj &&
-		'config' in obj &&
-		'then' in obj &&
-		typeof (obj as NodeInstance<string, string, unknown>).then === 'function'
-	);
 }
 
 /**
@@ -390,20 +376,6 @@ export function splitInBatches(
  */
 export function isSplitInBatchesBuilder(value: unknown): value is SplitInBatchesBuilderImpl {
 	return value instanceof SplitInBatchesBuilderImpl;
-}
-
-/**
- * Check if an object is a NodeChain
- */
-function isNodeChain(
-	obj: unknown,
-): obj is NodeChain<NodeInstance<string, string, unknown>, NodeInstance<string, string, unknown>> {
-	return (
-		obj !== null &&
-		typeof obj === 'object' &&
-		'_isChain' in obj &&
-		(obj as { _isChain: boolean })._isChain === true
-	);
 }
 
 /**

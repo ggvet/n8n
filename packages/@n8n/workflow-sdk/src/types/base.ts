@@ -541,6 +541,21 @@ export function isNodeChain(
 	);
 }
 
+/**
+ * Type guard to check if a value is a NodeInstance (has type, version, config, then method)
+ */
+export function isNodeInstance(value: unknown): value is NodeInstance<string, string, unknown> {
+	return (
+		value !== null &&
+		typeof value === 'object' &&
+		'type' in value &&
+		'version' in value &&
+		'config' in value &&
+		'then' in value &&
+		typeof (value as NodeInstance<string, string, unknown>).then === 'function'
+	);
+}
+
 // =============================================================================
 // Subnode instance types (with category markers)
 // =============================================================================
