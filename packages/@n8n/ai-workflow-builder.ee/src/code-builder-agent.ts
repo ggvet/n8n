@@ -377,6 +377,9 @@ ${'='.repeat(50)}
 
 			const prompt = buildCodeBuilderPrompt(currentWorkflow, historyContext, {
 				enableTextEditor: textEditorEnabled,
+				executionSchema: payload.workflowContext?.executionSchema,
+				executionData: payload.workflowContext?.executionData,
+				expressionValues: payload.workflowContext?.expressionValues,
 			});
 			this.debugLog('CHAT', 'Prompt built successfully', {
 				hasHistoryContext: !!historyContext,

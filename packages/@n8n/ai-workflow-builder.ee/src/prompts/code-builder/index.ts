@@ -8,6 +8,9 @@
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { generateWorkflowCode } from '@n8n/workflow-sdk';
 import type { WorkflowJSON } from '@n8n/workflow-sdk';
+import type { IRunExecutionData, NodeExecutionSchema } from 'n8n-workflow';
+
+import type { ExpressionValue } from '../../workflow-builder-agent';
 
 import { escapeCurlyBrackets, SDK_API_CONTENT_ESCAPED } from './sdk-api';
 import { formatCodeWithLineNumbers } from '../../tools/text-editor-handler';
@@ -664,7 +667,14 @@ export interface HistoryContext {
  * Options for building the code builder prompt
  */
 export interface BuildCodeBuilderPromptOptions {
-	// Reserved for future options
+	/** Enable text editor mode */
+	enableTextEditor?: boolean;
+	/** Node output schemas from previous execution */
+	executionSchema?: NodeExecutionSchema[];
+	/** Execution result data for status and error info */
+	executionData?: IRunExecutionData['resultData'];
+	/** Expression values resolved from previous execution */
+	expressionValues?: Record<string, ExpressionValue[]>;
 }
 
 /**
@@ -677,7 +687,7 @@ export interface BuildCodeBuilderPromptOptions {
 export function buildCodeBuilderPrompt(
 	currentWorkflow?: WorkflowJSON,
 	historyContext?: HistoryContext,
-	_options?: BuildCodeBuilderPromptOptions,
+	options?: BuildCodeBuilderPromptOptions,
 ): ChatPromptTemplate {
 	const promptSections = [
 		ROLE,
@@ -711,8 +721,17 @@ export function buildCodeBuilderPrompt(
 
 	// 3. Current workflow context (with line numbers for text editor)
 	if (currentWorkflow) {
-		// Convert WorkflowJSON to SDK code
-		const workflowCode = generateWorkflowCode(currentWorkflow);
+		// Convert WorkflowJSON to SDK code with execution context for annotations
+		// When execution data is provided, the generated code includes:
+		// - @status success/@status error annotations on nodes
+		// - @example comments showing resolved expression values
+		// - Output data annotations from execution
+		const workflowCode = generateWorkflowCode({
+			workflow: currentWorkflow,
+			executionSchema: options?.executionSchema,
+			executionData: options?.executionData,
+			expressionValues: options?.expressionValues,
+		});
 
 		// Format as file with line numbers (matches view command output)
 		// Include SDK import so LLM sees the same code that's in the text editor
