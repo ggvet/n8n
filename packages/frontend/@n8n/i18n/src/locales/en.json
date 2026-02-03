@@ -4019,7 +4019,7 @@
 	"projects.settings.role.selector.addCustomRole": "Add custom role",
 	"projects.settings.role.selector.permissionCount": "{count}/{total} permissions",
 	"projects.settings.role.popover.viewAndEdit": "View and edit role",
-	"projects.settings.role.popover.viewDetails": "View role details",
+	"projects.settings.role.popover.viewDetails": "View role",
 	"projects.settings.role.contactAdmin.title": "Custom roles aren't set up yet",
 	"projects.settings.role.contactAdmin.titleWithRoles": "Only instance admins can add custom roles",
 	"projects.settings.role.contactAdmin.body": "You can assign system roles, but custom roles need to be created by an instance admin first. Share the documentation with your instance admin, to get custom roles set up.",
