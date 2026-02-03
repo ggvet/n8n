@@ -814,6 +814,16 @@ export type BinaryData = {
 	};
 };
 
+interface LuxonDateTime {
+	toISO(): string;
+	format(pattern: string): string;
+	plus(n: number | object, unit?: string): LuxonDateTime;
+	minus(n: number | object, unit?: string): LuxonDateTime;
+	extract(unit: string): number;
+	diffTo(other: string | LuxonDateTime, unit?: string): number;
+	isBetween(d1: string | LuxonDateTime, d2: string | LuxonDateTime): boolean;
+}
+
 /**
  * Context available in n8n expressions (inside ={{ }}).
  * Each node processing each item one at a time
@@ -850,10 +860,9 @@ export interface ExpressionContext<Item = { json: IDataObject; binary: BinaryDat
 	 */
 	$binary: Item['binary'];
 
-	/** Current DateTime */
-	$now: Date;
-	/** Start of today */
-	$today: Date;
+	$now: LuxonDateTime;
+	/** Start of today. Example: $today.plus(1, 'days') */
+	$today: LuxonDateTime;
 	/** Current item index */
 	$itemIndex: number;
 	/** Current run index */

@@ -2,13 +2,17 @@ import { MemorySaver } from '@langchain/langgraph';
 import { FakeListChatModel } from '@langchain/core/utils/testing';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 
+import { AIMessage, HumanMessage } from '@langchain/core/messages';
+
 import {
 	loadCodeBuilderSession,
 	saveCodeBuilderSession,
 	compactSessionIfNeeded,
 	generateCodeBuilderThreadId,
+	saveToSessionManagerThread,
 	type CodeBuilderSession,
 } from '../code-builder-session';
+import { SessionManagerService } from '@/session-manager.service';
 
 // Mock structured output for the compact chain
 class MockStructuredLLM extends FakeListChatModel {
@@ -276,6 +280,167 @@ describe('code-builder-session', () => {
 			const threadId2 = generateCodeBuilderThreadId('workflow-A', 'user-2');
 
 			expect(threadId1).not.toBe(threadId2);
+		});
+	});
+
+	describe('saveToSessionManagerThread', () => {
+		it('should create new checkpoint with HumanMessage and AIMessage', async () => {
+			const checkpointer = new MemorySaver();
+			const workflowId = 'workflow-123';
+			const userId = 'user-456';
+			const userMessage = 'Create a workflow that sends email';
+			const messageId = 'msg-001';
+			const assistantMessage = 'I have created the workflow.';
+
+			await saveToSessionManagerThread(
+				checkpointer,
+				workflowId,
+				userId,
+				userMessage,
+				messageId,
+				undefined,
+				assistantMessage,
+			);
+
+			// Verify by reading from the SessionManager thread format
+			const threadId = SessionManagerService.generateThreadId(workflowId, userId);
+			const config = { configurable: { thread_id: threadId } };
+			const tuple = await checkpointer.getTuple(config);
+
+			expect(tuple).toBeDefined();
+			expect(tuple?.checkpoint.channel_values?.messages).toBeDefined();
+
+			const messages = tuple?.checkpoint.channel_values?.messages as Array<
+				HumanMessage | AIMessage
+			>;
+			expect(messages).toHaveLength(2);
+
+			// Check HumanMessage
+			expect(messages[0]).toBeInstanceOf(HumanMessage);
+			expect(messages[0].content).toBe(userMessage);
+			expect(messages[0].additional_kwargs?.messageId).toBe(messageId);
+
+			// Check AIMessage
+			expect(messages[1]).toBeInstanceOf(AIMessage);
+			expect(messages[1].content).toBe(assistantMessage);
+		});
+
+		it('should store versionId in HumanMessage additional_kwargs', async () => {
+			const checkpointer = new MemorySaver();
+			const workflowId = 'workflow-123';
+			const userId = 'user-456';
+			const versionId = 'version-abc';
+
+			await saveToSessionManagerThread(
+				checkpointer,
+				workflowId,
+				userId,
+				'Test message',
+				'msg-001',
+				versionId,
+				'Response',
+			);
+
+			const threadId = SessionManagerService.generateThreadId(workflowId, userId);
+			const config = { configurable: { thread_id: threadId } };
+			const tuple = await checkpointer.getTuple(config);
+
+			const messages = tuple?.checkpoint.channel_values?.messages as Array<
+				HumanMessage | AIMessage
+			>;
+			expect(messages[0].additional_kwargs?.versionId).toBe(versionId);
+		});
+
+		it('should append to existing messages array', async () => {
+			const checkpointer = new MemorySaver();
+			const workflowId = 'workflow-123';
+			const userId = 'user-456';
+
+			// First turn
+			await saveToSessionManagerThread(
+				checkpointer,
+				workflowId,
+				userId,
+				'First message',
+				'msg-001',
+				undefined,
+				'First response',
+			);
+
+			// Second turn
+			await saveToSessionManagerThread(
+				checkpointer,
+				workflowId,
+				userId,
+				'Second message',
+				'msg-002',
+				undefined,
+				'Second response',
+			);
+
+			const threadId = SessionManagerService.generateThreadId(workflowId, userId);
+			const config = { configurable: { thread_id: threadId } };
+			const tuple = await checkpointer.getTuple(config);
+
+			const messages = tuple?.checkpoint.channel_values?.messages as Array<
+				HumanMessage | AIMessage
+			>;
+			expect(messages).toHaveLength(4); // 2 HumanMessages + 2 AIMessages
+
+			expect(messages[0].content).toBe('First message');
+			expect(messages[1].content).toBe('First response');
+			expect(messages[2].content).toBe('Second message');
+			expect(messages[3].content).toBe('Second response');
+		});
+
+		it('should work without assistant message', async () => {
+			const checkpointer = new MemorySaver();
+			const workflowId = 'workflow-123';
+			const userId = 'user-456';
+
+			await saveToSessionManagerThread(
+				checkpointer,
+				workflowId,
+				userId,
+				'User message only',
+				'msg-001',
+				undefined,
+				undefined, // No assistant message
+			);
+
+			const threadId = SessionManagerService.generateThreadId(workflowId, userId);
+			const config = { configurable: { thread_id: threadId } };
+			const tuple = await checkpointer.getTuple(config);
+
+			const messages = tuple?.checkpoint.channel_values?.messages as Array<
+				HumanMessage | AIMessage
+			>;
+			expect(messages).toHaveLength(1); // Only HumanMessage
+			expect(messages[0]).toBeInstanceOf(HumanMessage);
+		});
+
+		it('should use correct SessionManager thread format', async () => {
+			const checkpointer = new MemorySaver();
+			const workflowId = 'wf-test';
+			const userId = 'user-test';
+
+			await saveToSessionManagerThread(
+				checkpointer,
+				workflowId,
+				userId,
+				'Test',
+				'msg-001',
+				undefined,
+				'Response',
+			);
+
+			// Verify thread ID matches SessionManagerService format
+			const expectedThreadId = `workflow-${workflowId}-user-${userId}`;
+			const config = { configurable: { thread_id: expectedThreadId } };
+			const tuple = await checkpointer.getTuple(config);
+
+			expect(tuple).toBeDefined();
+			expect(tuple?.checkpoint.channel_values?.messages).toBeDefined();
 		});
 	});
 });

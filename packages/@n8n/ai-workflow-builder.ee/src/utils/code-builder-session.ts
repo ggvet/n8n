@@ -16,7 +16,8 @@ import type { MemorySaver, Checkpoint } from '@langchain/langgraph';
 import type { RunnableConfig } from '@langchain/core/runnables';
 
 import { conversationCompactChain } from '@/chains/conversation-compact';
-import { HumanMessage } from '@langchain/core/messages';
+import { HumanMessage, AIMessage } from '@langchain/core/messages';
+import { SessionManagerService } from '@/session-manager.service';
 
 /** Maximum number of user messages to retain before compaction */
 const MAX_USER_MESSAGES = 20;
@@ -209,4 +210,92 @@ export async function compactSessionIfNeeded(
  */
 export function generateCodeBuilderThreadId(workflowId: string, userId: string): string {
 	return `code-builder-${workflowId}-${userId}`;
+}
+
+/**
+ * Save messages to the SessionManager thread format
+ *
+ * This enables the frontend to retrieve conversation history via getSessions(),
+ * which reads from the `workflow-{workflowId}-user-{userId}` thread format.
+ *
+ * @param checkpointer - MemorySaver instance for persistence
+ * @param workflowId - The workflow ID
+ * @param userId - The user ID
+ * @param userMessage - The user's message text
+ * @param messageId - Unique message ID for truncation support
+ * @param versionId - Optional version ID for revert functionality
+ * @param assistantMessage - Optional assistant response text
+ */
+export async function saveToSessionManagerThread(
+	checkpointer: MemorySaver,
+	workflowId: string,
+	userId: string,
+	userMessage: string,
+	messageId: string,
+	versionId?: string,
+	assistantMessage?: string,
+): Promise<void> {
+	const threadId = SessionManagerService.generateThreadId(workflowId, userId);
+	const config: RunnableConfig = {
+		configurable: {
+			thread_id: threadId,
+		},
+	};
+
+	// Get existing checkpoint or create new base
+	const existingTuple = await checkpointer.getTuple(config).catch(() => undefined);
+	const existingCheckpoint = existingTuple?.checkpoint;
+
+	// Get existing messages array or start fresh
+	const existingMessages: Array<HumanMessage | AIMessage> =
+		(existingCheckpoint?.channel_values?.messages as Array<HumanMessage | AIMessage>) ?? [];
+
+	// Create HumanMessage with metadata for truncation support
+	const humanMessage = new HumanMessage({
+		content: userMessage,
+		additional_kwargs: {
+			messageId,
+			...(versionId && { versionId }),
+		},
+	});
+
+	// Build new messages array
+	const newMessages = [...existingMessages, humanMessage];
+
+	// Add AIMessage if assistant responded
+	if (assistantMessage) {
+		const aiMessage = new AIMessage({
+			content: assistantMessage,
+		});
+		newMessages.push(aiMessage);
+	}
+
+	// Create checkpoint with updated messages
+	const checkpoint: Checkpoint = existingCheckpoint
+		? {
+				...existingCheckpoint,
+				ts: new Date().toISOString(),
+				channel_values: {
+					...existingCheckpoint.channel_values,
+					messages: newMessages,
+				},
+			}
+		: {
+				v: 1,
+				id: crypto.randomUUID(),
+				ts: new Date().toISOString(),
+				channel_values: {
+					messages: newMessages,
+				},
+				channel_versions: {},
+				versions_seen: {},
+			};
+
+	const metadata = existingTuple?.metadata ?? {
+		source: 'update' as const,
+		step: -1,
+		parents: {},
+	};
+
+	await checkpointer.put(config, checkpoint, metadata);
 }

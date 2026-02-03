@@ -27,6 +27,7 @@ import {
 	saveCodeBuilderSession,
 	compactSessionIfNeeded,
 	generateCodeBuilderThreadId,
+	saveToSessionManagerThread,
 } from './utils/code-builder-session';
 
 /**
@@ -128,12 +129,61 @@ export class CodeWorkflowBuilder {
 				};
 			}
 
+			// Track generation success and buffer assistant text
+			let generationSucceeded = false;
+			const assistantTextParts: string[] = [];
+
 			// Delegate to CodeBuilderAgent with history context
-			yield* this.codeBuilderAgent.chat(payload, userId, abortSignal, historyContext);
+			for await (const chunk of this.codeBuilderAgent.chat(
+				payload,
+				userId,
+				abortSignal,
+				historyContext,
+			)) {
+				// Track success when workflow-updated chunk is received
+				if (chunk.messages?.some((msg) => msg.type === 'workflow-updated')) {
+					generationSucceeded = true;
+				}
+
+				// Buffer assistant text messages
+				for (const msg of chunk.messages ?? []) {
+					if (msg.type === 'message' && msg.role === 'assistant' && typeof msg.text === 'string') {
+						assistantTextParts.push(msg.text);
+					}
+				}
+
+				yield chunk;
+			}
 
 			// Save current message to session after successful generation
 			session.userMessages.push(payload.message);
 			await saveCodeBuilderSession(this.checkpointer, threadId, session);
+
+			// Also save to SessionManager thread for frontend retrieval
+			if (generationSucceeded && payload.id) {
+				const assistantText =
+					assistantTextParts.length > 0 ? assistantTextParts.join('\n') : undefined;
+
+				// Generate unique messageId for this turn (used for truncation support)
+				const messageId = crypto.randomUUID();
+
+				await saveToSessionManagerThread(
+					this.checkpointer,
+					payload.id,
+					userId,
+					payload.message,
+					messageId,
+					payload.versionId,
+					assistantText,
+				);
+
+				this.logger?.debug('Saved to SessionManager thread', {
+					workflowId: payload.id,
+					userId,
+					messageId,
+					hasAssistantText: !!assistantText,
+				});
+			}
 
 			this.logger?.debug('Saved CodeBuilder session', {
 				threadId,
