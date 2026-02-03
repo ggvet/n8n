@@ -428,7 +428,6 @@ export class SourceControlImportService {
 		return localCredentials.map((local) => {
 			const remoteOwnerProject = local.shared?.find((s) => s.role === 'credential:owner')?.project;
 
-			// Decrypt and sanitize credential data (same logic as export)
 			let sanitizedData: ExportableCredential['data'] | undefined;
 			if (local.data) {
 				try {
@@ -437,14 +436,14 @@ export class SourceControlImportService {
 						local.type,
 						local.data,
 					);
+
 					const decryptedData = credentials.getData();
 					// Remove oauthTokenData as it's excluded from export
 					const { oauthTokenData, ...rest } = decryptedData;
+					// Decrypt and sanitize credential data with the same logic as export
+					// to ensure valid comparison between local and remote data
 					sanitizedData = sanitizeCredentialData({ ...rest });
 				} catch (error) {
-					// If decryption fails, leave data undefined
-					// This matches existing behavior where decryption errors are handled gracefully
-					// Only log safe error information to avoid potential credential data leakage
 					this.logger.warn(
 						`Failed to decrypt credential "${local.name}" (ID: ${local.id}) for status comparison`,
 						{
