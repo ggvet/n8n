@@ -33,6 +33,13 @@ import {
 /** Indentation string for generated code (2 spaces per level) */
 const INDENT = '  ';
 
+/** Custom API Call operations don't have fixed schemas - skip them */
+const CUSTOM_API_CALL_KEY = '__CUSTOM_API_CALL__';
+
+function isCustomApiCall(operation: string): boolean {
+	return operation === CUSTOM_API_CALL_KEY;
+}
+
 /**
  * Known values for genericAuthType in HTTP Request node
  */
@@ -1637,6 +1644,9 @@ export function planSplitVersionSchemaFiles(
 
 			// Generate operation schema files within resource directory
 			for (const operation of operations) {
+				// Skip Custom API Call operations - they don't have fixed schemas
+				if (isCustomApiCall(operation)) continue;
+
 				const combo = { resource, operation };
 				const versionFilteredProps = filterPropertiesForVersion(node.properties, version);
 				const nodeForCombination = { ...node, properties: versionFilteredProps };
@@ -1659,12 +1669,13 @@ export function planSplitVersionSchemaFiles(
 				files.set(filePath, content);
 			}
 
-			// Generate resource schema index file
+			// Generate resource schema index file (filter out Custom API Call operations)
+			const filteredOperations = operations.filter((op) => !isCustomApiCall(op));
 			const resourceIndexContent = generateResourceIndexSchemaFile(
 				node,
 				version,
 				resource,
-				operations,
+				filteredOperations,
 			);
 			files.set(`${resourceDir}/index.schema.js`, resourceIndexContent);
 		}

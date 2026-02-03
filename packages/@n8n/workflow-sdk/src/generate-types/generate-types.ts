@@ -51,6 +51,13 @@ const NODES_BASE_DIST = path.resolve(__dirname, '../../../../nodes-base/dist/nod
 // Other fields like authentication, trigger, agent, promptType are treated as regular properties
 const DISCRIMINATOR_FIELDS = ['resource', 'operation', 'mode'];
 
+/** Custom API Call operations don't have fixed schemas - skip them */
+const CUSTOM_API_CALL_KEY = '__CUSTOM_API_CALL__';
+
+function isCustomApiCall(operation: string): boolean {
+	return operation === CUSTOM_API_CALL_KEY;
+}
+
 // TypeScript reserved words that need quoting
 const RESERVED_WORDS = new Set([
 	'break',
@@ -2363,6 +2370,9 @@ export function planSplitVersionFiles(
 
 			// Generate operation files within resource directory
 			for (const operation of operations) {
+				// Skip Custom API Call operations - they don't have fixed schemas
+				if (isCustomApiCall(operation)) continue;
+
 				const combo = { resource, operation };
 				// Filter properties by version before getting combination-specific props
 				const versionFilteredProps = filterPropertiesForVersion(node.properties, version);
@@ -2386,8 +2396,14 @@ export function planSplitVersionFiles(
 				files.set(filePath, content);
 			}
 
-			// Generate resource index file
-			const resourceIndexContent = generateResourceIndexFile(node, version, resource, operations);
+			// Generate resource index file (filter out Custom API Call operations)
+			const filteredOperations = operations.filter((op) => !isCustomApiCall(op));
+			const resourceIndexContent = generateResourceIndexFile(
+				node,
+				version,
+				resource,
+				filteredOperations,
+			);
 			files.set(`${resourceDir}/index.ts`, resourceIndexContent);
 		}
 	} else if (tree.type === 'single' && tree.discriminatorName && tree.discriminatorValues) {
