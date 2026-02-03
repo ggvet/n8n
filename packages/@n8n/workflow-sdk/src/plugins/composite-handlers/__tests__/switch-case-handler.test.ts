@@ -1,11 +1,12 @@
 import { switchCaseHandler } from '../switch-case-handler';
-import type { SwitchCaseComposite, NodeInstance } from '../../../types/base';
+import type { SwitchCaseComposite, NodeInstance, GraphNode } from '../../../types/base';
+import type { MutablePluginContext } from '../../types';
 
 // Helper to create a mock switch node
-function createMockSwitchNode(): NodeInstance<string, string, unknown> {
+function createMockSwitchNode(name = 'Switch Node'): NodeInstance<string, string, unknown> {
 	return {
 		type: 'n8n-nodes-base.switch',
-		name: 'Switch Node',
+		name,
 		version: '3',
 		config: { parameters: {} },
 	} as NodeInstance<string, string, unknown>;
@@ -21,13 +22,49 @@ function createMockNode(name: string): NodeInstance<string, string, unknown> {
 	} as NodeInstance<string, string, unknown>;
 }
 
+type CaseValue =
+	| NodeInstance<string, string, unknown>
+	| (NodeInstance<string, string, unknown> | null)[]
+	| null;
+
 // Helper to create a mock SwitchCaseComposite
-function createSwitchCaseComposite(): SwitchCaseComposite {
+function createSwitchCaseComposite(
+	options: {
+		switchNodeName?: string;
+		cases?: CaseValue[];
+	} = {},
+): SwitchCaseComposite {
 	return {
 		_isSwitchCaseComposite: true,
-		switchNode: createMockSwitchNode(),
-		cases: [createMockNode('Case 0'), createMockNode('Case 1')],
+		switchNode: createMockSwitchNode(options.switchNodeName),
+		cases: options.cases ?? [createMockNode('Case 0'), createMockNode('Case 1')],
 	} as SwitchCaseComposite;
+}
+
+// Helper to create a mock MutablePluginContext
+function createMockContext(): MutablePluginContext {
+	const nodes = new Map<string, GraphNode>();
+	return {
+		nodes,
+		workflowId: 'test-workflow',
+		workflowName: 'Test Workflow',
+		settings: {},
+		addNodeWithSubnodes: jest.fn((node: NodeInstance<string, string, unknown>) => {
+			nodes.set(node.name, {
+				instance: node,
+				connections: new Map(),
+			});
+			return node.name;
+		}),
+		addBranchToGraph: jest.fn((branch: unknown) => {
+			const branchNode = branch as NodeInstance<string, string, unknown>;
+			nodes.set(branchNode.name, {
+				instance: branchNode,
+				connections: new Map(),
+			});
+			return branchNode.name;
+		}),
+	};
 }
 
 describe('switchCaseHandler', () => {
@@ -62,6 +99,123 @@ describe('switchCaseHandler', () => {
 
 		it('returns false for undefined', () => {
 			expect(switchCaseHandler.canHandle(undefined)).toBe(false);
+		});
+	});
+
+	describe('addNodes', () => {
+		it('returns the Switch node name as head', () => {
+			const composite = createSwitchCaseComposite({ switchNodeName: 'My Switch' });
+			const ctx = createMockContext();
+
+			const headName = switchCaseHandler.addNodes(composite, ctx);
+
+			expect(headName).toBe('My Switch');
+		});
+
+		it('adds Switch node to the context nodes map', () => {
+			const composite = createSwitchCaseComposite();
+			const ctx = createMockContext();
+
+			switchCaseHandler.addNodes(composite, ctx);
+
+			expect(ctx.nodes.has('Switch Node')).toBe(true);
+			expect(ctx.nodes.get('Switch Node')?.instance).toBe(composite.switchNode);
+		});
+
+		it('adds case nodes using addBranchToGraph', () => {
+			const case0 = createMockNode('Case 0');
+			const case1 = createMockNode('Case 1');
+			const composite = createSwitchCaseComposite({ cases: [case0, case1] });
+			const ctx = createMockContext();
+
+			switchCaseHandler.addNodes(composite, ctx);
+
+			expect(ctx.addBranchToGraph).toHaveBeenCalledWith(case0);
+			expect(ctx.addBranchToGraph).toHaveBeenCalledWith(case1);
+		});
+
+		it('creates connection from Switch output 0 to case 0', () => {
+			const case0 = createMockNode('Case 0');
+			const composite = createSwitchCaseComposite({ cases: [case0] });
+			const ctx = createMockContext();
+
+			switchCaseHandler.addNodes(composite, ctx);
+
+			const switchNode = ctx.nodes.get('Switch Node');
+			const mainConns = switchNode?.connections.get('main');
+			const output0Conns = mainConns?.get(0);
+
+			expect(output0Conns).toBeDefined();
+			expect(output0Conns).toContainEqual(
+				expect.objectContaining({ node: 'Case 0', type: 'main', index: 0 }),
+			);
+		});
+
+		it('creates connections to multiple cases at different outputs', () => {
+			const case0 = createMockNode('Case 0');
+			const case1 = createMockNode('Case 1');
+			const case2 = createMockNode('Case 2');
+			const composite = createSwitchCaseComposite({ cases: [case0, case1, case2] });
+			const ctx = createMockContext();
+
+			switchCaseHandler.addNodes(composite, ctx);
+
+			const switchNode = ctx.nodes.get('Switch Node');
+			const mainConns = switchNode?.connections.get('main');
+
+			expect(mainConns?.get(0)).toContainEqual(expect.objectContaining({ node: 'Case 0' }));
+			expect(mainConns?.get(1)).toContainEqual(expect.objectContaining({ node: 'Case 1' }));
+			expect(mainConns?.get(2)).toContainEqual(expect.objectContaining({ node: 'Case 2' }));
+		});
+
+		it('handles null case (no connection for that output)', () => {
+			const case1 = createMockNode('Case 1');
+			const composite = createSwitchCaseComposite({ cases: [null, case1] });
+			const ctx = createMockContext();
+
+			switchCaseHandler.addNodes(composite, ctx);
+
+			const switchNode = ctx.nodes.get('Switch Node');
+			const mainConns = switchNode?.connections.get('main');
+
+			// Output 0 should have no connections (null case)
+			expect(mainConns?.get(0)).toBeUndefined();
+			// Output 1 should connect to Case 1
+			expect(mainConns?.get(1)).toContainEqual(expect.objectContaining({ node: 'Case 1' }));
+		});
+
+		it('handles array case (fan-out)', () => {
+			const branch1 = createMockNode('Branch 1');
+			const branch2 = createMockNode('Branch 2');
+			const composite = createSwitchCaseComposite({ cases: [[branch1, branch2]] });
+			const ctx = createMockContext();
+
+			switchCaseHandler.addNodes(composite, ctx);
+
+			// Both branches should be added
+			expect(ctx.addBranchToGraph).toHaveBeenCalledWith(branch1);
+			expect(ctx.addBranchToGraph).toHaveBeenCalledWith(branch2);
+
+			// Output 0 should connect to both
+			const switchNode = ctx.nodes.get('Switch Node');
+			const mainConns = switchNode?.connections.get('main');
+			const output0Conns = mainConns?.get(0);
+
+			expect(output0Conns).toHaveLength(2);
+			expect(output0Conns).toContainEqual(expect.objectContaining({ node: 'Branch 1' }));
+			expect(output0Conns).toContainEqual(expect.objectContaining({ node: 'Branch 2' }));
+		});
+
+		it('handles null in array case', () => {
+			const branch1 = createMockNode('Branch 1');
+			const composite = createSwitchCaseComposite({ cases: [[branch1, null]] });
+			const ctx = createMockContext();
+
+			switchCaseHandler.addNodes(composite, ctx);
+
+			// Only non-null branch should be added
+			expect(ctx.addBranchToGraph).toHaveBeenCalledWith(branch1);
+			expect(ctx.addBranchToGraph).toHaveBeenCalledTimes(1);
 		});
 	});
 });
