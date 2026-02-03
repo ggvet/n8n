@@ -1,5 +1,5 @@
 import { workflow } from '../workflow-builder';
-import { node, trigger, newCredential } from '../node-builder';
+import { node, trigger, newCredential, placeholder } from '../node-builder';
 import { languageModel, tool, embedding, vectorStore } from '../subnode-builders';
 
 describe('generatePinData', () => {
@@ -621,6 +621,33 @@ describe('generatePinData', () => {
 			const json = wf.toJSON();
 			// Should NOT generate pin data - table is configured
 			expect(json.pinData?.['Data Table']).toBeUndefined();
+		});
+
+		it('generates pin data for Data Table node with placeholder dataTableId', () => {
+			const outputData = [{ id: 1, name: 'Row 1' }];
+
+			const wf = workflow('id', 'Test')
+				.add(
+					node({
+						type: 'n8n-nodes-base.dataTable',
+						version: 1.1,
+						config: {
+							name: 'Store Data',
+							parameters: {
+								resource: 'row',
+								operation: 'insert',
+								dataTableId: { mode: 'list', value: placeholder('Select a data table') },
+							},
+						},
+						output: outputData,
+					}),
+				)
+				.generatePinData();
+
+			const json = wf.toJSON();
+			// Should generate pin data - placeholder means no table configured yet
+			expect(json.pinData).toBeDefined();
+			expect(json.pinData!['Store Data']).toEqual(outputData);
 		});
 	});
 });

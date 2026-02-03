@@ -2096,10 +2096,23 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 
 		// Check if dataTableId parameter has a value
 		const params = node.config?.parameters as Record<string, unknown> | undefined;
-		const dataTableId = params?.dataTableId as { value?: string } | undefined;
+		const dataTableId = params?.dataTableId as { value?: unknown } | undefined;
 
 		// No table configured if dataTableId is missing or has empty value
-		return !dataTableId?.value;
+		if (!dataTableId?.value) {
+			return true;
+		}
+
+		// Check if value is a placeholder (user needs to fill in)
+		if (
+			typeof dataTableId.value === 'object' &&
+			dataTableId.value !== null &&
+			'__placeholder' in dataTableId.value
+		) {
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
