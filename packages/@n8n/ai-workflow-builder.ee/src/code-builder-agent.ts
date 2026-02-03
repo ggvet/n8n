@@ -417,7 +417,7 @@ ${'='.repeat(50)}
 						: JSON.stringify(msg.content).substring(0, 2000);
 				this.debugLog('CHAT', `Message ${i + 1} (${msgType})`, {
 					contentLength: typeof msg.content === 'string' ? msg.content.length : 0,
-					contentPreview: content.substring(0, 1000),
+					contentPreview: content,
 				});
 			}
 

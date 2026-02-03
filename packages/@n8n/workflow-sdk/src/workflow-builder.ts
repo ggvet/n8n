@@ -118,6 +118,14 @@ function parseVersion(version: string | undefined): number {
 }
 
 /**
+ * Check if a value is a placeholder string
+ */
+function isPlaceholderValue(value: unknown): boolean {
+	if (typeof value !== 'string') return false;
+	return value.startsWith('<__PLACEHOLDER_VALUE__') && value.endsWith('__>');
+}
+
+/**
  * Check if an object looks like a resource locator value.
  * Resource locators have a 'mode' property (typically 'list', 'id', 'url', or 'name')
  * and a 'value' property.
@@ -160,11 +168,20 @@ function normalizeResourceLocators(params: unknown): unknown {
 			const rlValue = value as Record<string, unknown>;
 			const normalizedInner = normalizeResourceLocators(rlValue) as Record<string, unknown>;
 
-			// Add __rl: true if missing
-			result[key] = {
-				__rl: true,
-				...normalizedInner,
-			};
+			// Clear placeholder value when mode is 'list' - list mode requires user selection
+			if (rlValue.mode === 'list' && isPlaceholderValue(rlValue.value)) {
+				result[key] = {
+					__rl: true,
+					...normalizedInner,
+					value: '',
+				};
+			} else {
+				// Add __rl: true if missing
+				result[key] = {
+					__rl: true,
+					...normalizedInner,
+				};
+			}
 		} else if (typeof value === 'object' && value !== null) {
 			// Recursively process nested objects
 			result[key] = normalizeResourceLocators(value);
