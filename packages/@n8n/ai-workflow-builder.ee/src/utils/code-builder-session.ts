@@ -236,6 +236,7 @@ export async function saveToSessionManagerThread(
 	assistantMessage?: string,
 ): Promise<void> {
 	const threadId = SessionManagerService.generateThreadId(workflowId, userId);
+
 	const config: RunnableConfig = {
 		configurable: {
 			thread_id: threadId,

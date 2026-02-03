@@ -97,8 +97,12 @@ export class CodeWorkflowBuilder {
 		userId: string,
 		abortSignal?: AbortSignal,
 	): AsyncGenerator<StreamOutput, void, unknown> {
+		// Extract actual workflow ID from context (payload.id is the message/request ID)
+		const workflowId = payload.workflowContext?.currentWorkflow?.id;
+
 		this.logger?.debug('CodeWorkflowBuilder starting', {
 			userId,
+			workflowId,
 			messageLength: payload.message.length,
 			hasCheckpointer: !!this.checkpointer,
 		});
@@ -106,8 +110,8 @@ export class CodeWorkflowBuilder {
 		// Load and manage session if checkpointer is available
 		let historyContext: { userMessages: string[]; previousSummary?: string } | undefined;
 
-		if (this.checkpointer) {
-			const threadId = generateCodeBuilderThreadId(payload.id, userId);
+		if (this.checkpointer && workflowId) {
+			const threadId = generateCodeBuilderThreadId(workflowId, userId);
 
 			// Load existing session
 			let session = await loadCodeBuilderSession(this.checkpointer, threadId);
@@ -160,7 +164,7 @@ export class CodeWorkflowBuilder {
 			await saveCodeBuilderSession(this.checkpointer, threadId, session);
 
 			// Also save to SessionManager thread for frontend retrieval
-			if (generationSucceeded && payload.id) {
+			if (generationSucceeded) {
 				const assistantText =
 					assistantTextParts.length > 0 ? assistantTextParts.join('\n') : undefined;
 
@@ -169,7 +173,7 @@ export class CodeWorkflowBuilder {
 
 				await saveToSessionManagerThread(
 					this.checkpointer,
-					payload.id,
+					workflowId,
 					userId,
 					payload.message,
 					messageId,
@@ -178,7 +182,7 @@ export class CodeWorkflowBuilder {
 				);
 
 				this.logger?.debug('Saved to SessionManager thread', {
-					workflowId: payload.id,
+					workflowId,
 					userId,
 					messageId,
 					hasAssistantText: !!assistantText,
