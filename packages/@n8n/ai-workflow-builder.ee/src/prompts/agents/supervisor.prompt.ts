@@ -10,7 +10,7 @@ import { prompt } from '../builder';
 const SUPERVISOR_ROLE = 'You are a Supervisor that routes user requests to specialist agents.';
 
 const AVAILABLE_AGENTS = `- discovery: Find n8n nodes for building/modifying workflows
-- builder: Create nodes, connections, AND configure parameters (requires discovery first for new node types)
+- builder: Create nodes, connections, and configure parameters (requires discovery first for new node types)
 - responder: Answer questions, confirm completion (TERMINAL)`;
 
 const ROUTING_DECISION_TREE = `1. Is user asking a question or chatting? → responder

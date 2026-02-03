@@ -12,7 +12,6 @@ import type {
 	SubgraphPhase,
 	DiscoveryMetadata,
 	BuilderMetadata,
-	ConfiguratorMetadata,
 	StateManagementMetadata,
 } from '../types/coordination';
 
@@ -51,14 +50,6 @@ export function hasPhaseCompleted(log: CoordinationLogEntry[], phase: SubgraphPh
 }
 
 /**
- * Get configurator output (setup instructions) from the log
- */
-export function getConfiguratorOutput(log: CoordinationLogEntry[]): string | null {
-	const entry = getPhaseEntry(log, 'configurator');
-	return entry?.output ?? null;
-}
-
-/**
  * Get builder output (workflow summary) from the log
  */
 export function getBuilderOutput(log: CoordinationLogEntry[]): string | null {
@@ -79,16 +70,12 @@ export function getPhaseMetadata(
 ): BuilderMetadata | null;
 export function getPhaseMetadata(
 	log: CoordinationLogEntry[],
-	phase: 'configurator',
-): ConfiguratorMetadata | null;
-export function getPhaseMetadata(
-	log: CoordinationLogEntry[],
 	phase: 'state_management',
 ): StateManagementMetadata | null;
 export function getPhaseMetadata(
 	log: CoordinationLogEntry[],
 	phase: SubgraphPhase,
-): DiscoveryMetadata | BuilderMetadata | ConfiguratorMetadata | StateManagementMetadata | null {
+): DiscoveryMetadata | BuilderMetadata | StateManagementMetadata | null {
 	const entry = getPhaseEntry(log, phase);
 	if (!entry) return null;
 
@@ -160,18 +147,13 @@ export function getNextPhaseFromLog(log: CoordinationLogEntry[]): RoutingDecisio
 	}
 
 	const lastPhase = getLastCompletedPhase(log);
-	// After discovery → always builder (builder decides what new nodes to add)
+	// After discovery → builder (handles adding, connecting, and configuring nodes)
 	if (lastPhase === 'discovery') {
 		return 'builder';
 	}
 
 	// After builder → responder (terminal) - builder now handles configuration too
 	if (lastPhase === 'builder') {
-		return 'responder';
-	}
-
-	// Legacy: After configurator → responder (for any in-flight workflows)
-	if (lastPhase === 'configurator') {
 		return 'responder';
 	}
 
