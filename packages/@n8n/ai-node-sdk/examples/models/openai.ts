@@ -452,10 +452,7 @@ export class OpenAIChatModel extends BaseChatModel<OpenAIChatModelConfig> {
 		const merged = this.mergeConfig(config) as OpenAIChatModelConfig;
 		const { instructions, input } = genericMessagesToResponsesInput(messages);
 
-		const tools =
-			(merged.tools ?? this.tools).length > 0
-				? (merged.tools ?? this.tools).map(genericToolToResponsesTool)
-				: undefined;
+		const tools = merged.tools?.length ? merged.tools.map(genericToolToResponsesTool) : undefined;
 
 		const requestBody: OpenAIResponsesRequest = {
 			model: this.modelId,
@@ -474,7 +471,6 @@ export class OpenAIChatModel extends BaseChatModel<OpenAIChatModelConfig> {
 
 		const { text, toolCalls } = parseResponsesOutput(response.output as unknown[]);
 
-		// Convert usage to N8n format
 		const usage = response.usage
 			? {
 					promptTokens: response.usage.input_tokens ?? 0,
