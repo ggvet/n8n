@@ -190,6 +190,7 @@ export class WorkflowValidationService {
 
 	/**
 	 * Validates that all required credentials are set for a node.
+	 * Respects displayOptions to only validate credentials that should be shown.
 	 */
 	private validateNodeCredentials(node: INode, nodeType: INodeType): string[] {
 		const issues: string[] = [];
@@ -197,6 +198,16 @@ export class WorkflowValidationService {
 
 		for (const credDesc of credentialDescriptions) {
 			if (!credDesc.required) continue;
+
+			// Check if this credential should be displayed based on displayOptions
+			const shouldDisplay = NodeHelpers.displayParameter(
+				node.parameters,
+				credDesc,
+				node,
+				nodeType.description,
+			);
+
+			if (!shouldDisplay) continue;
 
 			const credentialName = credDesc.name;
 			const nodeCredential = node.credentials?.[credentialName];

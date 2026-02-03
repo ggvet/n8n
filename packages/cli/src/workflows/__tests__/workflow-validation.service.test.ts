@@ -542,5 +542,80 @@ describe('WorkflowValidationService', () => {
 			expect(result.isValid).toBe(false);
 			expect(result.error).toContain('no trigger node');
 		});
+
+		it('should respect displayOptions when validating credentials', () => {
+			// Simulates a Webhook node with authentication parameter set to 'none'
+			const nodes = {
+				Webhook: createNode('Webhook', 'n8n-nodes-base.webhook', {
+					parameters: { authentication: 'none' },
+				}),
+			};
+			const connections: IConnections = {};
+
+			// Mock node type with credentials that have displayOptions
+			const nodeType = createMockNodeType([], [], true);
+			nodeType.description.credentials = [
+				{
+					name: 'httpBasicAuth',
+					displayName: 'Basic Auth',
+					required: true,
+					displayOptions: {
+						show: {
+							authentication: ['basicAuth'],
+						},
+					},
+				},
+				{
+					name: 'httpHeaderAuth',
+					displayName: 'Header Auth',
+					required: true,
+					displayOptions: {
+						show: {
+							authentication: ['headerAuth'],
+						},
+					},
+				},
+			];
+
+			mockNodeTypes.getByNameAndVersion.mockReturnValue(nodeType);
+
+			const result = service.validateForActivation(nodes, connections, mockNodeTypes);
+
+			// Should be valid because authentication='none', so no credentials are required
+			expect(result.isValid).toBe(true);
+		});
+
+		it('should validate credentials when displayOptions match', () => {
+			// Simulates a Webhook node with authentication='basicAuth' but missing credential
+			const nodes = {
+				Webhook: createNode('Webhook', 'n8n-nodes-base.webhook', {
+					parameters: { authentication: 'basicAuth' },
+				}),
+			};
+			const connections: IConnections = {};
+
+			// Mock node type with credentials that have displayOptions
+			const nodeType = createMockNodeType([], [], true);
+			nodeType.description.credentials = [
+				{
+					name: 'httpBasicAuth',
+					displayName: 'Basic Auth',
+					required: true,
+					displayOptions: {
+						show: {
+							authentication: ['basicAuth'],
+						},
+					},
+				},
+			];
+
+			mockNodeTypes.getByNameAndVersion.mockReturnValue(nodeType);
+
+			const result = service.validateForActivation(nodes, connections, mockNodeTypes);
+
+			// Should be invalid because authentication='basicAuth' but no credential is set
+			expect(result.isValid).toBe(false);
+			expect(result.error).toContain('Missing required credential: Basic Auth');
+		});
 	});
 });
