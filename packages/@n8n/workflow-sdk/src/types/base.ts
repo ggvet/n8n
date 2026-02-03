@@ -973,6 +973,16 @@ export interface WorkflowBuilder {
 	 * @returns The workflow builder for chaining
 	 */
 	generatePinData(options?: GeneratePinDataOptions): WorkflowBuilder;
+
+	/**
+	 * Regenerate all node IDs using deterministic hashing based on workflow ID, node type, and node name.
+	 * This ensures that the same workflow structure always produces the same node IDs,
+	 * which is critical for the AI workflow builder where code may be re-parsed multiple times.
+	 *
+	 * Node IDs are generated using SHA-256 hash of `${workflowId}:${nodeType}:${nodeName}`,
+	 * formatted as a valid UUID v4 structure.
+	 */
+	regenerateNodeIds(): void;
 }
 
 /**

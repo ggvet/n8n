@@ -1304,3 +1304,37 @@ export function createChainWithMergeComposite<
 
 	return new NodeChainImpl(baseChain.head, baseChain.tail, allNodes);
 }
+
+/**
+ * Clone a NodeInstance with a new ID.
+ * Preserves all other properties including connections.
+ * Used by regenerateNodeIds() to create deterministic IDs.
+ */
+export function cloneNodeWithId(
+	instance: NodeInstance<string, string, unknown>,
+	newId: string,
+): NodeInstance<string, string, unknown> {
+	const connections =
+		typeof instance.getConnections === 'function' ? instance.getConnections() : [];
+	const isTrigger = 'isTrigger' in instance && instance.isTrigger === true;
+
+	if (isTrigger) {
+		return new TriggerInstanceImpl(
+			instance.type,
+			instance.version,
+			instance.config,
+			newId,
+			instance.name,
+			connections,
+		);
+	}
+
+	return new NodeInstanceImpl(
+		instance.type,
+		instance.version,
+		instance.config,
+		newId,
+		instance.name,
+		connections,
+	);
+}

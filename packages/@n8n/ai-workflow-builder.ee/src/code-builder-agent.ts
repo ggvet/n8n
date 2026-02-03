@@ -1648,6 +1648,13 @@ ${'='.repeat(50)}
 				parseDurationMs: parseDuration,
 			});
 
+			// Regenerate node IDs deterministically to ensure stable IDs across re-parses.
+			// This prevents the "Only one 'Chat Trigger' node is allowed" error that occurs
+			// when the frontend receives multiple workflow updates with different node IDs
+			// for the same logical nodes.
+			builder.regenerateNodeIds();
+			this.debugLog('PARSE_VALIDATE', 'Node IDs regenerated deterministically');
+
 			// Validate the graph structure BEFORE converting to JSON
 			this.debugLog('PARSE_VALIDATE', 'Validating graph structure...');
 			const graphValidateStartTime = Date.now();

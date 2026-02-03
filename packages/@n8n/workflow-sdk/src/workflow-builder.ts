@@ -20,7 +20,13 @@ import type {
 	GeneratePinDataOptions,
 } from './types/base';
 import { isNodeChain } from './types/base';
-import { isInputTarget, isIfElseBuilder, isSwitchCaseBuilder } from './node-builder';
+import { createHash } from 'crypto';
+import {
+	isInputTarget,
+	isIfElseBuilder,
+	isSwitchCaseBuilder,
+	cloneNodeWithId,
+} from './node-builder';
 
 /**
  * Type guard to check if a MergeComposite uses the old named input syntax.
@@ -342,6 +348,31 @@ function escapeNewlinesInExpressionStrings(value: unknown): unknown {
 	}
 
 	return value;
+}
+
+/**
+ * Generate a deterministic UUID based on workflow ID, node type, and node name.
+ * This ensures that the same workflow structure always produces the same node IDs,
+ * which is critical for the AI workflow builder where code may be re-parsed multiple times.
+ */
+function generateDeterministicNodeId(
+	workflowId: string,
+	nodeType: string,
+	nodeName: string,
+): string {
+	const hash = createHash('sha256')
+		.update(`${workflowId}:${nodeType}:${nodeName}`)
+		.digest('hex')
+		.slice(0, 32);
+
+	// Format as valid UUID v4 structure
+	return [
+		hash.slice(0, 8),
+		hash.slice(8, 12),
+		'4' + hash.slice(13, 16), // Version 4
+		((parseInt(hash[16], 16) & 0x3) | 0x8).toString(16) + hash.slice(17, 20), // Variant
+		hash.slice(20, 32),
+	].join('-');
 }
 
 /**
@@ -1024,6 +1055,34 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		}
 
 		return json;
+	}
+
+	/**
+	 * Regenerate all node IDs using deterministic hashing based on workflow ID, node type, and node name.
+	 * This ensures that the same workflow structure always produces the same node IDs,
+	 * which is critical for the AI workflow builder where code may be re-parsed multiple times.
+	 *
+	 * Node IDs are generated using SHA-256 hash of `${workflowId}:${nodeType}:${nodeName}`,
+	 * formatted as a valid UUID v4 structure.
+	 */
+	regenerateNodeIds(): void {
+		const newNodes = new Map<string, GraphNode>();
+
+		for (const [mapKey, graphNode] of this._nodes) {
+			const instance = graphNode.instance;
+			const newId = generateDeterministicNodeId(this.id, instance.type, instance.name);
+
+			// Clone the instance with the new deterministic ID
+			const newInstance = cloneNodeWithId(instance, newId);
+
+			newNodes.set(mapKey, {
+				instance: newInstance,
+				connections: graphNode.connections,
+			});
+		}
+
+		// Replace the nodes map
+		this._nodes = newNodes;
 	}
 
 	validate(
