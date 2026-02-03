@@ -116,7 +116,7 @@ describe('execution-status', () => {
 			const result = formatExecutionStatusJSDoc(data);
 
 			expect(result).toContain('@lastExecuted "Final Node"');
-			expect(result).toContain('@status success');
+			expect(result).toContain('@workflowExecutionStatus success');
 		});
 
 		it('formats error execution status', () => {
@@ -129,7 +129,7 @@ describe('execution-status', () => {
 			const result = formatExecutionStatusJSDoc(data);
 
 			expect(result).toContain('@lastExecuted "Error Node"');
-			expect(result).toContain('@status error');
+			expect(result).toContain('@workflowExecutionStatus error');
 		});
 
 		it('detects error from node runData', () => {
@@ -142,7 +142,7 @@ describe('execution-status', () => {
 
 			const result = formatExecutionStatusJSDoc(data);
 
-			expect(result).toContain('@status error');
+			expect(result).toContain('@workflowExecutionStatus error');
 		});
 
 		it('returns empty string for undefined data', () => {
@@ -161,7 +161,7 @@ describe('execution-status', () => {
 			const result = formatExecutionStatusJSDoc(data);
 
 			expect(result).not.toContain('@lastExecuted');
-			expect(result).toContain('@status success');
+			expect(result).toContain('@workflowExecutionStatus success');
 		});
 	});
 });

@@ -228,7 +228,7 @@ describe('codegen index', () => {
 
 				const code = generateWorkflowCode({ workflow: json, executionData });
 
-				expect(code).toContain('@status success');
+				expect(code).toContain('@workflowExecutionStatus success');
 				expect(code).toContain('@lastExecuted "Success Node"');
 			});
 

@@ -2341,7 +2341,7 @@ describe('code-generator', () => {
 				expect(code).toContain("output: [{ id: 'usr_123', name: 'John' }]");
 			});
 
-			it('adds @status success/error annotations in JSDoc', () => {
+			it('adds @nodeExecutionStatus success/error annotations in JSDoc', () => {
 				const json: WorkflowJSON = {
 					name: 'Test',
 					nodes: [
@@ -2374,8 +2374,8 @@ describe('code-generator', () => {
 
 				const code = generateCode(tree, json, graph, { nodeExecutionStatus });
 
-				expect(code).toContain('@status success');
-				expect(code).toContain('@status error - Something went wrong');
+				expect(code).toContain('@nodeExecutionStatus success');
+				expect(code).toContain('@nodeExecutionStatus error - Something went wrong');
 			});
 
 			it('adds @example comments for expression values', () => {
@@ -2497,13 +2497,13 @@ describe('code-generator', () => {
 				annotateGraph(graph);
 				const tree = buildCompositeTree(graph);
 
-				const workflowStatusJSDoc = '@lastExecuted "Trigger"\n@status success';
+				const workflowStatusJSDoc = '@lastExecuted "Trigger"\n@workflowExecutionStatus success';
 
 				const code = generateCode(tree, json, graph, { workflowStatusJSDoc });
 
 				// JSDoc should appear before return wf
 				expect(code).toMatch(
-					/\/\*\*[\s\S]*@lastExecuted "Trigger"[\s\S]*@status success[\s\S]*\*\/\s*return wf/,
+					/\/\*\*[\s\S]*@lastExecuted "Trigger"[\s\S]*@workflowExecutionStatus success[\s\S]*\*\/\s*return wf/,
 				);
 			});
 		});

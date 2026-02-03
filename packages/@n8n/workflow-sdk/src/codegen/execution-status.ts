@@ -12,7 +12,7 @@ export interface NodeExecutionStatus {
 
 /**
  * Build map of node names to their execution status.
- * Used by code generator to add @status annotations in JSDoc.
+ * Used by code generator to add @workflowExecutionStatus annotations in JSDoc.
  */
 export function buildNodeExecutionStatus(
 	data?: ExecutionResultData,
@@ -51,7 +51,7 @@ export function formatExecutionStatusJSDoc(data?: ExecutionResultData): string {
 	}
 
 	const hasError = !!data.error || hasNodeErrors(data);
-	lines.push(`@status ${hasError ? 'error' : 'success'}`);
+	lines.push(`@workflowExecutionStatus ${hasError ? 'error' : 'success'}`);
 
 	return lines.join('\n');
 }

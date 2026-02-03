@@ -1188,9 +1188,9 @@ function generateNodeJSDoc(nodeName: string, ctx: GenerationContext): string | n
 	// Add execution status if available (output schema is now in the output property)
 	const status = ctx.nodeExecutionStatus?.get(nodeName);
 	if (status?.status === 'error') {
-		jsdocParts.push(`@status error - ${status.errorMessage}`);
+		jsdocParts.push(`@nodeExecutionStatus error - ${status.errorMessage}`);
 	} else if (status?.status === 'success') {
-		jsdocParts.push('@status success');
+		jsdocParts.push('@nodeExecutionStatus success');
 	}
 
 	if (jsdocParts.length === 0) return null;
