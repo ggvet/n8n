@@ -14,6 +14,7 @@ import { AuthError } from '@/errors/response-errors/auth.error';
 import { ForbiddenError } from '@/errors/response-errors/forbidden.error';
 import { License } from '@/license';
 import { MfaService } from '@/mfa/mfa.service';
+import { CacheService } from '@/services/cache/cache.service';
 import { JwtService } from '@/services/jwt.service';
 import { UrlService } from '@/services/url.service';
 
@@ -68,6 +69,7 @@ export class AuthService {
 		private readonly userRepository: UserRepository,
 		private readonly invalidAuthTokenRepository: InvalidAuthTokenRepository,
 		private readonly mfaService: MfaService,
+		private readonly cacheService: CacheService,
 	) {
 		const restEndpoint = globalConfig.endpoints.rest;
 		this.skipBrowserIdCheckEndpoints = [
@@ -93,6 +95,36 @@ export class AuthService {
 		];
 	}
 
+	private cacheKeyForInvalidToken(token: string): string {
+		return `invalid-auth-token:${token}`;
+	}
+
+	private async isTokenInvalid(token: string): Promise<boolean> {
+		const cacheKey = this.cacheKeyForInvalidToken(token);
+
+		try {
+			if (await this.cacheService.exists(cacheKey)) return true;
+		} catch {
+			// fall through
+		}
+
+		const isInvalidPerDb = await this.invalidAuthTokenRepository.existsBy({ token });
+
+		if (isInvalidPerDb) {
+			try {
+				const { exp } = this.jwtService.decode(token);
+				if (exp) {
+					const ttlMs = Math.max(0, exp * 1000 - Date.now());
+					if (ttlMs > 0) await this.cacheService.set(cacheKey, '1', ttlMs);
+				}
+			} catch {
+				// non-critical
+			}
+		}
+
+		return isInvalidPerDb;
+	}
+
 	createAuthMiddleware({
 		allowSkipMFA,
 		allowSkipPreviewAuth,
@@ -103,7 +135,7 @@ export class AuthService {
 
 			if (token) {
 				try {
-					const isInvalid = await this.invalidAuthTokenRepository.existsBy({ token });
+					const isInvalid = await this.isTokenInvalid(token);
 					if (isInvalid) throw new AuthError('Unauthorized');
 
 					const [user, { usedMfa }] = await this.resolveJwt(token, req, res);
@@ -195,6 +227,12 @@ export class AuthService {
 					token,
 					expiresAt: new Date(exp * 1000),
 				});
+
+				const ttlMs = Math.max(0, exp * 1000 - Date.now());
+				if (ttlMs > 0) {
+					const cacheKey = this.cacheKeyForInvalidToken(token);
+					await this.cacheService.set(cacheKey, '1', ttlMs);
+				}
 			}
 		} catch (e) {
 			this.logger.warn('failed to invalidate auth token', { error: (e as Error).message });
@@ -237,7 +275,7 @@ export class AuthService {
 		endpoint: string,
 		browserId: string | undefined,
 	): Promise<User> {
-		const isInvalid = await this.invalidAuthTokenRepository.existsBy({ token });
+		const isInvalid = await this.isTokenInvalid(token);
 		if (isInvalid) throw new AuthError('Unauthorized');
 
 		const { user, jwtPayload } = await this.validateToken(token);

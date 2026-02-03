@@ -14,6 +14,7 @@ import jwt from 'jsonwebtoken';
 import { AuthService } from '@/auth/auth.service';
 import { AUTH_COOKIE_NAME } from '@/constants';
 import type { MfaService } from '@/mfa/mfa.service';
+import type { CacheService } from '@/services/cache/cache.service';
 import { JwtService } from '@/services/jwt.service';
 import type { UrlService } from '@/services/url.service';
 import type { License } from '@/license';
@@ -39,6 +40,7 @@ describe('AuthService', () => {
 	const invalidAuthTokenRepository = mock<InvalidAuthTokenRepository>();
 	const mfaService = mock<MfaService>();
 	const license = mock<License>();
+	const cacheService = mock<CacheService>();
 	const authService = new AuthService(
 		globalConfig,
 		mock(),
@@ -48,6 +50,7 @@ describe('AuthService', () => {
 		userRepository,
 		invalidAuthTokenRepository,
 		mfaService,
+		cacheService,
 	);
 
 	const now = new Date('2024-02-01T01:23:45.678Z');
@@ -66,6 +69,9 @@ describe('AuthService', () => {
 		globalConfig.userManagement.jwtRefreshTimeoutHours = 0;
 		globalConfig.auth.cookie = { secure: true, samesite: 'lax' };
 		license.isWithinUsersLimit.mockReturnValue(true);
+		// cache miss, falls through to DB
+		cacheService.exists.mockResolvedValue(false);
+		cacheService.set.mockResolvedValue(undefined);
 	});
 
 	describe('createJWTHash', () => {
