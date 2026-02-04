@@ -604,10 +604,12 @@ onMounted(() => {
 				<N8nText size="small">{{ otherFilesText }}</N8nText>
 			</div>
 			<N8nCallout v-if="hasDataTableConflicts" theme="warning" class="mb-xs">
-				<div>{{ dataTableWarningMessage }}</div>
-				<ul :class="$style.dataTableList">
-					<li v-for="table in conflictedDataTables" :key="table.id">{{ table.name }}</li>
-				</ul>
+				<div :class="$style.warningContent">
+					<div>{{ dataTableWarningMessage }}</div>
+					<ul :class="$style.dataTableList">
+						<li v-for="table in conflictedDataTables" :key="table.id">{{ table.name }}</li>
+					</ul>
+				</div>
 			</N8nCallout>
 			<div :class="$style.footer">
 				<N8nButton type="tertiary" class="mr-2xs" @click="close">
@@ -718,6 +720,12 @@ onMounted(() => {
 	flex-direction: row;
 	justify-content: flex-end;
 	margin-top: 8px;
+}
+
+.warningContent {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
 }
 
 .dataTableList {
