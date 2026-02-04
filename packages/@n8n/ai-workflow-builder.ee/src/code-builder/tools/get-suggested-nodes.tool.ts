@@ -7,7 +7,7 @@ import {
 	suggestedNodesData,
 	categoryList,
 	type CategorySuggestedNode,
-} from '../../tools/suggested-nodes-data';
+} from './suggested-nodes-data';
 
 const GetSuggestedNodesSchema = z.object({
 	categories: z
