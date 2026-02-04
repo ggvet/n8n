@@ -131,7 +131,7 @@ onMounted(async () => {
 		</div>
 		<div v-else-if="dataTable">
 			<div :class="$style.header">
-				<DataTableBreadcrumbs :data-table="dataTable" />
+				<DataTableBreadcrumbs :data-table="dataTable" :read-only="readOnlyEnv" />
 				<div v-if="saving" :class="$style.saving">
 					<N8nSpinner />
 					<N8nText>{{ i18n.baseText('generic.saving') }}...</N8nText>

@@ -7,7 +7,6 @@ import { useRouter } from 'vue-router';
 import DataTableActions from '@/features/core/dataTable/components/DataTableActions.vue';
 import { PROJECT_DATA_TABLES } from '@/features/core/dataTable/constants';
 import { useDataTableStore } from '@/features/core/dataTable/dataTable.store';
-import { useSourceControlStore } from '@/features/integrations/sourceControl.ee/sourceControl.store';
 import { useToast } from '@/app/composables/useToast';
 import { telemetry } from '@/app/plugins/telemetry';
 
@@ -17,6 +16,7 @@ const BREADCRUMBS_SEPARATOR = '/';
 
 type Props = {
 	dataTable: DataTable;
+	readOnly: boolean;
 };
 
 const props = defineProps<Props>();
@@ -24,7 +24,6 @@ const props = defineProps<Props>();
 const renameInput = useTemplateRef<{ forceFocus: () => void }>('renameInput');
 
 const dataTableStore = useDataTableStore();
-const sourceControlStore = useSourceControlStore();
 
 const i18n = useI18n();
 const router = useRouter();
@@ -32,10 +31,8 @@ const toast = useToast();
 
 const editableName = ref(props.dataTable.name);
 
-const isReadOnly = computed(() => sourceControlStore.preferences.branchReadOnly);
-
 const isRenameDisabled = computed(
-	() => !dataTableStore.projectPermissions.dataTable.update || isReadOnly.value,
+	() => !dataTableStore.projectPermissions.dataTable.update || props.readOnly,
 );
 
 const project = computed(() => {
