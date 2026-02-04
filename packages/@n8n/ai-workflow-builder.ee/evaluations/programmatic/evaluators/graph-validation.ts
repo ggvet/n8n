@@ -12,27 +12,12 @@ import type {
 } from '@/validation/types';
 
 /**
- * Map SDK validation codes to programmatic violation names.
- * This explicit mapping ensures type safety.
+ * Convert SDK validation code (SCREAMING_SNAKE_CASE) to violation name (graph-kebab-case).
+ * E.g., "NO_NODES" -> "graph-no-nodes", "DISCONNECTED_NODE" -> "graph-disconnected-node"
  */
-const CODE_TO_VIOLATION_NAME: Record<string, ProgrammaticViolationName> = {
-	NO_NODES: 'graph-no-nodes',
-	DISCONNECTED_NODE: 'graph-disconnected-node',
-	MERGE_SINGLE_INPUT: 'graph-merge-single-input',
-	FROM_AI_IN_NON_TOOL: 'graph-from-ai-in-non-tool',
-	AGENT_STATIC_PROMPT: 'graph-agent-static-prompt',
-	AGENT_NO_SYSTEM_MESSAGE: 'graph-agent-no-system-message',
-	HARDCODED_CREDENTIALS: 'graph-hardcoded-credentials',
-	SET_CREDENTIAL_FIELD: 'graph-set-credential-field',
-	TOOL_NO_PARAMETERS: 'graph-tool-no-parameters',
-	MISSING_TRIGGER: 'graph-missing-trigger',
-};
-
-/**
- * Get violation name from SDK code, defaulting to graph-parse-error for unknown codes.
- */
-function getViolationName(code: string): ProgrammaticViolationName {
-	return CODE_TO_VIOLATION_NAME[code] ?? 'graph-parse-error';
+function codeToViolationName(code: string): ProgrammaticViolationName {
+	const kebab = code.toLowerCase().replace(/_/g, '-');
+	return `graph-${kebab}` as ProgrammaticViolationName;
 }
 
 /**
@@ -120,7 +105,7 @@ export function evaluateGraphValidation(generatedCode: string | undefined): Sing
 		for (const error of validation.errors) {
 			const violationType = getViolationType(error.code);
 			violations.push({
-				name: getViolationName(error.code),
+				name: codeToViolationName(error.code),
 				type: violationType,
 				description: error.message,
 				pointsDeducted: getPointsDeducted(violationType),
@@ -131,7 +116,7 @@ export function evaluateGraphValidation(generatedCode: string | undefined): Sing
 		for (const warning of validation.warnings) {
 			const violationType = getViolationType(warning.code);
 			violations.push({
-				name: getViolationName(warning.code),
+				name: codeToViolationName(warning.code),
 				type: violationType,
 				description: warning.message,
 				pointsDeducted: getPointsDeducted(violationType),
