@@ -457,13 +457,14 @@ function generateStickyCall(node: SemanticNode): string {
 
 	const params = node.json.parameters;
 	if (params?.color !== undefined) {
-		options.push(`color: ${params.color}`);
+		// eslint-disable-next-line @typescript-eslint/no-base-to-string -- color is a string/number primitive
+		options.push(`color: ${String(params.color)}`);
 	}
 	if (params?.width !== undefined) {
-		options.push(`width: ${params.width}`);
+		options.push(`width: ${Number(params.width)}`);
 	}
 	if (params?.height !== undefined) {
-		options.push(`height: ${params.height}`);
+		options.push(`height: ${Number(params.height)}`);
 	}
 
 	const pos = node.json.position;

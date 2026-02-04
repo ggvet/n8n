@@ -59,14 +59,14 @@ export function jsonToCode(filePath: string): void {
 	if (validation.errors.length > 0) {
 		console.error('Validation errors:');
 		for (const error of validation.errors) {
-			console.error(`  - ${error}`);
+			console.error(`  - ${error.message}`);
 		}
 		process.exit(1);
 	}
 	if (validation.warnings.length > 0) {
 		console.warn('Validation warnings:');
 		for (const warning of validation.warnings) {
-			console.warn(`  - ${warning}`);
+			console.warn(`  - ${warning.message}`);
 		}
 	}
 

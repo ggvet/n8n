@@ -151,6 +151,7 @@ export function formatValue(value: unknown, ctx?: FormatValueContext): string {
 
 		return `{ ${formattedEntries.map((e) => `${e.key}: ${e.value}`).join(', ')} }`;
 	}
+	// eslint-disable-next-line @typescript-eslint/no-base-to-string -- Primitive values handled by String()
 	return String(value);
 }
 
