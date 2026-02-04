@@ -207,7 +207,6 @@ const onValueDrop = async (droppedExpression: string) => {
 							<TypeSelect
 								:model-value="assignment.type ?? 'string'"
 								:is-read-only="disableType || isReadOnly"
-								:stacked="false"
 								@update:model-value="onAssignmentTypeChange"
 							/>
 						</N8nTooltip>
