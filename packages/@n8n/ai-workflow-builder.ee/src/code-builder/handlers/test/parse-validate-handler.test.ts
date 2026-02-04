@@ -2,8 +2,8 @@
  * Tests for ParseValidateHandler
  */
 
-import { ParseValidateHandler } from '../handlers/parse-validate-handler';
-import type { ParseAndValidateResult } from '../types';
+import { ParseValidateHandler } from '../parse-validate-handler';
+import type { ParseAndValidateResult } from '../../types';
 
 // Mock the workflow-sdk module
 jest.mock('@n8n/workflow-sdk', () => ({

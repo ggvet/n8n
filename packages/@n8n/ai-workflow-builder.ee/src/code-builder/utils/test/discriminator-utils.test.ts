@@ -1,5 +1,5 @@
 import { NodeConnectionTypes, type INodeTypeDescription } from 'n8n-workflow';
-import { extractModeDiscriminator } from '../utils/discriminator-utils';
+import { extractModeDiscriminator, type ModeInfo } from '../discriminator-utils';
 
 // Mock vector store node with mode discriminator that includes outputConnectionType
 const mockVectorStoreNode: INodeTypeDescription = {
@@ -84,8 +84,8 @@ describe('extractModeDiscriminator', () => {
 
 			expect(result).not.toBeNull();
 			expect(result!.modes).toHaveLength(2);
-			expect(result!.modes.map((m) => m.value)).toContain('runOnceForAllItems');
-			expect(result!.modes.map((m) => m.value)).toContain('runOnceForEachItem');
+			expect(result!.modes.map((m: ModeInfo) => m.value)).toContain('runOnceForAllItems');
+			expect(result!.modes.map((m: ModeInfo) => m.value)).toContain('runOnceForEachItem');
 		});
 
 		it('should return null for nodes without mode property', () => {
@@ -113,15 +113,17 @@ describe('extractModeDiscriminator', () => {
 			expect(result).not.toBeNull();
 			expect(result!.modes).toHaveLength(5);
 
-			const loadMode = result!.modes.find((m) => m.value === 'load');
+			const loadMode = result!.modes.find((m: ModeInfo) => m.value === 'load');
 			expect(loadMode).toBeDefined();
 			expect(loadMode!.displayName).toBe('Get Many');
 
-			const retrieveMode = result!.modes.find((m) => m.value === 'retrieve');
+			const retrieveMode = result!.modes.find((m: ModeInfo) => m.value === 'retrieve');
 			expect(retrieveMode).toBeDefined();
 			expect(retrieveMode!.displayName).toBe('Retrieve Documents (As Vector Store for Chain/Tool)');
 
-			const retrieveAsToolMode = result!.modes.find((m) => m.value === 'retrieve-as-tool');
+			const retrieveAsToolMode = result!.modes.find(
+				(m: ModeInfo) => m.value === 'retrieve-as-tool',
+			);
 			expect(retrieveAsToolMode).toBeDefined();
 			expect(retrieveAsToolMode!.displayName).toBe('Retrieve Documents (As Tool for AI Agent)');
 		});
@@ -132,12 +134,14 @@ describe('extractModeDiscriminator', () => {
 			expect(result).not.toBeNull();
 
 			// retrieve mode should have AiVectorStore connection type
-			const retrieveMode = result!.modes.find((m) => m.value === 'retrieve');
+			const retrieveMode = result!.modes.find((m: ModeInfo) => m.value === 'retrieve');
 			expect(retrieveMode).toBeDefined();
 			expect(retrieveMode!.outputConnectionType).toBe(NodeConnectionTypes.AiVectorStore);
 
 			// retrieve-as-tool mode should have AiTool connection type
-			const retrieveAsToolMode = result!.modes.find((m) => m.value === 'retrieve-as-tool');
+			const retrieveAsToolMode = result!.modes.find(
+				(m: ModeInfo) => m.value === 'retrieve-as-tool',
+			);
 			expect(retrieveAsToolMode).toBeDefined();
 			expect(retrieveAsToolMode!.outputConnectionType).toBe(NodeConnectionTypes.AiTool);
 		});
@@ -148,15 +152,15 @@ describe('extractModeDiscriminator', () => {
 			expect(result).not.toBeNull();
 
 			// load, insert, update modes should NOT have outputConnectionType
-			const loadMode = result!.modes.find((m) => m.value === 'load');
+			const loadMode = result!.modes.find((m: ModeInfo) => m.value === 'load');
 			expect(loadMode).toBeDefined();
 			expect(loadMode!.outputConnectionType).toBeUndefined();
 
-			const insertMode = result!.modes.find((m) => m.value === 'insert');
+			const insertMode = result!.modes.find((m: ModeInfo) => m.value === 'insert');
 			expect(insertMode).toBeDefined();
 			expect(insertMode!.outputConnectionType).toBeUndefined();
 
-			const updateMode = result!.modes.find((m) => m.value === 'update');
+			const updateMode = result!.modes.find((m: ModeInfo) => m.value === 'update');
 			expect(updateMode).toBeDefined();
 			expect(updateMode!.outputConnectionType).toBeUndefined();
 		});
@@ -173,7 +177,7 @@ describe('extractModeDiscriminator', () => {
 				expect(mode.outputConnectionType).toBeUndefined();
 			}
 
-			const runOnceForAll = result!.modes.find((m) => m.value === 'runOnceForAllItems');
+			const runOnceForAll = result!.modes.find((m: ModeInfo) => m.value === 'runOnceForAllItems');
 			expect(runOnceForAll!.displayName).toBe('Run Once for All Items');
 		});
 	});
@@ -184,10 +188,10 @@ describe('extractModeDiscriminator', () => {
 
 			expect(result).not.toBeNull();
 
-			const loadMode = result!.modes.find((m) => m.value === 'load');
+			const loadMode = result!.modes.find((m: ModeInfo) => m.value === 'load');
 			expect(loadMode!.description).toBe('Get many ranked documents from vector store for query');
 
-			const insertMode = result!.modes.find((m) => m.value === 'insert');
+			const insertMode = result!.modes.find((m: ModeInfo) => m.value === 'insert');
 			expect(insertMode!.description).toBe('Insert documents into vector store');
 		});
 
@@ -230,11 +234,11 @@ describe('extractModeDiscriminator', () => {
 
 			expect(result).not.toBeNull();
 
-			const modeA = result!.modes.find((m) => m.value === 'modeA');
+			const modeA = result!.modes.find((m: ModeInfo) => m.value === 'modeA');
 			expect(modeA!.description).toBe('Description of mode A');
 			expect(modeA!.builderHint).toBe('Use mode A when you want to do X');
 
-			const modeB = result!.modes.find((m) => m.value === 'modeB');
+			const modeB = result!.modes.find((m: ModeInfo) => m.value === 'modeB');
 			expect(modeB!.description).toBe('Description of mode B');
 			expect(modeB!.builderHint).toBeUndefined();
 		});

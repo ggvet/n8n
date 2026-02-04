@@ -3,7 +3,7 @@
  */
 
 import { AIMessage } from '@langchain/core/messages';
-import { processLlmResponse } from '../utils/llm-response-processor';
+import { processLlmResponse } from '../llm-response-processor';
 
 describe('processLlmResponse', () => {
 	it('should extract token usage from response metadata', () => {
