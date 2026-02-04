@@ -18,10 +18,10 @@ import type { MemorySaver } from '@langchain/langgraph';
 import type { Logger } from '@n8n/backend-common';
 import type { INodeTypeDescription } from 'n8n-workflow';
 
-import { CodeBuilderAgent } from './code-builder';
-import type { EvaluationLogger } from './utils/evaluation-logger';
-import type { StreamOutput, SessionMessagesChunk } from './types/streaming';
-import type { ChatPayload } from './workflow-builder-agent';
+import { CodeBuilderAgent } from './code-builder-agent';
+import type { EvaluationLogger } from '../utils/evaluation-logger';
+import type { StreamOutput, SessionMessagesChunk } from '../types/streaming';
+import type { ChatPayload } from '../workflow-builder-agent';
 import {
 	loadCodeBuilderSession,
 	saveCodeBuilderSession,

@@ -9,7 +9,7 @@ import type { Callbacks } from '@langchain/core/callbacks/manager';
 import type { INodeTypeDescription } from 'n8n-workflow';
 import pLimit from 'p-limit';
 
-import { CodeWorkflowBuilder } from '@/code-workflow-builder';
+import { CodeWorkflowBuilder } from '@/code-builder';
 import { EvaluationLogger } from '@/utils/evaluation-logger';
 import type { SimpleWorkflow } from '@/types/workflow';
 import type { StreamChunk, WorkflowUpdateChunk } from '@/types/streaming';

@@ -17,7 +17,7 @@ import {
 
 import { MAX_AI_BUILDER_PROMPT_LENGTH, MAX_MULTI_AGENT_STREAM_ITERATIONS } from '@/constants';
 
-import { CodeWorkflowBuilder } from './code-workflow-builder';
+import { CodeWorkflowBuilder } from './code-builder';
 import { ValidationError } from './errors';
 import { createMultiAgentWorkflowWithSubgraphs } from './multi-agent-workflow-subgraphs';
 import { SessionManagerService } from './session-manager.service';

@@ -15,9 +15,9 @@ import type { BaseChatModel } from '@langchain/core/language_models/chat_models'
 import type { MemorySaver, Checkpoint } from '@langchain/langgraph';
 import type { RunnableConfig } from '@langchain/core/runnables';
 
-import { conversationCompactChain } from '@/chains/conversation-compact';
+import { conversationCompactChain } from '../../chains/conversation-compact';
 import { HumanMessage } from '@langchain/core/messages';
-import { SessionManagerService } from '@/session-manager.service';
+import { SessionManagerService } from '../../session-manager.service';
 
 /** Maximum number of user messages to retain before compaction */
 const MAX_USER_MESSAGES = 20;

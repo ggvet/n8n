@@ -11,7 +11,7 @@ import {
 	generateCodeBuilderThreadId,
 	saveSessionMessages,
 	type CodeBuilderSession,
-} from '../code-builder-session';
+} from '../utils/code-builder-session';
 import { SessionManagerService } from '@/session-manager.service';
 
 // Mock structured output for the compact chain

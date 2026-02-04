@@ -11,7 +11,7 @@ import type { INodeTypeDescription } from 'n8n-workflow';
 
 // Mock the CodeWorkflowBuilder module
 const mockChat = jest.fn();
-jest.mock('@/code-workflow-builder', () => {
+jest.mock('@/code-builder/code-workflow-builder', () => {
 	return {
 		CodeWorkflowBuilder: jest.fn().mockImplementation(() => ({
 			chat: mockChat,
@@ -49,7 +49,7 @@ jest.mock('@/utils/stream-processor', () => ({
 	formatMessages: jest.fn(),
 }));
 
-import { CodeWorkflowBuilder } from '@/code-workflow-builder';
+import { CodeWorkflowBuilder } from '@/code-builder/code-workflow-builder';
 import type { StreamOutput } from '@/types/streaming';
 import {
 	WorkflowBuilderAgent,

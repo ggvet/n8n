@@ -63,3 +63,20 @@ export type {
 	AutoFinalizeParams,
 	AutoFinalizeResult,
 } from './handlers/auto-finalize-handler';
+
+// Code Workflow Builder
+export {
+	CodeWorkflowBuilder,
+	createCodeWorkflowBuilder,
+} from './code-workflow-builder';
+export type { CodeWorkflowBuilderConfig } from './code-workflow-builder';
+
+// Session utilities
+export {
+	loadCodeBuilderSession,
+	saveCodeBuilderSession,
+	compactSessionIfNeeded,
+	generateCodeBuilderThreadId,
+	saveSessionMessages,
+} from './utils/code-builder-session';
+export type { CodeBuilderSession } from './utils/code-builder-session';
