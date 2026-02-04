@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import type {
 	AddColumnResponse,
 	DataTable,
@@ -17,6 +17,7 @@ import DataTableTable from './components/dataGrid/DataTableTable.vue';
 import { useDebounce } from '@/app/composables/useDebounce';
 import AddColumnButton from './components/dataGrid/AddColumnButton.vue';
 import { useSourceControlStore } from '@/features/integrations/sourceControl.ee/sourceControl.store';
+import { sourceControlEventBus } from '@/features/integrations/sourceControl.ee/sourceControl.eventBus';
 import {
 	N8nButton,
 	N8nInput,
@@ -114,6 +115,14 @@ const onAddColumn = async (column: DataTableColumnCreatePayload): Promise<AddCol
 onMounted(async () => {
 	documentTitle.set(i18n.baseText('dataTable.dataTables'));
 	await initialize();
+
+	sourceControlEventBus.on('pull', async () => {
+		await initialize();
+	});
+});
+
+onBeforeUnmount(() => {
+	sourceControlEventBus.off('pull');
 });
 </script>
 
