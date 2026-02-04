@@ -1,10 +1,10 @@
 {
 	"name": "@n8n/ai-utilities",
-  "version": "0.1.0",
-  "description": "Utilities for building AI nodes in n8n",
-  "main": "dist/index.js",
-  "module": "src/index.ts",
-  "types": "dist/index.d.ts",
+	"version": "0.1.0",
+	"description": "Utilities for building AI nodes in n8n",
+	"main": "dist/index.js",
+	"module": "src/index.ts",
+	"types": "dist/index.d.ts",
 	"scripts": {
 		"example:run": "tsx examples/run.ts",
 		"clean": "rimraf dist .turbo",
@@ -26,20 +26,21 @@
 	"devDependencies": {
 		"@types/json-schema": "^7.0.15",
 		"jest-mock-extended": "^3.0.4",
-    "@types/mime-types": "catalog:"
+		"@types/mime-types": "catalog:",
+		"tsx": "catalog:"
 	},
 	"dependencies": {
 		"zod": "catalog:",
-    "zod-to-json-schema": "catalog:",
+		"zod-to-json-schema": "catalog:",
 		"@langchain/core": "catalog:",
-    "@langchain/classic": "1.0.5",
-    "@langchain/community": "catalog:",
-    "@langchain/textsplitters": "1.0.1",
+		"@langchain/classic": "1.0.5",
+		"@langchain/community": "catalog:",
+		"@langchain/textsplitters": "1.0.1",
 		"@langchain/openai": "catalog:",
 		"langchain": "catalog:",
 		"@n8n/config": "workspace:*",
 		"@n8n/typescript-config": "workspace:*",
 		"n8n-workflow": "workspace:*",
-    "tmp-promise": "3.0.3"
+		"tmp-promise": "3.0.3"
 	}
 }
