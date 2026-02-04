@@ -596,7 +596,7 @@ export class SourceControlStatusService {
 				type: 'datatable',
 				status: options.direction === 'push' ? 'created' : 'deleted',
 				location: options.direction === 'push' ? 'local' : 'remote',
-				conflict: options.direction === 'push' ? false : true,
+				conflict: options.direction !== 'push',
 				file: getDataTableExportPath(item.id, this.dataTableExportFolder),
 				updatedAt: new Date().toISOString(),
 				owner: item.ownedBy ?? undefined,
