@@ -1,8 +1,9 @@
+import { computed, toValue } from 'vue';
+import type { MaybeRefOrGetter, Ref } from 'vue';
+import { useActiveElement, useEventListener } from '@vueuse/core';
+
 import { shouldIgnoreCanvasShortcut } from '@/features/workflows/canvas/canvas.utils';
 import { useUIStore } from '@/app/stores/ui.store';
-import { useActiveElement, useEventListener } from '@vueuse/core';
-import type { MaybeRefOrGetter, Ref } from 'vue';
-import { computed, toValue } from 'vue';
 
 interface ChatInputRef {
 	focus: () => void;
@@ -27,15 +28,15 @@ export function useChatInputFocus(
 		return false;
 	});
 
-	function isPrintableKey(event: KeyboardEvent): boolean {
+	const isPrintableKey = (event: KeyboardEvent): boolean => {
 		return event.key.length === 1;
-	}
+	};
 
-	function hasModifierKey(event: KeyboardEvent): boolean {
+	const hasModifierKey = (event: KeyboardEvent): boolean => {
 		return event.ctrlKey || event.metaKey || event.altKey;
-	}
+	};
 
-	function onKeyDown(event: KeyboardEvent) {
+	const onKeyDown = (event: KeyboardEvent) => {
 		if (shouldIgnoreKeypress.value) return;
 		if (event.isComposing) return;
 		if (event.repeat) return;
@@ -48,7 +49,7 @@ export function useChatInputFocus(
 		event.preventDefault();
 		input.setText(event.key);
 		input.focus();
-	}
+	};
 
 	useEventListener(document, 'keydown', onKeyDown);
 }
