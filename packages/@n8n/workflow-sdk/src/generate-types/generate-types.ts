@@ -503,6 +503,8 @@ export function jsonSchemaToTypeScript(schema: JsonSchema, indent = 0): string {
 			.map((v) => {
 				if (typeof v === 'string') return `'${v}'`;
 				if (v === null) return 'null';
+				if (typeof v === 'object') return JSON.stringify(v);
+				// eslint-disable-next-line @typescript-eslint/no-base-to-string -- Objects already handled above
 				return String(v);
 			})
 			.join(' | ');
@@ -512,6 +514,8 @@ export function jsonSchemaToTypeScript(schema: JsonSchema, indent = 0): string {
 	if (schema.const !== undefined) {
 		if (typeof schema.const === 'string') return `'${schema.const}'`;
 		if (schema.const === null) return 'null';
+		if (typeof schema.const === 'object') return JSON.stringify(schema.const);
+		// eslint-disable-next-line @typescript-eslint/no-base-to-string -- Objects already handled above
 		return String(schema.const);
 	}
 
@@ -835,8 +839,13 @@ function generateNestedPropertyJSDoc(
 
 	// Default value - skip multi-line strings to avoid breaking JSDoc comments
 	if (prop.default !== undefined && prop.default !== null && prop.default !== '') {
-		const defaultStr =
-			typeof prop.default === 'object' ? JSON.stringify(prop.default) : String(prop.default);
+		let defaultStr: string;
+		if (typeof prop.default === 'object') {
+			defaultStr = JSON.stringify(prop.default);
+		} else {
+			// eslint-disable-next-line @typescript-eslint/no-base-to-string -- Object case handled above
+			defaultStr = String(prop.default);
+		}
 		if (!defaultStr.includes('\n')) {
 			lines.push(`${indent} * @default ${defaultStr}`);
 		}
@@ -1568,8 +1577,13 @@ export function generatePropertyJSDoc(
 
 	// Default value - skip multi-line strings to avoid breaking JSDoc comments
 	if (prop.default !== undefined && prop.default !== null && prop.default !== '') {
-		const defaultStr =
-			typeof prop.default === 'object' ? JSON.stringify(prop.default) : String(prop.default);
+		let defaultStr: string;
+		if (typeof prop.default === 'object') {
+			defaultStr = JSON.stringify(prop.default);
+		} else {
+			// eslint-disable-next-line @typescript-eslint/no-base-to-string -- Object case handled above
+			defaultStr = String(prop.default);
+		}
 		if (!defaultStr.includes('\n')) {
 			lines.push(` * @default ${defaultStr}`);
 		}

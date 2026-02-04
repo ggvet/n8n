@@ -409,7 +409,14 @@ function extractUnionErrorSummary(unionErrors: Array<{ issues: ZodIssue[] }>): s
 					if (receivedValue === undefined) {
 						return `Missing discriminator "${path}". Expected one of: ${expectedStr}. Make sure "${field}" is inside "parameters".`;
 					}
-					return `Invalid value for "${path}": got "${String(receivedValue)}", expected one of: ${expectedStr}.`;
+					let receivedStr: string;
+					if (typeof receivedValue === 'object') {
+						receivedStr = JSON.stringify(receivedValue);
+					} else {
+						// eslint-disable-next-line @typescript-eslint/no-base-to-string -- Object case handled above
+						receivedStr = String(receivedValue);
+					}
+					return `Invalid value for "${path}": got "${receivedStr}", expected one of: ${expectedStr}.`;
 				}
 			}
 		}

@@ -44,11 +44,13 @@ export const httpRequestValidator: ValidatorPlugin = {
 
 		if (headerParams?.parameters) {
 			for (const header of headerParams.parameters) {
+				const headerValueStr =
+					typeof header.value === 'string' ? header.value : JSON.stringify(header.value);
 				if (
 					header.name &&
 					isSensitiveHeader(header.name) &&
 					header.value &&
-					!containsExpression(String(header.value))
+					!containsExpression(headerValueStr)
 				) {
 					issues.push({
 						code: 'HARDCODED_CREDENTIALS',
@@ -68,11 +70,13 @@ export const httpRequestValidator: ValidatorPlugin = {
 
 		if (queryParams?.parameters) {
 			for (const param of queryParams.parameters) {
+				const paramValueStr =
+					typeof param.value === 'string' ? param.value : JSON.stringify(param.value);
 				if (
 					param.name &&
 					isCredentialFieldName(param.name) &&
 					param.value &&
-					!containsExpression(String(param.value))
+					!containsExpression(paramValueStr)
 				) {
 					issues.push({
 						code: 'HARDCODED_CREDENTIALS',

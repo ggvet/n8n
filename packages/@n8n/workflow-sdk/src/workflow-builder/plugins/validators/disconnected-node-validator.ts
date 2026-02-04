@@ -94,11 +94,15 @@ function findNodesWithIncomingConnections(
 						nodesWithIncoming.add(compositeHeadName);
 					} else if (typeof conn.target === 'object' && 'name' in conn.target) {
 						nodesWithIncoming.add(conn.target.name);
+					} else if (typeof conn.target === 'object') {
+						nodesWithIncoming.add(JSON.stringify(conn.target));
 					} else {
 						nodesWithIncoming.add(String(conn.target));
 					}
 				} else if (typeof conn.target === 'object' && 'name' in conn.target) {
 					nodesWithIncoming.add(conn.target.name);
+				} else if (typeof conn.target === 'object') {
+					nodesWithIncoming.add(JSON.stringify(conn.target));
 				} else {
 					nodesWithIncoming.add(String(conn.target));
 				}

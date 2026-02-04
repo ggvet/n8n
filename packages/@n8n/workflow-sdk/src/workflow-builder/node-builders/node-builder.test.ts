@@ -278,6 +278,7 @@ describe('Node Builder', () => {
 
 		it('should serialize to placeholder format', () => {
 			const p = placeholder('API Key');
+			// eslint-disable-next-line @typescript-eslint/no-base-to-string -- Testing custom toString behavior
 			expect(String(p)).toBe('<__PLACEHOLDER_VALUE__API Key__>');
 		});
 	});
