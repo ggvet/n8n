@@ -2,8 +2,8 @@
  * Tests for WarningTracker class
  */
 
-import { WarningTracker } from '../warning-tracker';
 import type { ValidationWarning } from '../../types';
+import { WarningTracker } from '../warning-tracker';
 
 describe('WarningTracker', () => {
 	let tracker: WarningTracker;

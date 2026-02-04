@@ -1,4 +1,5 @@
 import { NodeConnectionTypes, type INodeTypeDescription } from 'n8n-workflow';
+
 import { NodeTypeParser } from '../../utils/node-type-parser';
 import { createCodeBuilderSearchTool } from '../code-builder-search.tool';
 
@@ -538,7 +539,7 @@ describe('CodeBuilderSearchTool', () => {
 			const result = await tool.invoke({ queries: ['form'] });
 
 			// Count occurrences of form node ID
-			const formMatches = result.match(/n8n-nodes-base\.form[^T]/g) || [];
+			const formMatches = result.match(/n8n-nodes-base\.form[^T]/g) ?? [];
 			// Should appear once as search result, not duplicated as related
 			expect(formMatches.length).toBeLessThanOrEqual(2); // Once in hint text, once as result
 		});

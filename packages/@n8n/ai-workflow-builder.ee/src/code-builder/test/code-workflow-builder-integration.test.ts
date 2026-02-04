@@ -65,7 +65,7 @@ describe('CodeWorkflowBuilder Integration', () => {
 	let parsedNodeTypes: INodeTypeDescription[];
 	let config: WorkflowBuilderAgentConfig;
 
-	const mockChatFn = mockChat as jest.Mock;
+	const mockChatFn = mockChat;
 
 	beforeEach(() => {
 		jest.clearAllMocks();
@@ -302,7 +302,10 @@ describe('CodeWorkflowBuilder Integration', () => {
 
 			// For multi-agent system, we need to mock the stream processor
 			// since it won't use CodeWorkflowBuilder
-			const { createStreamProcessor } = jest.requireMock('@/utils/stream-processor');
+			// eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+			const { createStreamProcessor } = jest.requireMock('@/utils/stream-processor') as {
+				createStreamProcessor: jest.Mock;
+			};
 			createStreamProcessor.mockReturnValue(
 				(async function* () {
 					yield {
@@ -374,7 +377,8 @@ describe('CodeWorkflowBuilder Integration', () => {
 
 	describe('error handling', () => {
 		it('should propagate errors from CodeWorkflowBuilder', async () => {
-			mockChatFn.mockImplementation(async function* () {
+			// eslint-disable-next-line require-yield
+			mockChatFn.mockImplementation(async function* (): AsyncGenerator<StreamOutput> {
 				throw new Error('CodeWorkflowBuilder error');
 			});
 

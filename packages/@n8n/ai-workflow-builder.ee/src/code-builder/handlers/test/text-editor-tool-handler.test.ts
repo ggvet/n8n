@@ -2,8 +2,9 @@
  * Tests for TextEditorToolHandler
  */
 
-import { ToolMessage, HumanMessage } from '@langchain/core/messages';
 import type { BaseMessage } from '@langchain/core/messages';
+import { ToolMessage, HumanMessage } from '@langchain/core/messages';
+
 import { TextEditorToolHandler } from '../text-editor-tool-handler';
 
 describe('TextEditorToolHandler', () => {

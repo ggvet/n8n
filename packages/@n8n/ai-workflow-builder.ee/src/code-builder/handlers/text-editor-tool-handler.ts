@@ -10,8 +10,8 @@ import { ToolMessage, HumanMessage } from '@langchain/core/messages';
 import type { WorkflowJSON } from '@n8n/workflow-sdk';
 
 import type { StreamOutput, ToolProgressChunk } from '../../types/streaming';
-import type { ParseAndValidateResult } from '../types';
 import { FIX_AND_FINALIZE_INSTRUCTION } from '../constants';
+import type { ParseAndValidateResult } from '../types';
 
 /**
  * Debug log callback type

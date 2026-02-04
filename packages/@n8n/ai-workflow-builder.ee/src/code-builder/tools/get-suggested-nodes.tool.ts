@@ -1,13 +1,12 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 
-import type { NodeTypeParser } from '../utils/node-type-parser';
-
 import {
 	suggestedNodesData,
 	categoryList,
 	type CategorySuggestedNode,
 } from './suggested-nodes-data';
+import type { NodeTypeParser } from '../utils/node-type-parser';
 
 const GetSuggestedNodesSchema = z.object({
 	categories: z

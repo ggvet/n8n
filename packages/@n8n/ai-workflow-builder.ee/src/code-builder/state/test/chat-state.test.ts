@@ -3,8 +3,9 @@
  */
 
 import { HumanMessage, AIMessage } from '@langchain/core/messages';
-import { ChatState } from '../chat-state';
 import type { WorkflowJSON } from '@n8n/workflow-sdk';
+
+import { ChatState } from '../chat-state';
 
 describe('ChatState', () => {
 	let state: ChatState;

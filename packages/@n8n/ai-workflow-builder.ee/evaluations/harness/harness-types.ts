@@ -240,7 +240,7 @@ export function isGenerationResult(
 		typeof value === 'object' &&
 		value !== null &&
 		'workflow' in value &&
-		typeof (value as GenerationResult).workflow === 'object'
+		typeof value.workflow === 'object'
 	);
 }
 

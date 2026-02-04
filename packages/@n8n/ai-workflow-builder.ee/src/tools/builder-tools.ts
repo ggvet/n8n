@@ -1,5 +1,11 @@
 import type { INodeTypeDescription } from 'n8n-workflow';
 
+import {
+	CODE_BUILDER_GET_NODE_TYPES_TOOL,
+	CODE_BUILDER_GET_SUGGESTED_NODES_TOOL,
+	CODE_BUILDER_TEXT_EDITOR_TOOL,
+	CODE_BUILDER_VALIDATE_TOOL,
+} from '@/code-builder/constants';
 import type { BuilderToolBase } from '@/utils/stream-processor';
 import type { BuilderFeatureFlags } from '@/workflow-builder-agent';
 
@@ -21,12 +27,6 @@ import { RENAME_NODE_TOOL } from './rename-node.tool';
 import { UPDATING_NODE_PARAMETER_TOOL } from './update-node-parameters.tool';
 import { VALIDATE_CONFIGURATION_TOOL } from './validate-configuration.tool';
 import { VALIDATE_STRUCTURE_TOOL } from './validate-structure.tool';
-import {
-	CODE_BUILDER_GET_NODE_TYPES_TOOL,
-	CODE_BUILDER_GET_SUGGESTED_NODES_TOOL,
-	CODE_BUILDER_TEXT_EDITOR_TOOL,
-	CODE_BUILDER_VALIDATE_TOOL,
-} from '@/code-builder/constants';
 
 /**
  * Return display information for tools

@@ -2,12 +2,11 @@
  * Tests for Auto-Finalize Handler
  */
 
-import type { BaseMessage } from '@langchain/core/messages';
-import { HumanMessage } from '@langchain/core/messages';
+import type { BaseMessage, HumanMessage } from '@langchain/core/messages';
 import type { WorkflowJSON, NodeJSON } from '@n8n/workflow-sdk';
 
-import { AutoFinalizeHandler } from '../auto-finalize-handler';
 import type { ParseAndValidateResult } from '../../types';
+import { AutoFinalizeHandler } from '../auto-finalize-handler';
 
 describe('AutoFinalizeHandler', () => {
 	const mockDebugLog = jest.fn();

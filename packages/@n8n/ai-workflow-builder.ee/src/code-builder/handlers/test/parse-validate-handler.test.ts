@@ -2,8 +2,10 @@
  * Tests for ParseValidateHandler
  */
 
-import { ParseValidateHandler } from '../parse-validate-handler';
+import { parseWorkflowCodeToBuilder, validateWorkflow } from '@n8n/workflow-sdk';
+
 import type { ParseAndValidateResult } from '../../types';
+import { ParseValidateHandler } from '../parse-validate-handler';
 
 // Mock the workflow-sdk module
 jest.mock('@n8n/workflow-sdk', () => ({
@@ -11,8 +13,6 @@ jest.mock('@n8n/workflow-sdk', () => ({
 	validateWorkflow: jest.fn(),
 	stripImportStatements: jest.fn((code: string) => code),
 }));
-
-import { parseWorkflowCodeToBuilder, validateWorkflow } from '@n8n/workflow-sdk';
 
 // Typed mock references
 const mockParseWorkflowCodeToBuilder = parseWorkflowCodeToBuilder as jest.Mock;

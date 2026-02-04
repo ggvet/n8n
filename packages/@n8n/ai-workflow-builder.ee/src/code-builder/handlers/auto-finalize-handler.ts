@@ -10,8 +10,8 @@ import { HumanMessage } from '@langchain/core/messages';
 import type { WorkflowJSON } from '@n8n/workflow-sdk';
 
 import type { StreamOutput } from '../../types/streaming';
-import type { ParseAndValidateResult } from '../types';
 import { FIX_AND_FINALIZE_INSTRUCTION } from '../constants';
+import type { ParseAndValidateResult } from '../types';
 
 /**
  * Debug log callback type
@@ -92,6 +92,7 @@ export class AutoFinalizeHandler {
 	 * @yields StreamOutput chunks (currently none, but kept for consistency)
 	 * @returns AutoFinalizeResult with success status and optional workflow
 	 */
+	// eslint-disable-next-line require-yield
 	async *execute(
 		params: AutoFinalizeParams,
 	): AsyncGenerator<StreamOutput, AutoFinalizeResult, unknown> {

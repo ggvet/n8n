@@ -11,8 +11,8 @@ import pLimit from 'p-limit';
 import { CodeWorkflowBuilder } from '@/code-builder';
 import { EvaluationLogger } from '@/code-builder/utils/evaluation-logger';
 import type { CoordinationLogEntry } from '@/types/coordination';
-import type { SimpleWorkflow } from '@/types/workflow';
 import type { StreamChunk, WorkflowUpdateChunk } from '@/types/streaming';
+import type { SimpleWorkflow } from '@/types/workflow';
 import type { BuilderFeatureFlags } from '@/workflow-builder-agent';
 
 import {
@@ -28,6 +28,7 @@ import {
 	getDefaultTestCaseIds,
 } from './csv-prompt-loader';
 import { sendWebhookNotification } from './webhook';
+import { WorkflowGenerationError } from '../errors';
 import {
 	consumeGenerator,
 	extractSubgraphMetrics,
@@ -49,7 +50,6 @@ import {
 	type EvaluationContext,
 	type GenerationResult,
 } from '../index';
-import { WorkflowGenerationError } from '../errors';
 import { generateRunId, isWorkflowStateValues } from '../langsmith/types';
 import { AGENT_TYPES, EVAL_TYPES, EVAL_USERS } from '../support/constants';
 import { setupTestEnvironment, createAgent, type ResolvedStageLLMs } from '../support/environment';

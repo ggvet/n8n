@@ -11,17 +11,18 @@
  * POC with extensive debug logging for development.
  */
 
-import { inspect } from 'node:util';
 import { tool } from '@langchain/core/tools';
-import { z } from 'zod';
 import type { IRelatedNode } from 'n8n-workflow';
-import type { NodeTypeParser, ParsedNodeType } from '../utils/node-type-parser';
+import { inspect } from 'node:util';
+import { z } from 'zod';
+
 import {
 	extractResourceOperations,
 	type ResourceInfo,
 	type OperationInfo,
 } from '../../utils/resource-operation-extractor';
 import { extractModeDiscriminator, type ModeInfo } from '../utils/discriminator-utils';
+import type { NodeTypeParser, ParsedNodeType } from '../utils/node-type-parser';
 
 /**
  * Type guard to check if relatedNodes uses the new format with relationHint

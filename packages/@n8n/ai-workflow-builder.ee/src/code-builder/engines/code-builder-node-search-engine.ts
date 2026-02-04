@@ -213,7 +213,7 @@ export class CodeBuilderNodeSearchEngine {
 	 */
 	formatResult(result: CodeBuilderNodeSearchResult): string {
 		const parts = [
-			`		<node>`,
+			'		<node>',
 			`			<node_name>${result.name}</node_name>`,
 			`			<node_version>${result.version}</node_version>`,
 			`			<node_description>${result.description}</node_description>`,
@@ -228,7 +228,7 @@ export class CodeBuilderNodeSearchEngine {
 
 		// Add subnode requirements if present
 		if (result.subnodeRequirements && result.subnodeRequirements.length > 0) {
-			parts.push(`			<subnode_requirements>`);
+			parts.push('			<subnode_requirements>');
 			for (const req of result.subnodeRequirements) {
 				const requiredStr = req.required ? 'required' : 'optional';
 				if (req.displayOptions) {
@@ -237,14 +237,18 @@ export class CodeBuilderNodeSearchEngine {
 					);
 				} else {
 					parts.push(
-						`				<requirement type="${req.connectionType}" status="${requiredStr}" />`,
+						'				<requirement type="' +
+							req.connectionType +
+							'" status="' +
+							requiredStr +
+							'" />',
 					);
 				}
 			}
-			parts.push(`			</subnode_requirements>`);
+			parts.push('			</subnode_requirements>');
 		}
 
-		parts.push(`		</node>`);
+		parts.push('		</node>');
 
 		return '\n' + parts.join('\n');
 	}

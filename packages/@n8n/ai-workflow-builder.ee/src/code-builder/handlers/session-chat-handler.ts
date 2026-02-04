@@ -10,8 +10,8 @@ import type { MemorySaver } from '@langchain/langgraph';
 import type { Logger } from '@n8n/backend-common';
 
 import type { StreamOutput } from '../../types/streaming';
-import type { HistoryContext } from '../prompts';
 import type { ChatPayload } from '../../workflow-builder-agent';
+import type { HistoryContext } from '../prompts';
 import {
 	loadCodeBuilderSession,
 	saveCodeBuilderSession,
@@ -72,6 +72,48 @@ export class SessionChatHandler {
 	}
 
 	/**
+	 * Build history context from session if available.
+	 */
+	private buildHistoryContext(session: {
+		userMessages: string[];
+		previousSummary?: string;
+	}): HistoryContext | undefined {
+		if (session.userMessages.length > 0 || session.previousSummary) {
+			return {
+				userMessages: session.userMessages,
+				previousSummary: session.previousSummary,
+			};
+		}
+		return undefined;
+	}
+
+	/**
+	 * Process a chunk from the agent, tracking generation success and session messages.
+	 */
+	private processChunk(chunk: StreamOutput): {
+		generationSucceeded: boolean;
+		sessionMessages: unknown[] | undefined;
+		filteredMessages: StreamOutput['messages'];
+	} {
+		let generationSucceeded = false;
+		let sessionMessages: unknown[] | undefined;
+
+		if (chunk.messages?.some((msg) => msg.type === 'workflow-updated')) {
+			generationSucceeded = true;
+		}
+
+		for (const msg of chunk.messages ?? []) {
+			if (msg.type === 'session-messages') {
+				sessionMessages = (msg as { type: 'session-messages'; messages: unknown[] }).messages;
+			}
+		}
+
+		const filteredMessages = chunk.messages?.filter((msg) => msg.type !== 'session-messages');
+
+		return { generationSucceeded, sessionMessages, filteredMessages };
+	}
+
+	/**
 	 * Execute session-wrapped chat.
 	 *
 	 * @param params - Chat parameters including agent function
@@ -103,15 +145,7 @@ export class SessionChatHandler {
 
 		// Compact if needed
 		session = await compactSessionIfNeeded(session, this.llm);
-
-		// Build history context for the agent
-		let historyContext: HistoryContext | undefined;
-		if (session.userMessages.length > 0 || session.previousSummary) {
-			historyContext = {
-				userMessages: session.userMessages,
-				previousSummary: session.previousSummary,
-			};
-		}
+		const historyContext = this.buildHistoryContext(session);
 
 		// Track generation success and capture session messages
 		let generationSucceeded = false;
@@ -119,22 +153,12 @@ export class SessionChatHandler {
 
 		// Delegate to agent with history context
 		for await (const chunk of agentChat(payload, userId, abortSignal, historyContext)) {
-			// Track success when workflow-updated chunk is received
-			if (chunk.messages?.some((msg) => msg.type === 'workflow-updated')) {
-				generationSucceeded = true;
-			}
+			const result = this.processChunk(chunk);
+			if (result.generationSucceeded) generationSucceeded = true;
+			if (result.sessionMessages) sessionMessages = result.sessionMessages;
 
-			// Capture session messages for persistence
-			for (const msg of chunk.messages ?? []) {
-				if (msg.type === 'session-messages') {
-					sessionMessages = (msg as { type: 'session-messages'; messages: unknown[] }).messages;
-				}
-			}
-
-			// Filter internal messages and yield
-			const filteredMessages = chunk.messages?.filter((msg) => msg.type !== 'session-messages');
-			if (filteredMessages && filteredMessages.length > 0) {
-				yield { messages: filteredMessages };
+			if (result.filteredMessages && result.filteredMessages.length > 0) {
+				yield { messages: result.filteredMessages };
 			}
 		}
 

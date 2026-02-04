@@ -3,6 +3,7 @@
  */
 
 import type { AIMessage } from '@langchain/core/messages';
+
 import { extractTextContent, extractThinkingContent } from '../content-extractors';
 
 // Helper to create mock AIMessage

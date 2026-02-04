@@ -1,8 +1,9 @@
-import { MemorySaver } from '@langchain/langgraph';
-import { FakeListChatModel } from '@langchain/core/utils/testing';
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-
 import { AIMessage, HumanMessage } from '@langchain/core/messages';
+import { FakeListChatModel } from '@langchain/core/utils/testing';
+import { MemorySaver } from '@langchain/langgraph';
+
+import { SessionManagerService } from '@/session-manager.service';
 
 import {
 	loadCodeBuilderSession,
@@ -12,7 +13,6 @@ import {
 	saveSessionMessages,
 	type CodeBuilderSession,
 } from '../code-builder-session';
-import { SessionManagerService } from '@/session-manager.service';
 
 // Mock structured output for the compact chain
 class MockStructuredLLM extends FakeListChatModel {

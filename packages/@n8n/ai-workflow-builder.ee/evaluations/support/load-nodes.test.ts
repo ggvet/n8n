@@ -1,3 +1,4 @@
+import { readFileSync, existsSync } from 'fs';
 import type { INodeTypeDescription } from 'n8n-workflow';
 
 // We need to mock the fs module before importing the module under test
@@ -5,8 +6,6 @@ jest.mock('fs', () => ({
 	readFileSync: jest.fn(),
 	existsSync: jest.fn(),
 }));
-
-import { readFileSync, existsSync } from 'fs';
 
 const mockedReadFileSync = readFileSync as jest.MockedFunction<typeof readFileSync>;
 const mockedExistsSync = existsSync as jest.MockedFunction<typeof existsSync>;
@@ -29,7 +28,7 @@ describe('loadNodesFromFile', () => {
 			// - Entry 1: version [1, 1.1], defaultVersion 2
 			// - Entry 2: version [2], defaultVersion 2
 			// A workflow using typeVersion 1.1 should still be able to validate
-			const nodesData: Partial<INodeTypeDescription>[] = [
+			const nodesData: Array<Partial<INodeTypeDescription>> = [
 				{
 					name: 'n8n-nodes-base.removeDuplicates',
 					displayName: 'Remove Duplicates',
@@ -70,7 +69,7 @@ describe('loadNodesFromFile', () => {
 		});
 
 		it('should handle single-version nodes correctly', () => {
-			const nodesData: Partial<INodeTypeDescription>[] = [
+			const nodesData: Array<Partial<INodeTypeDescription>> = [
 				{
 					name: 'n8n-nodes-base.code',
 					displayName: 'Code',
@@ -90,7 +89,7 @@ describe('loadNodesFromFile', () => {
 		});
 
 		it('should handle nodes with version array but no defaultVersion', () => {
-			const nodesData: Partial<INodeTypeDescription>[] = [
+			const nodesData: Array<Partial<INodeTypeDescription>> = [
 				{
 					name: 'n8n-nodes-base.httpRequest',
 					displayName: 'HTTP Request',
@@ -116,7 +115,7 @@ describe('loadNodesFromFile', () => {
 
 	describe('filtering', () => {
 		it('should filter out ignored node types', () => {
-			const nodesData: Partial<INodeTypeDescription>[] = [
+			const nodesData: Array<Partial<INodeTypeDescription>> = [
 				{
 					name: '@n8n/n8n-nodes-langchain.toolVectorStore',
 					displayName: 'Vector Store Tool',
@@ -144,7 +143,7 @@ describe('loadNodesFromFile', () => {
 		});
 
 		it('should filter out hidden nodes except dataTable', () => {
-			const nodesData: Partial<INodeTypeDescription>[] = [
+			const nodesData: Array<Partial<INodeTypeDescription>> = [
 				{
 					name: 'n8n-nodes-base.hiddenNode',
 					displayName: 'Hidden Node',

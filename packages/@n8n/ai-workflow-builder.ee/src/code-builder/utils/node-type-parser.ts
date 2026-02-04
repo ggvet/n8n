@@ -62,7 +62,7 @@ export class NodeTypeParser {
 		const index = new Map<string, INodeTypeDescription[]>();
 
 		for (const nodeType of this.nodeTypes) {
-			const existing = index.get(nodeType.name) || [];
+			const existing = index.get(nodeType.name) ?? [];
 			existing.push(nodeType);
 			index.set(nodeType.name, existing);
 		}
@@ -294,7 +294,7 @@ export class NodeTypeParser {
 				const nodeVersions = Array.isArray(v.version) ? v.version : [v.version];
 				return nodeVersions.includes(version);
 			});
-			return match || null;
+			return match ?? null;
 		}
 
 		// Otherwise, return the latest version (last in array)

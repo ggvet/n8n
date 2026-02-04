@@ -53,7 +53,7 @@ export function extractModeDiscriminator(
 			isPropertyVisibleForVersion(prop, nodeVersion),
 	);
 
-	if (!modeProperty || !modeProperty.options) {
+	if (!modeProperty?.options) {
 		return null;
 	}
 

@@ -7,11 +7,11 @@
  * POC with extensive debug logging for development.
  */
 
+import { tool } from '@langchain/core/tools';
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { inspect } from 'node:util';
-import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 
 /**
@@ -218,6 +218,86 @@ interface PathResolutionResult {
 }
 
 /**
+ * Resolve resource/operation path for split version structure
+ */
+function resolveResourceOperationPath(
+	nodeDir: string,
+	targetVersion: string,
+	nodeId: string,
+	available: { resources?: string[]; modes?: string[] },
+	discriminators?: { resource?: string; operation?: string },
+): PathResolutionResult {
+	if (!discriminators?.resource || !discriminators?.operation) {
+		return {
+			error: `Error: Node '${nodeId}' requires resource and operation discriminators. Available resources: ${available.resources?.join(', ')}. Use search_nodes to see all options.`,
+			requiresDiscriminators: true,
+			availableDiscriminators: available,
+		};
+	}
+
+	// Validate resource
+	const resourcePath = `resource_${toSnakeCase(discriminators.resource)}`;
+	const resourceDir = join(nodeDir, targetVersion, resourcePath);
+	if (!existsSync(resourceDir)) {
+		return {
+			error: `Error: Invalid resource '${discriminators.resource}' for node '${nodeId}'. Available: ${available.resources?.join(', ')}`,
+		};
+	}
+
+	// Validate operation
+	const operationFile = `operation_${toSnakeCase(discriminators.operation)}.ts`;
+	const filePath = join(resourceDir, operationFile);
+	if (!existsSync(filePath)) {
+		try {
+			const ops = readdirSync(resourceDir)
+				.filter((f) => f.startsWith('operation_') && f.endsWith('.ts'))
+				.map((f) => f.replace('operation_', '').replace('.ts', ''));
+			return {
+				error: `Error: Invalid operation '${discriminators.operation}' for resource '${discriminators.resource}'. Available: ${ops.join(', ')}`,
+			};
+		} catch {
+			return {
+				error: `Error: Could not read operations for resource '${discriminators.resource}'`,
+			};
+		}
+	}
+
+	debugLog('Resolved split path for resource/operation', { filePath });
+	return { filePath };
+}
+
+/**
+ * Resolve mode path for split version structure
+ */
+function resolveModePath(
+	nodeDir: string,
+	targetVersion: string,
+	nodeId: string,
+	available: { resources?: string[]; modes?: string[] },
+	mode?: string,
+): PathResolutionResult {
+	if (!mode) {
+		return {
+			error: `Error: Node '${nodeId}' requires mode discriminator. Available modes: ${available.modes?.join(', ')}. Use search_nodes to see all options.`,
+			requiresDiscriminators: true,
+			availableDiscriminators: available,
+		};
+	}
+
+	// Validate mode
+	const modeFile = `mode_${toSnakeCase(mode)}.ts`;
+	const filePath = join(nodeDir, targetVersion, modeFile);
+	if (!existsSync(filePath)) {
+		return {
+			error: `Error: Invalid mode '${mode}' for node '${nodeId}'. Available: ${available.modes?.join(', ')}`,
+		};
+	}
+
+	debugLog('Resolved split path for mode', { filePath });
+	return { filePath };
+}
+
+/**
  * Try to resolve file path for a specific node ID
  * This is the core resolution logic used by getNodeFilePath
  */
@@ -275,67 +355,18 @@ function tryGetNodeFilePath(
 
 		// Handle resource/operation pattern
 		if (available.resources && available.resources.length > 0) {
-			if (!discriminators?.resource || !discriminators?.operation) {
-				return {
-					error: `Error: Node '${nodeId}' requires resource and operation discriminators. Available resources: ${available.resources.join(', ')}. Use search_nodes to see all options.`,
-					requiresDiscriminators: true,
-					availableDiscriminators: available,
-				};
-			}
-
-			// Validate resource
-			const resourcePath = `resource_${toSnakeCase(discriminators.resource)}`;
-			const resourceDir = join(nodeDir, targetVersion, resourcePath);
-			if (!existsSync(resourceDir)) {
-				return {
-					error: `Error: Invalid resource '${discriminators.resource}' for node '${nodeId}'. Available: ${available.resources.join(', ')}`,
-				};
-			}
-
-			// Validate operation
-			const operationFile = `operation_${toSnakeCase(discriminators.operation)}.ts`;
-			const filePath = join(resourceDir, operationFile);
-			if (!existsSync(filePath)) {
-				// Get available operations for this resource
-				try {
-					const ops = readdirSync(resourceDir)
-						.filter((f) => f.startsWith('operation_') && f.endsWith('.ts'))
-						.map((f) => f.replace('operation_', '').replace('.ts', ''));
-					return {
-						error: `Error: Invalid operation '${discriminators.operation}' for resource '${discriminators.resource}'. Available: ${ops.join(', ')}`,
-					};
-				} catch {
-					return {
-						error: `Error: Could not read operations for resource '${discriminators.resource}'`,
-					};
-				}
-			}
-
-			debugLog('Resolved split path for resource/operation', { filePath });
-			return { filePath };
+			return resolveResourceOperationPath(
+				nodeDir,
+				targetVersion,
+				nodeId,
+				available,
+				discriminators,
+			);
 		}
 
 		// Handle mode pattern
 		if (available.modes && available.modes.length > 0) {
-			if (!discriminators?.mode) {
-				return {
-					error: `Error: Node '${nodeId}' requires mode discriminator. Available modes: ${available.modes.join(', ')}. Use search_nodes to see all options.`,
-					requiresDiscriminators: true,
-					availableDiscriminators: available,
-				};
-			}
-
-			// Validate mode
-			const modeFile = `mode_${toSnakeCase(discriminators.mode)}.ts`;
-			const filePath = join(nodeDir, targetVersion, modeFile);
-			if (!existsSync(filePath)) {
-				return {
-					error: `Error: Invalid mode '${discriminators.mode}' for node '${nodeId}'. Available: ${available.modes.join(', ')}`,
-				};
-			}
-
-			debugLog('Resolved split path for mode', { filePath });
-			return { filePath };
+			return resolveModePath(nodeDir, targetVersion, nodeId, available, discriminators?.mode);
 		}
 
 		// Split structure exists but no recognized discriminator directories
@@ -419,7 +450,7 @@ function getNodeTypeDefinition(
 	if (!existsSync(nodesPath)) {
 		const errorMsg = generatedTypesDir
 			? `Node types directory not found at '${nodesPath}'. Types may not have been generated yet.`
-			: `Node types not found. The generated types directory does not exist. Ensure the application has started properly and types have been generated.`;
+			: 'Node types not found. The generated types directory does not exist. Ensure the application has started properly and types have been generated.';
 		return {
 			nodeId,
 			content: '',

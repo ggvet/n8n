@@ -9,8 +9,8 @@ import type { BaseMessage, AIMessage } from '@langchain/core/messages';
 import { HumanMessage } from '@langchain/core/messages';
 import type { WorkflowJSON } from '@n8n/workflow-sdk';
 
-import type { ParseAndValidateResult, WorkflowCodeOutput, ValidationWarning } from '../types';
 import type { WarningTracker } from '../state/warning-tracker';
+import type { ParseAndValidateResult, WorkflowCodeOutput, ValidationWarning } from '../types';
 import { extractTextContent } from '../utils/content-extractors';
 import { extractWorkflowCode } from '../utils/extract-code';
 

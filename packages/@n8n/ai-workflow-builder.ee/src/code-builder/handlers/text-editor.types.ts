@@ -72,7 +72,7 @@ export interface TextEditorResult {
  */
 export class NoMatchFoundError extends Error {
 	constructor(_searchStr: string) {
-		super(`No match found for replacement. The exact string was not found in the file.`);
+		super('No match found for replacement. The exact string was not found in the file.');
 		this.name = 'NoMatchFoundError';
 	}
 }
