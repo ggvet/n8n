@@ -58,13 +58,12 @@ class IfNodeInstance implements NodeInstance<'n8n-nodes-base.if', string, unknow
 	}
 
 	output(index: number): OutputSelector<'n8n-nodes-base.if', string, unknown> {
-		const self = this;
 		return {
 			_isOutputSelector: true,
 			node: this,
 			outputIndex: index,
-			to<T extends NodeInstance<string, string, unknown>>(target: T | T[] | InputTarget) {
-				return self.to(target, index);
+			to: <T extends NodeInstance<string, string, unknown>>(target: T | T[] | InputTarget) => {
+				return this.to(target, index);
 			},
 		};
 	}
@@ -95,7 +94,6 @@ class IfNodeInstance implements NodeInstance<'n8n-nodes-base.if', string, unknow
 		}
 		// Return a chain-like object that proxies to the last target
 		const lastTarget = targets[targets.length - 1];
-		const self = this;
 		return {
 			_isChain: true,
 			head: this,
@@ -109,11 +107,11 @@ class IfNodeInstance implements NodeInstance<'n8n-nodes-base.if', string, unknow
 			_outputType: lastTarget._outputType,
 			update: lastTarget.update.bind(lastTarget),
 			to: lastTarget.to.bind(lastTarget),
-			onError<H extends NodeInstance<string, string, unknown>>(handler: H) {
+			onError: <H extends NodeInstance<string, string, unknown>>(handler: H) => {
 				lastTarget.onError(handler);
 				return this;
 			},
-			getConnections: () => [...self._connections, ...lastTarget.getConnections()],
+			getConnections: () => [...this._connections, ...lastTarget.getConnections()],
 		} as unknown as NodeChain<NodeInstance<'n8n-nodes-base.if', string, unknown>, T>;
 	}
 
