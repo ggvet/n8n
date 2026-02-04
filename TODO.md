@@ -5,20 +5,27 @@
 ## agent
 - [ ] clarify append merge mode. 1 item for each branch, returns 2 items.
 	- for combine, return 1 item
-- fix memory iteration why not showing when I refresh
+- [ ] generate mock data for output data based on schema
+- [ ] for webhoook path should not use placeholder
+- [ ] remove agent check in req
 
 ## ready to release
+- [ ] Refactor & Review PR
+- [ ] Get it reviewed
+
+- [ ] rerun evals comparing - Fri
 - [ ] legal concerns around templates
 
-- [ ] Review PR (lots of AI generated code that I did not look at)
+- [ ] credit tracking
 - [ ] Remove logging from agent. also remove the generated log files.
 - [ ] Add sentry tracking if workflow code generation step fails in prod.
-- [ ] caching the requests. make sure system prompt + caching the type requests
+- [ ] caching the requests. make sure system prompt
+- [ ] caching the type requests? talk to oleg
 - [ ] Update telemetry and prompt viewer app to support the code and workflow generated
-- [ ] fix up sticky sizing and positioning to cover nodes
-- [ ] add posthog tracking
 
-## testing
+## manual testing
+- [ ] credit tracking
+- [ ] revert to previous version etc?
 - [ ] success/error states, expression, execution data resolving etc.
 - [ ] handling of large workflows
 - [ ] context limits with many types of nodes
@@ -29,11 +36,13 @@
 - [ ] unknown nodes
 - [ ] community nodes
 - [ ] test multi agent setup
-
+- [ ] how it handles validation issues in existing workflows?
 
 ## Nice to haves / tech debt
-- [ ] cleanup $.fromAi
-- [ ] remove ifNode
+- [ ] fix up sticky sizing and positioning to cover nodes
+- [ ] improve position of branches (i.e. split in batches, error branches)
+- [ ] toolsWithoutParameters in sdk
+- [ ] clearer error with output data mismatch
 - [ ] support 1_3 as version numbers in generating types
 - [ ] Parameters?: should not be optional in types if some key in there is not optional
 - [ ] clean up print prompt
@@ -42,12 +51,8 @@
 - [ ] fromAI expressions replace in json -> code
 - [ ] rename get nodes tool to get_node_types
 - [ ] export and use rlc()
-- [ ] make display options more clear in node types @displayOption.show { node: ["operation"]}
 - [ ] move node-specific builder validations to node level rather than at sdk level
-- [ ] format the workflows into multi lines. might make it easier for workflow to handle parsing errors better
-- [ ] remove / @ts-nocheck - Generated file may have unused from generated files
 - [ ] Test more of the template library
-- [ ] Make it more clear that SDK api file is for LLM consumption. To avoid other engineers adding unnecessary types to it, confusing the agent.
 - [ ] update workflow() to support object init { id, settings }
 - [ ] move generated test files for committed workflows to same folder.
 - [] Fallback model in agent? how to represent that effectively. builderHint to true.
@@ -104,15 +109,21 @@ Feature Support Summary
  ├──────────────────────────────┼─────────────────┼──────────────────┤
  │ RLC Tool                     │ ✅              │ ❌  (NOT MVP)     │
  ├──────────────────────────────┼─────────────────┼──────────────────┤
+ │ Integration with planning    │ ✅              │ ❌  (If time allows)     │
+ ├──────────────────────────────┼─────────────────┼──────────────────┤
+ │ Template Search              │ ✅              │ ❌   (NOT MVP, should go into planning)     │
+ ├──────────────────────────────┼─────────────────┼──────────────────┤
  │ Template Search              │ ✅              │ ❌   (NOT MVP, should go into planning)     │
  ├──────────────────────────────┼─────────────────┼──────────────────┤
  │ Template Caching             │ ✅              │ ❌   (NOT MVP, should go into planning)    │
  ├──────────────────────────────┼─────────────────┼──────────────────┤
- │ Execution Data               │ ✅              │ WIP               │
+ │ Credit tracking              │ ✅              │ WIP              │
  ├──────────────────────────────┼─────────────────┼──────────────────┤
- │ Execution Schema             │ ✅              │ WIP               │
+ │ Execution Data               │ ✅              │ ✅               │
  ├──────────────────────────────┼─────────────────┼──────────────────┤
- │ Expression Values            │ ✅              │ WIP               │
+ │ Execution Schema             │ ✅              │ ✅               │
+ ├──────────────────────────────┼─────────────────┼──────────────────┤
+ │ Expression Values            │ ✅              │ ✅               │
  ├──────────────────────────────┼─────────────────┼──────────────────┤
  │ Resource/Operation Discovery │ ✅              │ ✅                │
  ├──────────────────────────────┼─────────────────┼──────────────────┤
@@ -120,7 +131,7 @@ Feature Support Summary
  ├──────────────────────────────┼─────────────────┼──────────────────┤
  │ Error Recovery Mode*         │ ✅              │ ✅              │
  ├──────────────────────────────┼─────────────────┼──────────────────┤
- │ Messag History, Compaction   │ ✅              │ TODO               │
+ │ Messag History, Compaction   │ ✅              │ ✅               │
  ├──────────────────────────────┼─────────────────┼──────────────────┤
  │ Node Search                  │ ✅              │ ✅               │
  ├──────────────────────────────┼─────────────────┼──────────────────┤
@@ -129,10 +140,6 @@ Feature Support Summary
  │ Current Workflow Context     │ ✅              │ ✅               │
  ├──────────────────────────────┼─────────────────┼──────────────────┤
  │ Validation                   │ ✅              │ ✅               │
- ├──────────────────────────────┼─────────────────┼──────────────────┤
- │ Token Usage Tracking         │ ❌              │ ✅               │
- ├──────────────────────────────┼─────────────────┼──────────────────┤
- │ Cost Estimation              │ ❌              │ ✅               │
  ├──────────────────────────────┼─────────────────┼──────────────────┤
  │ TypeScript SDK Output        │ ❌              │ ✅               │
  └──────────────────────────────┴─────────────────┴──────────────────┘
