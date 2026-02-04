@@ -295,76 +295,6 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			});
 		}
 
-		// Check for fluent API builders FIRST (before composites)
-		// IfElseBuilder and SwitchCaseBuilder have similar properties to their composite counterparts
-		// so we must check for builders first to avoid incorrect dispatch
-		if (isIfElseBuilder(node)) {
-			this.addIfElseBuilderNodes(newNodes, node as unknown as IfElseBuilder<unknown>);
-			return this.clone({
-				nodes: newNodes,
-				currentNode: (node as unknown as IfElseBuilder<unknown>).ifNode.name,
-				currentOutput: 0,
-				pinData: this._pinData,
-			});
-		}
-
-		if (isSwitchCaseBuilder(node)) {
-			this.addSwitchCaseBuilderNodes(newNodes, node as unknown as SwitchCaseBuilder<unknown>);
-			return this.clone({
-				nodes: newNodes,
-				currentNode: (node as unknown as SwitchCaseBuilder<unknown>).switchNode.name,
-				currentOutput: 0,
-				pinData: this._pinData,
-			});
-		}
-
-		// Check for composites (old API - can be passed directly to add())
-		if (isSwitchCaseComposite(node)) {
-			this.addSwitchCaseNodes(newNodes, node as unknown as SwitchCaseComposite);
-			return this.clone({
-				nodes: newNodes,
-				currentNode: (node as unknown as SwitchCaseComposite).switchNode.name,
-				currentOutput: 0,
-				pinData: this._pinData,
-			});
-		}
-
-		if (isIfElseComposite(node)) {
-			this.addIfElseNodes(newNodes, node as unknown as IfElseComposite);
-			return this.clone({
-				nodes: newNodes,
-				currentNode: (node as unknown as IfElseComposite).ifNode.name,
-				currentOutput: 0,
-				pinData: this._pinData,
-			});
-		}
-
-		if (isMergeComposite(node)) {
-			this.addMergeNodes(
-				newNodes,
-				node as unknown as MergeComposite<NodeInstance<string, string, unknown>[]>,
-			);
-			return this.clone({
-				nodes: newNodes,
-				currentNode: (node as unknown as MergeComposite<NodeInstance<string, string, unknown>[]>)
-					.mergeNode.name,
-				currentOutput: 0,
-				pinData: this._pinData,
-			});
-		}
-
-		// Check if this is a SplitInBatchesBuilder (for disconnected splitInBatches roots)
-		if (isSplitInBatchesBuilder(node)) {
-			this.addSplitInBatchesChainNodes(newNodes, node);
-			const builder = extractSplitInBatchesBuilder(node);
-			return this.clone({
-				nodes: newNodes,
-				currentNode: builder.sibNode.name,
-				currentOutput: 0,
-				pinData: this._pinData,
-			});
-		}
-
 		// Check if this is a NodeChain
 		if (isNodeChain(node)) {
 			// Track node ID -> actual map key for renamed nodes
@@ -415,19 +345,24 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			});
 		}
 
+		// At this point, plugin dispatch has handled IfElseBuilder/SwitchCaseBuilder, and we've
+		// handled NodeChain. The remaining type is NodeInstance or TriggerInstance.
+		// Cast to NodeInstance to satisfy TypeScript (type narrowing).
+		const regularNode = node as NodeInstance<string, string, unknown>;
+
 		// Regular node or trigger
-		this.addNodeWithSubnodes(newNodes, node);
+		this.addNodeWithSubnodes(newNodes, regularNode);
 
 		// Also add connection target nodes (e.g., onError handlers)
 		// This is important when re-adding a node that already exists but has new connections
-		this.addSingleNodeConnectionTargets(newNodes, node);
+		this.addSingleNodeConnectionTargets(newNodes, regularNode);
 
 		// Collect pinData from the node if present
-		const newPinData = this.collectPinData(node);
+		const newPinData = this.collectPinData(regularNode);
 
 		return this.clone({
 			nodes: newNodes,
-			currentNode: node.name,
+			currentNode: regularNode.name,
 			currentOutput: 0,
 			pinData: newPinData,
 		});
@@ -1610,6 +1545,32 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			const builder = extractSplitInBatchesBuilder(target);
 			return builder?.sibNode.name;
 		}
+		return undefined;
+	}
+
+	/**
+	 * Try to dispatch a composite to a plugin handler.
+	 * Returns the head node name if a handler processed it, undefined otherwise.
+	 *
+	 * This is used to replace inline composite handling methods with plugin-based dispatch.
+	 * The method checks for duplicate processing using the main node name and delegates
+	 * to the appropriate plugin handler if one is registered.
+	 */
+	private tryPluginDispatch(nodes: Map<string, GraphNode>, target: unknown): string | undefined {
+		// Check for duplicate processing using the main node name
+		const mainNodeName = this.getCompositeMainNodeName(target);
+		if (mainNodeName && nodes.has(mainNodeName)) {
+			return mainNodeName; // Already processed
+		}
+
+		// Try plugin dispatch
+		const registry = this._registry ?? pluginRegistry;
+		const handler = registry.findCompositeHandler(target);
+		if (handler) {
+			const ctx = this.createMutablePluginContext(nodes);
+			return handler.addNodes(target, ctx);
+		}
+
 		return undefined;
 	}
 
@@ -2799,22 +2760,10 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		// Create nameMapping if not passed (tracks node ID -> actual map key for renamed nodes)
 		const effectiveNameMapping = nameMapping ?? new Map<string, string>();
 
-		// Handle IfElseBuilder (fluent API) - add via addIfElseBuilderNodes
-		if (isIfElseBuilder(branch)) {
-			const builder = branch as unknown as IfElseBuilder<unknown>;
-			if (!nodes.has(builder.ifNode.name)) {
-				this.addIfElseBuilderNodes(nodes, builder);
-			}
-			return builder.ifNode.name;
-		}
-
-		// Handle SwitchCaseBuilder (fluent API) - add via addSwitchCaseBuilderNodes
-		if (isSwitchCaseBuilder(branch)) {
-			const builder = branch as unknown as SwitchCaseBuilder<unknown>;
-			if (!nodes.has(builder.switchNode.name)) {
-				this.addSwitchCaseBuilderNodes(nodes, builder);
-			}
-			return builder.switchNode.name;
+		// Try plugin dispatch first - handles all composite types
+		const pluginResult = this.tryPluginDispatch(nodes, branch);
+		if (pluginResult !== undefined) {
+			return pluginResult;
 		}
 
 		// Check if the branch is a NodeChain
@@ -2840,26 +2789,10 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 					continue;
 				}
 
-				// Check for builders FIRST (before composites) - builders have similar properties
-				if (isIfElseBuilder(chainNode)) {
-					// Handle IfElseBuilder (fluent API) chained via chain.then(ifNode.onTrue(...).onFalse(...))
-					this.addIfElseBuilderNodes(nodes, chainNode as unknown as IfElseBuilder<unknown>);
-				} else if (isSwitchCaseBuilder(chainNode)) {
-					// Handle SwitchCaseBuilder (fluent API) chained via chain.then(switchNode.onCase(...))
-					this.addSwitchCaseBuilderNodes(nodes, chainNode as unknown as SwitchCaseBuilder<unknown>);
-				} else if (isSwitchCaseComposite(chainNode)) {
-					this.addSwitchCaseNodes(nodes, chainNode as unknown as SwitchCaseComposite);
-				} else if (isIfElseComposite(chainNode)) {
-					this.addIfElseNodes(nodes, chainNode as unknown as IfElseComposite);
-				} else if (isMergeComposite(chainNode)) {
-					this.addMergeNodes(
-						nodes,
-						chainNode as unknown as MergeComposite<NodeInstance<string, string, unknown>[]>,
-					);
-				} else if (isSplitInBatchesBuilder(chainNode)) {
-					// Handle EachChainImpl/DoneChainImpl that got chained via node.then(splitInBatches()...)
-					this.addSplitInBatchesChainNodes(nodes, chainNode, effectiveNameMapping);
-				} else {
+				// Try plugin dispatch for composites
+				const chainPluginResult = this.tryPluginDispatch(nodes, chainNode);
+				if (chainPluginResult === undefined) {
+					// Not a composite - add as regular node
 					const actualKey = this.addNodeWithSubnodes(nodes, chainNode);
 					// Track the actual key if it was renamed
 					if (actualKey && actualKey !== chainNode.name) {
@@ -2909,54 +2842,14 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 								// Add each node in the chain that isn't already in the map
 								// We can't just check the head because the chain may reuse an existing
 								// node as head (e.g., set_content) while having new nodes after it
-								for (const chainNode of chainTarget.allNodes) {
-									if (chainNode === null) continue;
+								for (const targetChainNode of chainTarget.allNodes) {
+									if (targetChainNode === null) continue;
 
-									// Check for builders FIRST (before composites) - builders have similar properties
-									if (isIfElseBuilder(chainNode)) {
-										const builder = chainNode as unknown as IfElseBuilder<unknown>;
-										if (!nodes.has(builder.ifNode.name)) {
-											this.addIfElseBuilderNodes(nodes, builder);
-										}
-									} else if (isSwitchCaseBuilder(chainNode)) {
-										const builder = chainNode as unknown as SwitchCaseBuilder<unknown>;
-										if (!nodes.has(builder.switchNode.name)) {
-											this.addSwitchCaseBuilderNodes(nodes, builder);
-										}
-									} else if (isSwitchCaseComposite(chainNode)) {
-										const comp = chainNode as unknown as SwitchCaseComposite;
-										if (!nodes.has(comp.switchNode.name)) {
-											this.addSwitchCaseNodes(nodes, comp);
-										}
-									} else if (isIfElseComposite(chainNode)) {
-										const comp = chainNode as unknown as IfElseComposite;
-										// Add the IF node first to mark as processed (prevents recursion)
-										if (!nodes.has(comp.ifNode.name)) {
-											// Pre-register IF node to prevent recursion during branch processing
-											const ifConns = new Map<string, Map<number, ConnectionTarget[]>>();
-											ifConns.set('main', new Map());
-											nodes.set(comp.ifNode.name, {
-												instance: comp.ifNode,
-												connections: ifConns,
-											});
-											// Now process branches safely
-											this.addIfElseNodes(nodes, comp);
-										}
-									} else if (isMergeComposite(chainNode)) {
-										const comp = chainNode as unknown as MergeComposite<
-											NodeInstance<string, string, unknown>[]
-										>;
-										if (!nodes.has(comp.mergeNode.name)) {
-											this.addMergeNodes(nodes, comp);
-										}
-									} else if (isSplitInBatchesBuilder(chainNode)) {
-										const builder = extractSplitInBatchesBuilder(chainNode);
-										if (!nodes.has(builder.sibNode.name)) {
-											this.addSplitInBatchesChainNodes(nodes, chainNode);
-										}
-									} else if (!nodes.has(chainNode.name)) {
-										// Add regular node if not already present
-										this.addNodeWithSubnodes(nodes, chainNode);
+									// Try plugin dispatch for composites
+									const targetPluginResult = this.tryPluginDispatch(nodes, targetChainNode);
+									if (targetPluginResult === undefined && !nodes.has(targetChainNode.name)) {
+										// Not a composite and not already present - add as regular node
+										this.addNodeWithSubnodes(nodes, targetChainNode);
 									}
 								}
 							} else if (
@@ -2996,31 +2889,8 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			const headKey = effectiveNameMapping.get(branch.head.id) ?? branch.head.name;
 			return headKey;
 		} else {
-			// Check if this is a composite that needs special handling
-			if (isSwitchCaseComposite(branch)) {
-				this.addSwitchCaseNodes(nodes, branch as unknown as SwitchCaseComposite);
-				// Return the switch node name (the head of this composite)
-				return (branch as unknown as SwitchCaseComposite).switchNode.name;
-			} else if (isIfElseComposite(branch)) {
-				this.addIfElseNodes(nodes, branch as unknown as IfElseComposite);
-				// Return the IF node name (the head of this composite)
-				return (branch as unknown as IfElseComposite).ifNode.name;
-			} else if (isMergeComposite(branch)) {
-				this.addMergeNodes(
-					nodes,
-					branch as unknown as MergeComposite<NodeInstance<string, string, unknown>[]>,
-				);
-				// Return the merge node name (the head of this composite)
-				return (branch as unknown as MergeComposite<NodeInstance<string, string, unknown>[]>)
-					.mergeNode.name;
-			} else if (isSplitInBatchesBuilder(branch)) {
-				this.addSplitInBatchesChainNodes(nodes, branch, effectiveNameMapping);
-				// Return the split in batches node name
-				const builder = extractSplitInBatchesBuilder(branch);
-				return builder.sibNode.name;
-			}
-
 			// Single node - add it and return its name
+			// Note: Composites are handled by tryPluginDispatch at the entry point
 			const actualKey = this.addNodeWithSubnodes(nodes, branch);
 			// If the node was renamed, track it and return the actual key
 			if (actualKey && actualKey !== branch.name) {
