@@ -190,9 +190,9 @@ const {
 			:shortcut="{ keys: ['['] }"
 		>
 			<N8nIconButton
+				id="toggle-sidebar-button"
 				class="n8n-button--highlight"
 				variant="ghost"
-				id="toggle-sidebar-button"
 				size="small"
 				icon="panel-left"
 				icon-size="large"

@@ -196,7 +196,7 @@ defineExpose({
 	>
 		<template #trigger>
 			<N8nButton
-				variant="subtle"
+				variant="ghost"
 				:class="$style.dropdownButton"
 				:text="text"
 				data-test-id="chat-model-selector"

@@ -7,12 +7,15 @@ import { type IconSize } from './icon';
 const BUTTON_VARIANT = ['solid', 'subtle', 'ghost', 'outline', 'destructive'] as const;
 export type ButtonVariant = (typeof BUTTON_VARIANT)[number];
 
+/** @deprecated Use 'ghost' or 'subtle' instead */
+export type LegacyButtonVariant = 'highlight' | 'highlight-fill';
+
 const BUTTON_SIZE = ['mini', 'xmini', 'small', 'medium', 'large', 'xsmall'] as const;
 export type ButtonSize = (typeof BUTTON_SIZE)[number];
 
 export interface ButtonProps {
 	/** Determines the visual style of the button */
-	variant?: ButtonVariant;
+	variant?: ButtonVariant | LegacyButtonVariant;
 	/** Determines the size of the button */
 	size?: ButtonSize;
 	/** If passed, the button will be rendered as a link */

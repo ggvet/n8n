@@ -48,7 +48,7 @@
 }
 
 /** @deprecated Use a semantic variant instead of highlight color */
-:global(.n8n-button--highlight) {
+/* :global(.n8n-button--highlight) {
 	--button--color--background: var(--button--color--background--highlight);
 	--button--color--background-hover: var(--button--color--background--highlight--hover);
 	--button--color--background-active: var(--button--color--background--highlight--active-focus);
@@ -63,10 +63,10 @@
 		--button--color: var(--button--color--text--highlight--disabled);
 		--button--shadow: 0 0 0 1px var(--button--border-color--highlight--disabled);
 	}
-}
+} */
 
 /** @deprecated Use a semantic variant instead of highlightFill color */
-:global(.n8n-button--highlightFill) {
+/* :global(.n8n-button--highlightFill) {
 	--button--color--background: var(--button--color--background--highlight-fill);
 	--button--color--background-hover: var(--button--color--background--highlight-fill--hover);
 	--button--color--background-active: var(
@@ -84,4 +84,4 @@
 		--button--color: var(--button--color--text--highlight-fill--disabled);
 		--button--shadow: 0 0 0 1px var(--button--border-color--highlight-fill--disabled);
 	}
-}
+} */

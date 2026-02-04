@@ -27,6 +27,13 @@ const effectiveSize = computed(() => {
 	return props.size ?? 'medium';
 });
 
+// Map legacy variant values to current ones
+const effectiveVariant = computed(() => {
+	if (props.variant === 'highlight') return 'ghost';
+	if (props.variant === 'highlight-fill') return 'ghost';
+	return props.variant ?? 'subtle';
+});
+
 const computedIconSize = computed((): IconSize | undefined => {
 	if (props.iconSize) return props.iconSize;
 	if (effectiveSize.value === 'xsmall') return 'xsmall';
@@ -49,7 +56,7 @@ const classes = computed(() =>
 	cn(
 		'button',
 		$style.button,
-		$style[props.variant ?? 'solid'],
+		$style[effectiveVariant.value],
 		$style[effectiveSize.value],
 		props.loading && $style.loading,
 		props.iconOnly && $style.iconOnly,
@@ -127,7 +134,6 @@ const handleClick = (event: MouseEvent) => {
 	user-select: none;
 	width: fit-content;
 	display: grid;
-	border: none;
 	font-weight: var(--font-weight--medium);
 	line-height: 1;
 	cursor: pointer;
@@ -145,10 +151,14 @@ const handleClick = (event: MouseEvent) => {
 	--button--shadow: none;
 	--button--shadow--hover: none;
 	--button--shadow--active: none;
+	--button--border-color: transparent;
+	--button--border-color--hover: transparent;
+	--button--border-color--active: transparent;
 
 	background-color: var(--button--color--background);
 	color: var(--button--color);
 	box-shadow: var(--button--shadow);
+	border: 1px solid var(--button--border-color);
 
 	> * {
 		grid-area: 1 / 1;
@@ -157,11 +167,13 @@ const handleClick = (event: MouseEvent) => {
 	&:hover {
 		background-color: var(--button--color--background-hover);
 		box-shadow: var(--button--shadow--hover);
+		border-color: var(--button--border-color--hover);
 	}
 
 	&:active {
 		background-color: var(--button--color--background-active);
 		box-shadow: var(--button--shadow--active);
+		border-color: var(--button--border-color--active);
 	}
 
 	&:focus {
@@ -194,7 +206,7 @@ const handleClick = (event: MouseEvent) => {
 	}
 
 	&.large {
-		--button--height: 2.625rem;
+		--button--height: 2.5rem;
 		--button--padding: 0 var(--spacing--sm);
 		--button--radius: var(--radius--xs);
 		--button--font-size: var(--font-size--md);
@@ -205,74 +217,85 @@ const handleClick = (event: MouseEvent) => {
 		--button--color--background-hover: var(--color--orange-500);
 		--button--color--background-active: var(--color--orange-600);
 		--button--color: var(--color--neutral-white);
-		--button--shadow:
-			0 1px 3px 0 light-dark(var(--color--black-alpha-100), var(--color--black-alpha-200)),
-			0 0 0 1px var(--color--orange-400);
-		--button--shadow--hover:
-			0 1px 3px 0 light-dark(var(--color--black-alpha-100), var(--color--black-alpha-200)),
-			0 0 0 1px var(--color--orange-500);
-		--button--shadow--active:
-			0 1px 3px 0 light-dark(var(--color--black-alpha-100), var(--color--black-alpha-200)),
-			0 0 0 1px var(--color--orange-600);
+		--button--shadow: 0 1px 3px 0
+			light-dark(var(--color--black-alpha-100), var(--color--black-alpha-200));
+		--button--shadow--hover: 0 1px 3px 0
+			light-dark(var(--color--black-alpha-100), var(--color--black-alpha-200));
+		--button--shadow--active: 0 1px 3px 0
+			light-dark(var(--color--black-alpha-100), var(--color--black-alpha-200));
+		--button--border-color: var(--color--orange-400);
+		--button--border-color--hover: var(--color--orange-500);
+		--button--border-color--active: var(--color--orange-600);
 	}
 
 	&.subtle {
 		--button--color--background: light-dark(var(--color--neutral-white), var(--color--neutral-800));
 		--button--color--background-hover: light-dark(
-			var(--color--neutral-200),
+			var(--color--neutral-150),
 			var(--color--neutral-700)
 		);
 		--button--color--background-active: light-dark(
-			var(--color--neutral-250),
+			var(--color--neutral-200),
 			var(--color--neutral-600)
 		);
 		--button--shadow:
-			0 1px 3px 0 light-dark(var(--color--black-alpha-200), var(--color--black-alpha-300)),
-			0 0 0 1px light-dark(var(--color--black-alpha-100), var(--color--white-alpha-100)),
-			0 0 0 2px light-dark(transparent, var(--color--black-alpha-100));
+			0 1px 2px light-dark(var(--color--black-alpha-100), var(--color--black-alpha-300)),
+			0 0 0 1px light-dark(transparent, var(--color--black-alpha-100));
 		--button--shadow--hover:
 			0 1px 3px 0 light-dark(var(--color--black-alpha-200), var(--color--black-alpha-300)),
-			0 0 0 1px light-dark(var(--color--black-alpha-200), var(--color--white-alpha-300)),
-			0 0 0 2px light-dark(transparent, var(--color--black-alpha-100));
+			0 0 0 1px light-dark(transparent, var(--color--black-alpha-100));
 		--button--shadow--active:
 			0 1px 3px 0 light-dark(var(--color--black-alpha-200), var(--color--black-alpha-300)),
-			0 0 0 1px light-dark(var(--color--black-alpha-300), var(--color--white-alpha-300)),
-			0 0 0 2px light-dark(transparent, var(--color--black-alpha-100));
+			0 0 0 1px light-dark(transparent, var(--color--black-alpha-100));
+		--button--border-color: light-dark(
+			var(--color--black-alpha-200),
+			var(--color--white-alpha-100)
+		);
+		--button--border-color--hover: light-dark(
+			var(--color--black-alpha-200),
+			var(--color--white-alpha-300)
+		);
+		--button--border-color--active: light-dark(
+			var(--color--black-alpha-300),
+			var(--color--white-alpha-300)
+		);
 	}
 
 	&.outline {
 		--button--color--background: transparent;
 		--button--color--background-hover: light-dark(
-			var(--color--black-alpha-200),
+			var(--color--neutral-150),
 			var(--color--white-alpha-100)
 		);
 		--button--color--background-active: light-dark(
-			var(--color--black-alpha-300),
+			var(--color--black-alpha-200),
 			var(--color--white-alpha-200)
 		);
-		--button--shadow: 0 0 0 1px
-			light-dark(var(--color--black-alpha-100), var(--color--white-alpha-100));
-		--button--shadow--hover: 0 0 0 1px
-			light-dark(var(--color--black-alpha-200), var(--color--white-alpha-200));
-		--button--shadow--active: 0 0 0 1px
-			light-dark(var(--color--black-alpha-300), var(--color--white-alpha-300));
+		--button--border-color: light-dark(
+			var(--color--black-alpha-200),
+			var(--color--white-alpha-100)
+		);
+		--button--border-color--hover: light-dark(
+			var(--color--black-alpha-200),
+			var(--color--white-alpha-200)
+		);
+		--button--border-color--active: light-dark(
+			var(--color--black-alpha-300),
+			var(--color--white-alpha-300)
+		);
 	}
 
 	&.ghost {
 		--button--color--background: transparent;
 		--button--color--background-hover: light-dark(
-			var(--color--black-alpha-200),
+			var(--color--black-alpha-100),
 			var(--color--white-alpha-100)
 		);
 		--button--color--background-active: light-dark(
-			var(--color--black-alpha-300),
+			var(--color--black-alpha-200),
 			var(--color--white-alpha-200)
 		);
-		--button--shadow: 0 0 0 0 transparent;
-		--button--shadow--hover: 0 0 0 1px
-			light-dark(var(--color--black-alpha-200), var(--color--white-alpha-100));
-		--button--shadow--active: 0 0 0 1px
-			light-dark(var(--color--black-alpha-200), var(--color--white-alpha-100));
+		--button--border-color: transparent;
 	}
 
 	&.destructive {
@@ -280,24 +303,21 @@ const handleClick = (event: MouseEvent) => {
 		--button--color--background-hover: light-dark(var(--color--red-600), var(--color--red-500));
 		--button--color--background-active: light-dark(var(--color--red-600), var(--color--red-400));
 		--button--color: var(--color--neutral-white);
-		--button--shadow:
-			light-dark(
-				0 1px 3px 0 var(--color--black-alpha-100),
-				0 1px 3px 0 var(--color--black-alpha-200)
-			),
-			0 0 0 1px light-dark(var(--color--red-500), var(--color--red-600));
-		--button--shadow--hover:
-			light-dark(
-				0 1px 3px 0 var(--color--black-alpha-100),
-				0 1px 3px 0 var(--color--black-alpha-200)
-			),
-			0 0 0 1px light-dark(var(--color--red-600), var(--color--red-500));
-		--button--shadow--active:
-			light-dark(
-				0 1px 3px 0 var(--color--black-alpha-100),
-				0 1px 3px 0 var(--color--black-alpha-200)
-			),
-			0 0 0 1px light-dark(var(--color--red-600), var(--color--red-400));
+		--button--shadow: light-dark(
+			0 1px 3px 0 var(--color--black-alpha-100),
+			0 1px 3px 0 var(--color--black-alpha-200)
+		);
+		--button--shadow--hover: light-dark(
+			0 1px 3px 0 var(--color--black-alpha-100),
+			0 1px 3px 0 var(--color--black-alpha-200)
+		);
+		--button--shadow--active: light-dark(
+			0 1px 3px 0 var(--color--black-alpha-100),
+			0 1px 3px 0 var(--color--black-alpha-200)
+		);
+		--button--border-color: light-dark(var(--color--red-500), var(--color--red-600));
+		--button--border-color--hover: light-dark(var(--color--red-600), var(--color--red-500));
+		--button--border-color--active: light-dark(var(--color--red-600), var(--color--red-400));
 	}
 
 	&.disabled {

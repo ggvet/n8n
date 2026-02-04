@@ -429,13 +429,13 @@ describe('InsightsDashboard', () => {
 			const currentTime = new Date('2000-12-19T14:30:45.000Z');
 			vi.setSystemTime(currentTime);
 
-			const { getByText } = renderComponent({
+			const { getByRole } = renderComponent({
 				props: { insightType: INSIGHT_TYPES.TOTAL },
 			});
 
 			vi.clearAllMocks();
 
-			const picker = await openDatePicker(getByText);
+			const picker = await openDatePicker(getByRole);
 			// Select month option to get a multi-day range
 			const monthOption = within(picker).getByText('Last 30 days');
 			await userEvent.click(monthOption);
