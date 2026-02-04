@@ -7,7 +7,10 @@
 import { interpretSDKCode, InterpreterError, SecurityError } from '../ast-interpreter';
 import type { SDKFunctions } from '../ast-interpreter';
 import { expr as exprFn } from '../expression';
+import type { WorkflowJSON, WorkflowBuilder } from '../types/base';
 import { workflow as workflowFn } from '../workflow-builder';
+import { nextBatch as nextBatchFn } from '../workflow-builder/control-flow-builders/next-batch';
+import { splitInBatches as splitInBatchesFn } from '../workflow-builder/control-flow-builders/split-in-batches';
 import {
 	node as nodeFn,
 	trigger as triggerFn,
@@ -32,9 +35,6 @@ import {
 	reranker as rerankerFn,
 	fromAi as fromAiFn,
 } from '../workflow-builder/node-builders/subnode-builders';
-import { splitInBatches as splitInBatchesFn } from '../workflow-builder/control-flow-builders/split-in-batches';
-import { nextBatch as nextBatchFn } from '../workflow-builder/control-flow-builders/next-batch';
-import type { WorkflowJSON, WorkflowBuilder } from '../types/base';
 
 /**
  * Known n8n runtime variables that need to be escaped in template literals.
@@ -80,7 +80,7 @@ function escapeN8nVariablesInTemplateLiterals(code: string): string {
 		// Note: varName includes the $ prefix (e.g., "$today"), so we need to escape it for regex
 		const escapedVarName = varName.replace(/\$/g, '\\$');
 		const pattern = new RegExp('(?<!\\\\)\\$\\{' + escapedVarName, 'g');
-		// eslint-disable-next-line prefer-template
+
 		result = result.replace(pattern, '\\${' + varName);
 	}
 

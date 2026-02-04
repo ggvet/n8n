@@ -718,16 +718,16 @@ return workflow('test-id', 'Test')
 
 			// Output 0 (done) connects to Finalize
 			expect(sibConnections.main[0]).toHaveLength(1);
-			expect(sibConnections.main[0]![0]!.node).toBe('Finalize');
+			expect(sibConnections.main[0]![0].node).toBe('Finalize');
 
 			// Output 1 (each) connects to Process Batch
 			expect(sibConnections.main[1]).toHaveLength(1);
-			expect(sibConnections.main[1]![0]!.node).toBe('Process Batch');
+			expect(sibConnections.main[1]![0].node).toBe('Process Batch');
 
 			// Upload should loop back to SIB
 			const uploadConnections = json.connections['Upload'];
 			expect(uploadConnections).toBeDefined();
-			expect(uploadConnections.main[0]![0]!.node).toBe('Process Each Video');
+			expect(uploadConnections.main[0]![0].node).toBe('Process Each Video');
 		});
 
 		it('should handle real-world YouTube Shorts workflow with AI agent and subnodes', () => {
@@ -929,16 +929,16 @@ return workflow('eval-1769451317134-scv1mk1th', 'YouTube Shorts Auto-Publisher')
 
 			// Output 0 (done) connects to All Videos Uploaded
 			expect(sibConnections.main[0]).toHaveLength(1);
-			expect(sibConnections.main[0]![0]!.node).toBe('All Videos Uploaded');
+			expect(sibConnections.main[0]![0].node).toBe('All Videos Uploaded');
 
 			// Output 1 (each) connects to Generate Short Story Script
 			expect(sibConnections.main[1]).toHaveLength(1);
-			expect(sibConnections.main[1]![0]!.node).toBe('Generate Short Story Script');
+			expect(sibConnections.main[1]![0].node).toBe('Generate Short Story Script');
 
 			// Upload to YouTube should loop back to Process Each Video
 			const uploadConnections = json.connections['Upload to YouTube'];
 			expect(uploadConnections).toBeDefined();
-			expect(uploadConnections.main[0]![0]!.node).toBe('Process Each Video');
+			expect(uploadConnections.main[0]![0].node).toBe('Process Each Video');
 		});
 
 		it('should handle nextBatch() looping back to SIB builder without stack overflow', () => {

@@ -406,7 +406,7 @@ class SDKInterpreter {
 		// Check if this looks like an n8n runtime variable (starts with $)
 		if (this.isN8nRuntimeVariable(expr)) {
 			// Return as escaped literal string: ${$json.name} becomes literal string "${$json.name}"
-			// eslint-disable-next-line prefer-template
+
 			return '${' + this.expressionToString(expr) + '}';
 		}
 
