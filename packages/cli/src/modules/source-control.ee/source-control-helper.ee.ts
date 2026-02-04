@@ -4,7 +4,7 @@ import type { TagEntity, WorkflowTagMapping } from '@n8n/db';
 import { Container } from '@n8n/di';
 import { generateKeyPairSync } from 'crypto';
 import { constants as fsConstants, mkdirSync, accessSync } from 'fs';
-import { jsonParse, UserError } from 'n8n-workflow';
+import { jsonParse, UserError, type DataTableColumnType } from 'n8n-workflow';
 import { ok } from 'node:assert/strict';
 import { readFile as fsReadFile } from 'node:fs/promises';
 import path from 'path';
@@ -372,4 +372,11 @@ export function isDataTableModified(
 	}
 
 	return !areDataTableColumnsEqual(localDt.columns, remoteDt.columns);
+}
+
+/**
+ * Type guard to check if a string is a valid DataTableColumnType.
+ */
+export function isValidDataTableColumnType(type: string): type is DataTableColumnType {
+	return ['string', 'number', 'boolean', 'date'].includes(type);
 }

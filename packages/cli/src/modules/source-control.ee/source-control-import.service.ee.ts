@@ -60,6 +60,7 @@ import {
 	getDataTableExportPath,
 	getProjectExportPath,
 	getWorkflowExportPath,
+	isValidDataTableColumnType,
 } from './source-control-helper.ee';
 import { SourceControlScopedService } from './source-control-scoped.service';
 import type {
@@ -1239,10 +1240,6 @@ export class SourceControlImportService {
 		return await this.importVariables(importedVariables, valueOverrides);
 	}
 
-	private isValidColumnType(type: string): type is 'string' | 'number' | 'boolean' | 'date' {
-		return ['string', 'number', 'boolean', 'date'].includes(type);
-	}
-
 	async importDataTablesFromWorkFolder(candidates: SourceControlledFile[], _userId: string) {
 		if (candidates.length === 0) {
 			return;
@@ -1360,7 +1357,7 @@ export class SourceControlImportService {
 				// Upsert columns
 				const columnEntities = [];
 				for (const column of dataTable.columns) {
-					if (!this.isValidColumnType(column.type)) {
+					if (!isValidDataTableColumnType(column.type)) {
 						this.logger.warn(
 							`Invalid column type "${column.type}" in data table ${dataTable.name}, column ${column.name}. Skipping column.`,
 						);
