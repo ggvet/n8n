@@ -214,14 +214,11 @@ function createCodeWorkflowBuilderGenerator(
 			}
 		}
 
-		// Serialize all collected logs from evaluation logger
-		const logs = evalLogger.serialize();
-
 		if (!workflow) {
-			throw new WorkflowGenerationError('CodeWorkflowBuilder did not produce a workflow', logs);
+			throw new WorkflowGenerationError('CodeWorkflowBuilder did not produce a workflow');
 		}
 
-		return { workflow, generatedCode, logs };
+		return { workflow, generatedCode };
 	};
 }
 
