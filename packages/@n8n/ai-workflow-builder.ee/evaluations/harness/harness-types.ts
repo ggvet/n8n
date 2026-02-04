@@ -217,8 +217,6 @@ export interface ExampleResult {
 	workflow?: SimpleWorkflow;
 	/** Generated source code (e.g., TypeScript SDK code from coding agent) */
 	generatedCode?: string;
-	/** Captured debug logs from the generation process */
-	logs?: string;
 	error?: string;
 }
 
@@ -230,8 +228,6 @@ export interface GenerationResult {
 	workflow: SimpleWorkflow;
 	/** Source code that generated the workflow (e.g., TypeScript SDK code) */
 	generatedCode?: string;
-	/** Captured debug logs from the generation process */
-	logs?: string;
 }
 
 /**
