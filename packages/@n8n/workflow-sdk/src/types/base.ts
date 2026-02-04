@@ -4,6 +4,9 @@
  * Core types for building n8n workflows programmatically.
  */
 
+import type { ValidationOptions, ValidationResult } from '../validation/index';
+import type { PluginRegistry } from '../workflow-builder/plugins/registry';
+
 // =============================================================================
 // Data Types
 // =============================================================================
@@ -908,9 +911,7 @@ export interface WorkflowBuilder {
 	 * Validate the workflow graph structure.
 	 * Returns errors and warnings without converting to JSON.
 	 */
-	validate(
-		options?: import('../validation/index').ValidationOptions,
-	): import('../validation/index').ValidationResult;
+	validate(options?: ValidationOptions): ValidationResult;
 
 	toJSON(): WorkflowJSON;
 
@@ -952,7 +953,7 @@ export interface WorkflowBuilderOptions {
 	/** Workflow settings */
 	settings?: WorkflowSettings;
 	/** Plugin registry to use (optional, defaults to global registry) */
-	registry?: import('../workflow-builder/plugins/registry').PluginRegistry;
+	registry?: PluginRegistry;
 }
 
 /**
