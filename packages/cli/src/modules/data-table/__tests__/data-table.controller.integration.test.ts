@@ -38,7 +38,7 @@ let memberProject: Project;
 
 const testServer = utils.setupTestServer({
 	endpointGroups: ['data-table'],
-	modules: ['data-table'],
+	modules: ['data-table', 'source-control'],
 });
 let projectRepository: ProjectRepository;
 let dataTableRepository: DataTableRepository;
