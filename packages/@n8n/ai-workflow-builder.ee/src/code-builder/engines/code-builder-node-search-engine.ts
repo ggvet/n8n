@@ -13,7 +13,7 @@ import { sublimeSearch } from '@n8n/utils';
 import type { BuilderHintInputs, INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
 import { NodeConnectionTypes } from 'n8n-workflow';
 
-import type { NodeSearchResult, SubnodeRequirement } from '../../types/nodes';
+import type { CodeBuilderNodeSearchResult, SubnodeRequirement } from '../types';
 
 /**
  * Default subnodes for each connection type
@@ -100,7 +100,7 @@ export class CodeBuilderNodeSearchEngine {
 	 * @param limit - Maximum number of results to return
 	 * @returns Array of matching nodes sorted by relevance
 	 */
-	searchByName(query: string, limit: number = 20): NodeSearchResult[] {
+	searchByName(query: string, limit: number = 20): CodeBuilderNodeSearchResult[] {
 		// Use sublimeSearch for fuzzy matching
 		const searchResults = sublimeSearch<INodeTypeDescription>(
 			query,
@@ -108,23 +108,28 @@ export class CodeBuilderNodeSearchEngine {
 			NODE_SEARCH_KEYS,
 		);
 
-		// Map results to NodeSearchResult format and apply limit
+		// Map results to CodeBuilderNodeSearchResult format and apply limit
 		return searchResults
 			.slice(0, limit)
-			.map(({ item, score }: { item: INodeTypeDescription; score: number }): NodeSearchResult => {
-				const subnodeRequirements = extractSubnodeRequirements(item.builderHint?.inputs);
-				return {
-					name: item.name,
-					displayName: item.displayName,
-					description: item.description ?? 'No description available',
-					version: getLatestVersion(item.version),
-					inputs: item.inputs,
-					outputs: item.outputs,
+			.map(
+				({
+					item,
 					score,
-					...(item.builderHint?.message && { builderHintMessage: item.builderHint.message }),
-					...(subnodeRequirements.length > 0 && { subnodeRequirements }),
-				};
-			});
+				}: { item: INodeTypeDescription; score: number }): CodeBuilderNodeSearchResult => {
+					const subnodeRequirements = extractSubnodeRequirements(item.builderHint?.inputs);
+					return {
+						name: item.name,
+						displayName: item.displayName,
+						description: item.description ?? 'No description available',
+						version: getLatestVersion(item.version),
+						inputs: item.inputs,
+						outputs: item.outputs,
+						score,
+						...(item.builderHint?.message && { builderHintMessage: item.builderHint.message }),
+						...(subnodeRequirements.length > 0 && { subnodeRequirements }),
+					};
+				},
+			);
 	}
 
 	/**
@@ -139,7 +144,7 @@ export class CodeBuilderNodeSearchEngine {
 		connectionType: NodeConnectionType,
 		limit: number = 20,
 		nameFilter?: string,
-	): NodeSearchResult[] {
+	): CodeBuilderNodeSearchResult[] {
 		// First, filter by connection type
 		const nodesWithConnectionType = this.nodeTypes
 			.map((nodeType) => {
@@ -206,7 +211,7 @@ export class CodeBuilderNodeSearchEngine {
 	 * @param result - Single search result
 	 * @returns XML-formatted string
 	 */
-	formatResult(result: NodeSearchResult): string {
+	formatResult(result: CodeBuilderNodeSearchResult): string {
 		const parts = [
 			`		<node>`,
 			`			<node_name>${result.name}</node_name>`,
