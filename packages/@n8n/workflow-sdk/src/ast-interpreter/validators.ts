@@ -47,7 +47,6 @@ export const ALLOWED_SDK_FUNCTIONS = new Set([
 export const ALLOWED_METHODS = new Set([
 	// Workflow builder methods
 	'add',
-	'then',
 	'to',
 
 	// Node builder methods

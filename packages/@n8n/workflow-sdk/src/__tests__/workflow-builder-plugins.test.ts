@@ -63,7 +63,7 @@ describe('WorkflowBuilder plugin integration', () => {
 					type: 'n8n-nodes-base.manualTrigger',
 					version: 1,
 					config: { name: 'Start' },
-				}).then(setNode),
+				}).to(setNode),
 			);
 
 			wf.validate();
@@ -187,7 +187,7 @@ describe('WorkflowBuilder plugin integration', () => {
 					type: 'n8n-nodes-base.manualTrigger',
 					version: 1,
 					config: { name: 'Start' },
-				}).then(
+				}).to(
 					node({
 						type: 'n8n-nodes-base.set',
 						version: 3.4,
@@ -421,7 +421,7 @@ describe('WorkflowBuilder plugin integration', () => {
 				null,
 			).onFalse(null);
 
-			workflow('test', 'Test', { registry: testRegistry }).add(startTrigger).then(composite);
+			workflow('test', 'Test', { registry: testRegistry }).add(startTrigger).to(composite);
 
 			expect(mockAddNodes).toHaveBeenCalled();
 		});
@@ -479,7 +479,7 @@ describe('WorkflowBuilder plugin integration', () => {
 			}).onTrue!(null).onFalse(null);
 
 			// Create workflow without registry option and use then()
-			workflow('test', 'Test').add(startTrigger).then(composite);
+			workflow('test', 'Test').add(startTrigger).to(composite);
 
 			expect(findCompositeHandlerSpy).toHaveBeenCalled();
 			findCompositeHandlerSpy.mockRestore();
@@ -515,7 +515,7 @@ describe('WorkflowBuilder plugin integration', () => {
 					type: 'n8n-nodes-base.manualTrigger',
 					version: 1,
 					config: { name: 'Start' },
-				}).then(setNode),
+				}).to(setNode),
 			);
 
 			wf.validate();
@@ -539,7 +539,7 @@ describe('WorkflowBuilder plugin integration', () => {
 					type: 'n8n-nodes-base.manualTrigger',
 					version: 1,
 					config: { name: 'Start' },
-				}).then(
+				}).to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.agent',
 						version: 1.7,
@@ -587,7 +587,7 @@ describe('WorkflowBuilder plugin integration', () => {
 					type: 'n8n-nodes-base.manualTrigger',
 					version: 1,
 					config: { name: 'Start' },
-				}).then(agentNode),
+				}).to(agentNode),
 			);
 
 			const result = wf.validate();
@@ -845,7 +845,7 @@ describe('WorkflowBuilder plugin integration', () => {
 			});
 
 			// Build workflow to verify the test setup is correct
-			workflow('test', 'Test').add(triggerNode.then(connectedNode)).add(disconnectedNode);
+			workflow('test', 'Test').add(triggerNode.to(connectedNode)).add(disconnectedNode);
 
 			// Create a manual context to test the validator directly
 			// We need to create GraphNode objects that match what the validator expects
@@ -1277,7 +1277,7 @@ describe('WorkflowBuilder plugin integration', () => {
 				config: { name: 'Set Data', parameters: { values: [] } },
 			});
 
-			const wf = workflow('wf-789', 'Full Test').add(triggerNode.then(setNode));
+			const wf = workflow('wf-789', 'Full Test').add(triggerNode.to(setNode));
 
 			const json = wf.toJSON();
 
@@ -1580,7 +1580,7 @@ describe('WorkflowBuilder plugin integration', () => {
 	describe('Phase 18: handleFanOut branching node detection', () => {
 		it('treats multi-output nodes (like Text Classifier) as branching nodes with array syntax', () => {
 			// Text Classifier is a multi-output node that should work like IF/Switch
-			// when using .then([branch0, branch1, branch2]) syntax.
+			// when using .to([branch0, branch1, branch2]) syntax.
 			// Currently, only IF, Switch, and SplitInBatches are hardcoded as branching nodes.
 			const textClassifier = node({
 				type: '@n8n/n8n-nodes-langchain.textClassifier',
@@ -1627,8 +1627,8 @@ describe('WorkflowBuilder plugin integration', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(textClassifier)
-				.then([billingHandler, supportHandler, salesHandler]);
+				.to(textClassifier)
+				.to([billingHandler, supportHandler, salesHandler]);
 
 			const json = wf.toJSON();
 

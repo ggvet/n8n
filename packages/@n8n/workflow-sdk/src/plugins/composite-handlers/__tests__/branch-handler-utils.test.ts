@@ -17,7 +17,6 @@ function createMockNode(name: string): NodeInstance<string, string, unknown> {
 		id: `id-${name}`,
 		name,
 		update: () => ({}) as NodeInstance<string, string, unknown>,
-		then: () => ({}) as never,
 		to: () => ({}) as never,
 		input: () => ({}) as never,
 		output: () => ({}) as never,

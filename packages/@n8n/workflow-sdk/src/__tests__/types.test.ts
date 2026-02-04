@@ -106,12 +106,12 @@ describe('Base Types', () => {
 	});
 
 	describe('isNodeInstance', () => {
-		it('returns true for object with type, version, config, and then function', () => {
+		it('returns true for object with type, version, config, and to function', () => {
 			const node = {
 				type: 'n8n-nodes-base.set',
 				version: '1',
 				config: {},
-				then: () => {},
+				to: () => {},
 			};
 			expect(isNodeInstance(node)).toBe(true);
 		});

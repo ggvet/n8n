@@ -293,13 +293,13 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		});
 	}
 
-	then(nodeOrComposite: unknown): WorkflowBuilder {
+	to(nodeOrComposite: unknown): WorkflowBuilder {
 		// Handle array of nodes (fan-out pattern)
 		if (Array.isArray(nodeOrComposite)) {
 			return this.handleFanOut(nodeOrComposite);
 		}
 
-		// Handle NodeChain (e.g., node().then().then())
+		// Handle NodeChain (e.g., node().to().to())
 		// This must come before composite checks since chains have composite-like properties
 		if (isNodeChain(nodeOrComposite)) {
 			return this.handleNodeChain(nodeOrComposite);
@@ -465,7 +465,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 	}
 
 	toJSON(): WorkflowJSON {
-		// Merge connections declared on node instances via .then() into the graph
+		// Merge connections declared on node instances via .to() into the graph
 		this.mergeInstanceConnections();
 
 		// Create serializer context and delegate to jsonSerializer
@@ -483,7 +483,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 	}
 
 	/**
-	 * Merge connections declared on node instances via .then() into the graph connections.
+	 * Merge connections declared on node instances via .to() into the graph connections.
 	 * This prepares the graph for serialization by ensuring all connections are stored
 	 * in graphNode.connections.
 	 */
@@ -804,8 +804,8 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		// NOTE: We intentionally don't skip if the main node already exists.
 		// Handlers like ifElseHandler are designed to MERGE connections when the node exists.
 		// This is important for patterns like:
-		//   .add(is_Approved.then(merge1.input(1)))  // Adds IF node first
-		//   .add(merge_node.then(set_Default_True_2.then(is_Approved.onTrue(x_Post.then(x_Result)))))
+		//   .add(is_Approved.to(merge1.input(1)))  // Adds IF node first
+		//   .add(merge_node.to(set_Default_True_2.to(is_Approved.onTrue(x_Post.to(x_Result)))))
 		// The second line needs to add the onTrue() branch even though the IF node already exists.
 
 		// Try plugin dispatch
@@ -832,7 +832,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 
 	/**
 	 * Handle fan-out pattern - connects current node to multiple target nodes
-	 * Supports NodeChain targets (e.g., workflow.then([x1, fb, linkedin.then(sheets)]))
+	 * Supports NodeChain targets (e.g., workflow.to([x1, fb, linkedin.to(sheets)]))
 	 *
 	 * Each array element maps to a different output index (branching).
 	 * Use null to skip an output index.
@@ -890,8 +890,8 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 	}
 
 	/**
-	 * Handle a NodeChain passed to workflow.then()
-	 * This is used when chained node calls are passed directly, e.g., workflow.then(node().then().then())
+	 * Handle a NodeChain passed to workflow.to()
+	 * This is used when chained node calls are passed directly, e.g., workflow.to(node().to().to())
 	 */
 	private handleNodeChain(chain: NodeChain): WorkflowBuilder {
 		const newNodes = new Map(this._nodes);
@@ -952,7 +952,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		if (isNodeChain(branch)) {
 			// Add all nodes from the chain, handling composites that may have been chained
 			for (const chainNode of branch.allNodes) {
-				// Skip null values (can occur when .then([null, node]) is used)
+				// Skip null values (can occur when .to([null, node]) is used)
 				if (chainNode === null) {
 					continue;
 				}
@@ -978,11 +978,11 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 				}
 			}
 
-			// Process connections declared on the chain (from .then() calls)
+			// Process connections declared on the chain (from .to() calls)
 			const connections = branch.getConnections();
 			for (const { target, outputIndex, targetInputIndex } of connections) {
 				// Find the source node in the chain that declared this connection
-				// by looking for the node whose .then() was called
+				// by looking for the node whose .to() was called
 				for (const chainNode of branch.allNodes) {
 					// Skip null values (from array syntax like [null, node])
 					if (chainNode === null) {

@@ -21,12 +21,12 @@ export interface FanInSources {
  * @example
  * ```typescript
  * // Merge with multiple sources going to the same input using .input(n) syntax
- * sourceA.then(mergeNode.input(0))
- * sourceB.then(mergeNode.input(0))  // fanIn: both sources -> input 0
- * sourceC.then(mergeNode.input(1))
+ * sourceA.to(mergeNode.input(0))
+ * sourceB.to(mergeNode.input(0))  // fanIn: both sources -> input 0
+ * sourceC.to(mergeNode.input(1))
  *
  * // Or with fanIn() helper for explicit grouping
- * fanIn(sourceA, sourceB).forEach(src => src.then(mergeNode.input(0)))
+ * fanIn(sourceA, sourceB).forEach(src => src.to(mergeNode.input(0)))
  * ```
  */
 export function fanIn(...sources: NodeInstance<string, string, unknown>[]): FanInSources {

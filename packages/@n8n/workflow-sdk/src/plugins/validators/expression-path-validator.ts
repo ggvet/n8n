@@ -58,7 +58,7 @@ function findPredecessors(nodeName: string, nodes: ReadonlyMap<string, GraphNode
 			}
 		}
 
-		// Also check connections declared via node's .then()
+		// Also check connections declared via node's .to()
 		if (typeof graphNode.instance.getConnections === 'function') {
 			const connections = graphNode.instance.getConnections();
 			for (const conn of connections) {

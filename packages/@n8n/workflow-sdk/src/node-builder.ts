@@ -140,7 +140,7 @@ class NodeInstanceImpl<TType extends string, TVersion extends string, TOutput = 
 		);
 	}
 
-	then<T extends NodeInstance<string, string, unknown>>(
+	to<T extends NodeInstance<string, string, unknown>>(
 		target: T | T[] | InputTarget,
 		outputIndex: number = 0,
 	): NodeChain<NodeInstance<TType, TVersion, TOutput>, T> {
@@ -193,16 +193,6 @@ class NodeInstanceImpl<TType extends string, TVersion extends string, TOutput = 
 		// Return chain with last target as tail (for type compatibility)
 		const lastTarget = targets[targets.length - 1];
 		return new NodeChainImpl(this, lastTarget as T, [this, ...allTargetNodes]);
-	}
-
-	/**
-	 * Alias for then() - connect this node to one or more target nodes.
-	 */
-	to<T extends NodeInstance<string, string, unknown>>(
-		target: T | T[] | InputTarget,
-		outputIndex: number = 0,
-	): NodeChain<NodeInstance<TType, TVersion, TOutput>, T> {
-		return this.then(target, outputIndex);
 	}
 
 	/**
@@ -374,14 +364,14 @@ class NodeChainImpl<
 		return this.tail.update(config);
 	}
 
-	then<T extends NodeInstance<string, string, unknown>>(
+	to<T extends NodeInstance<string, string, unknown>>(
 		target: T | T[] | InputTarget,
 		outputIndex: number = 0,
 	): NodeChain<THead, T> {
 		// Handle InputTarget - terminal target with specific input index
 		if (isInputTarget(target)) {
-			// Delegate to tail's then method which handles InputTarget
-			this.tail.then(target, outputIndex);
+			// Delegate to tail's to method which handles InputTarget
+			this.tail.to(target, outputIndex);
 			return new NodeChainImpl(this.head, target.node as T, [...this.allNodes, target.node]);
 		}
 
@@ -420,29 +410,19 @@ class NodeChainImpl<
 		const outputNode = getCompositeOutputNode(this.tail);
 		if (outputNode) {
 			// For composites, connect the output node (mergeNode, switchNode, ifNode) to the targets.
-			// The output node supports .then() to declare the connection.
-			if (typeof outputNode.then === 'function') {
-				outputNode.then(targets, outputIndex);
+			// The output node supports .to() to declare the connection.
+			if (typeof outputNode.to === 'function') {
+				outputNode.to(targets, outputIndex);
 			}
 			const lastTarget = targets[targets.length - 1];
 			return new NodeChainImpl(this.head, lastTarget as T, [...this.allNodes, ...allTargetNodes]);
 		}
 
-		// Connect tail to all targets (use the tail's then method which handles connections)
-		this.tail.then(targets, outputIndex);
+		// Connect tail to all targets (use the tail's to method which handles connections)
+		this.tail.to(targets, outputIndex);
 		// Return chain with last target as tail
 		const lastTarget = targets[targets.length - 1];
 		return new NodeChainImpl(this.head, lastTarget as T, [...this.allNodes, ...allTargetNodes]);
-	}
-
-	/**
-	 * Alias for then() - connect to target nodes.
-	 */
-	to<T extends NodeInstance<string, string, unknown>>(
-		target: T | T[] | InputTarget,
-		outputIndex: number = 0,
-	): NodeChain<THead, T> {
-		return this.then(target, outputIndex);
 	}
 
 	/**
@@ -506,7 +486,7 @@ class NodeChainImpl<
 		// Aggregate connections from all nodes in the chain
 		const allConnections: DeclaredConnection[] = [];
 		for (const node of this.allNodes) {
-			// Skip null values (can occur when .then([null, node]) is used for multi-output nodes)
+			// Skip null values (can occur when .to([null, node]) is used for multi-output nodes)
 			if (node === null) {
 				continue;
 			}
@@ -536,20 +516,11 @@ class OutputSelectorImpl<TType extends string, TVersion extends string, TOutput 
 		this.outputIndex = outputIndex;
 	}
 
-	then<T extends NodeInstance<string, string, unknown>>(
-		target: T | T[] | InputTarget,
-	): NodeChain<NodeInstance<TType, TVersion, TOutput>, T> {
-		// Delegate to the node's then method with the specific outputIndex
-		return this.node.then(target, this.outputIndex);
-	}
-
-	/**
-	 * Alias for then() - connect from this output to a target node.
-	 */
 	to<T extends NodeInstance<string, string, unknown>>(
 		target: T | T[] | InputTarget,
 	): NodeChain<NodeInstance<TType, TVersion, TOutput>, T> {
-		return this.then(target);
+		// Delegate to the node's to method with the specific outputIndex
+		return this.node.to(target, this.outputIndex);
 	}
 }
 
@@ -677,12 +648,12 @@ class IfElseBuilderImpl<TOutput = unknown> implements IfElseBuilder<TOutput> {
 		return this;
 	}
 
-	then<T extends NodeInstance<string, string, unknown>>(
+	to<T extends NodeInstance<string, string, unknown>>(
 		target: T | T[],
 		outputIndex: number = 0,
 	): NodeChain<NodeInstance<'n8n-nodes-base.if', string, TOutput>, T> {
-		// Delegate to the IF node's then method
-		return this.ifNode.then(target, outputIndex);
+		// Delegate to the IF node's to method
+		return this.ifNode.to(target, outputIndex);
 	}
 
 	private _updateAllBranchNodes(): void {
@@ -728,12 +699,12 @@ class SwitchCaseBuilderImpl<TOutput = unknown> implements SwitchCaseBuilder<TOut
 		return this;
 	}
 
-	then<T extends NodeInstance<string, string, unknown>>(
+	to<T extends NodeInstance<string, string, unknown>>(
 		target: T | T[],
 		outputIndex: number = 0,
 	): NodeChain<NodeInstance<'n8n-nodes-base.switch', string, TOutput>, T> {
-		// Delegate to the Switch node's then method
-		return this.switchNode.then(target, outputIndex);
+		// Delegate to the Switch node's to method
+		return this.switchNode.to(target, outputIndex);
 	}
 
 	private _updateAllCaseNodes(): void {
@@ -865,9 +836,9 @@ export interface MergeFactoryConfig {
  * @example
  * ```typescript
  * const mergeNode = merge({ version: 3, config: { name: 'Combine Data' } });
- * source1.then(mergeNode.input(0));
- * source2.then(mergeNode.input(1));
- * mergeNode.then(downstream);
+ * source1.to(mergeNode.input(0));
+ * source2.to(mergeNode.input(1));
+ * mergeNode.to(downstream);
  * ```
  */
 export function merge<TOutput = unknown>(
@@ -1038,13 +1009,6 @@ class StickyNoteInstance implements NodeInstance<'n8n-nodes-base.stickyNote', 'v
 		throw new Error('Sticky notes do not support output connections');
 	}
 
-	then<T extends NodeInstance<string, string, unknown>>(
-		_target: T | T[] | InputTarget,
-		_outputIndex?: number,
-	): NodeChain<NodeInstance<'n8n-nodes-base.stickyNote', 'v1', void>, T> {
-		throw new Error('Sticky notes do not support connections');
-	}
-
 	to<T extends NodeInstance<string, string, unknown>>(
 		_target: T | T[] | InputTarget,
 		_outputIndex?: number,
@@ -1174,7 +1138,7 @@ export function newCredential(name: string): NewCredentialValue {
 
 /**
  * Create a NodeChain with additional nodes prepended to allNodes.
- * This is used to ensure branch nodes are included when .then() is called.
+ * This is used to ensure branch nodes are included when .to() is called.
  *
  * @param baseChain - The base chain
  * @param additionalNodes - Additional nodes to prepend to allNodes

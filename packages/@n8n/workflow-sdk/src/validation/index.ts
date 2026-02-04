@@ -335,7 +335,7 @@ function findDisconnectedNodes(json: WorkflowJSON): string[] {
  *
  * @example
  * ```typescript
- * const wf = workflow('id', 'Test').add(trigger(...)).then(node(...));
+ * const wf = workflow('id', 'Test').add(trigger(...)).to(node(...));
  * const result = validateWorkflow(wf);
  *
  * if (!result.valid) {

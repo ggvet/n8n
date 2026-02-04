@@ -119,7 +119,7 @@ export {
 } from './subnode-builders';
 
 // Merge nodes - use merge() factory and .input(n) syntax for connections
-// Example: const mergeNode = merge({ version: 3 }); source.then(mergeNode.input(0))
+// Example: const mergeNode = merge({ version: 3 }); source.to(mergeNode.input(0))
 
 // IF else types - use .onTrue()/.onFalse() fluent syntax
 export type { IfElseTarget } from './if-else';
@@ -131,7 +131,7 @@ export type { SwitchCaseTarget } from './switch-case';
 export { splitInBatches } from './split-in-batches';
 
 // Note: fanOut() removed - use plain arrays for parallel connections
-// Note: fanIn() removed - use multiple .then(node.input(n)) calls instead
+// Note: fanIn() removed - use multiple .to(node.input(n)) calls instead
 
 // Loop-back helper for split in batches
 export { nextBatch, isNextBatch, type NextBatchMarker } from './next-batch';

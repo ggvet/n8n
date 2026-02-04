@@ -664,7 +664,7 @@ function buildFromNode(nodeName: string, ctx: BuildContext): CompositeNode {
 			// If we have output targets OR deferred connections for this node, use multi-output pattern
 			const hasDeferred = ctx.deferredConnections.some((c) => c.sourceNodeName === node.name);
 			if (outputTargets.size > 0 || hasDeferred) {
-				// Register the source node as a variable since it will be referenced in .output(n).then() calls
+				// Register the source node as a variable since it will be referenced in .output(n).to() calls
 				ctx.variables.set(node.name, node);
 				const multiOutput: MultiOutputNode = {
 					kind: 'multiOutput',

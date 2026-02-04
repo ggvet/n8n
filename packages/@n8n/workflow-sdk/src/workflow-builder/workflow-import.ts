@@ -73,9 +73,6 @@ export function parseWorkflowJSON(json: WorkflowJSON): ParsedWorkflow {
 			update: function (config) {
 				return { ...this, config: { ...this.config, ...config } };
 			},
-			then: function () {
-				throw new Error('Nodes from fromJSON() do not support then()');
-			},
 			to: function () {
 				throw new Error('Nodes from fromJSON() do not support to()');
 			},

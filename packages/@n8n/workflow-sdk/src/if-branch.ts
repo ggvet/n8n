@@ -62,16 +62,13 @@ class IfNodeInstance implements NodeInstance<'n8n-nodes-base.if', string, unknow
 			_isOutputSelector: true,
 			node: this,
 			outputIndex: index,
-			then<T extends NodeInstance<string, string, unknown>>(target: T | T[] | InputTarget) {
-				return self.then(target, index);
-			},
 			to<T extends NodeInstance<string, string, unknown>>(target: T | T[] | InputTarget) {
-				return self.then(target, index);
+				return self.to(target, index);
 			},
 		};
 	}
 
-	then<T extends NodeInstance<string, string, unknown>>(
+	to<T extends NodeInstance<string, string, unknown>>(
 		target: T | T[] | InputTarget,
 		outputIndex: number = 0,
 	): NodeChain<NodeInstance<'n8n-nodes-base.if', string, unknown>, T> {
@@ -110,7 +107,6 @@ class IfNodeInstance implements NodeInstance<'n8n-nodes-base.if', string, unknow
 			name: lastTarget.name,
 			_outputType: lastTarget._outputType,
 			update: lastTarget.update.bind(lastTarget),
-			then: lastTarget.then.bind(lastTarget),
 			to: lastTarget.to.bind(lastTarget),
 			onError: function <H extends NodeInstance<string, string, unknown>>(handler: H) {
 				lastTarget.onError(handler);
@@ -118,13 +114,6 @@ class IfNodeInstance implements NodeInstance<'n8n-nodes-base.if', string, unknow
 			},
 			getConnections: () => [...self._connections, ...lastTarget.getConnections()],
 		} as unknown as NodeChain<NodeInstance<'n8n-nodes-base.if', string, unknown>, T>;
-	}
-
-	to<T extends NodeInstance<string, string, unknown>>(
-		target: T | T[] | InputTarget,
-		outputIndex: number = 0,
-	): NodeChain<NodeInstance<'n8n-nodes-base.if', string, unknown>, T> {
-		return this.then(target, outputIndex);
 	}
 
 	onError<T extends NodeInstance<string, string, unknown>>(_handler: T): this {
@@ -206,7 +195,7 @@ class IfElseCompositeWithExistingNode implements IfElseComposite {
  * // Both branches connected
  * workflow('id', 'Test')
  *   .add(trigger)
- *   .then(ifBranch([truePath, falsePath], {
+ *   .to(ifBranch([truePath, falsePath], {
  *     name: 'Check Value',
  *     version: 2.2,
  *     parameters: {
@@ -219,18 +208,18 @@ class IfElseCompositeWithExistingNode implements IfElseComposite {
  * // Single branch (only true branch connected)
  * workflow('id', 'Test')
  *   .add(trigger)
- *   .then(ifBranch([truePath, null], { name: 'Check Value' }));
+ *   .to(ifBranch([truePath, null], { name: 'Check Value' }));
  *
  * // Fan-out: true branch connects to multiple parallel nodes
  * workflow('id', 'Test')
  *   .add(trigger)
- *   .then(ifBranch([[node1, node2, node3], null], { name: 'Check Value' }));
+ *   .to(ifBranch([[node1, node2, node3], null], { name: 'Check Value' }));
  *
  * // Using a pre-declared IF node:
  * const ifNode = node({ type: 'n8n-nodes-base.if', ... });
  * workflow('id', 'Test')
  *   .add(trigger)
- *   .then(ifBranch([truePath, falsePath], ifNode));
+ *   .to(ifBranch([truePath, falsePath], ifNode));
  * ```
  */
 export function ifBranch(

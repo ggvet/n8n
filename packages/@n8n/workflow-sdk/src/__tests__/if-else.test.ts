@@ -33,7 +33,7 @@ describe('parseWorkflowCode with ifElse', () => {
 		const code = `
 return workflow('test', 'Test')
   .add(trigger({ type: 'n8n-nodes-base.manualTrigger', version: 1, config: {} }))
-  .then(ifElse({ version: 2.2, config: { name: 'Check' } }).onTrue(node({ type: 'n8n-nodes-base.noOp', version: 1, config: {} })).onFalse(null));
+  .to(ifElse({ version: 2.2, config: { name: 'Check' } }).onTrue(node({ type: 'n8n-nodes-base.noOp', version: 1, config: {} })).onFalse(null));
 `;
 		expect(() => parseWorkflowCode(code)).not.toThrow();
 	});
@@ -149,8 +149,8 @@ describe('IF Else fluent API', () => {
 			// Fluent syntax in workflow
 			const wf = workflow('test-id', 'Test')
 				.add(t)
-				.then(ifNode.onTrue!(trueBranch).onFalse(falseBranch))
-				.then(downstream);
+				.to(ifNode.onTrue!(trueBranch).onFalse(falseBranch))
+				.to(downstream);
 
 			const json = wf.toJSON();
 
@@ -181,7 +181,7 @@ describe('IF Else fluent API', () => {
 			});
 
 			// Fluent syntax with only true branch (no false)
-			const wf = workflow('test-id', 'Test').add(t).then(ifNode.onTrue!(trueBranch));
+			const wf = workflow('test-id', 'Test').add(t).to(ifNode.onTrue!(trueBranch));
 
 			const json = wf.toJSON();
 
@@ -224,7 +224,7 @@ describe('IF Else fluent API', () => {
 			// Fluent syntax with plain array for fan-out
 			const wf = workflow('test-id', 'Test')
 				.add(t)
-				.then(ifNode.onTrue!([targetA, targetB]).onFalse(targetC));
+				.to(ifNode.onTrue!([targetA, targetB]).onFalse(targetC));
 
 			const json = wf.toJSON();
 
@@ -284,11 +284,11 @@ describe('IF Else fluent API', () => {
 				config: { name: 'Node B' },
 			});
 
-			// Create chain: nodeA.then(nodeB)
-			const chain = nodeA.then(nodeB);
+			// Create chain: nodeA.to(nodeB)
+			const chain = nodeA.to(nodeB);
 
 			// Fluent syntax with chain in onTrue
-			const wf = workflow('test-id', 'Test').add(t).then(ifNode.onTrue!(chain));
+			const wf = workflow('test-id', 'Test').add(t).to(ifNode.onTrue!(chain));
 
 			const json = wf.toJSON();
 

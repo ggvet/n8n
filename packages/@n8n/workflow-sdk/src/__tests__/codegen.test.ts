@@ -58,7 +58,7 @@ describe('generateWorkflowCode', () => {
 
 		// Should have connection chain
 		expect(code).toContain('.add(');
-		expect(code).toContain('.then(');
+		expect(code).toContain('.to(');
 	});
 
 	it('should output expression strings using expr() helper', () => {
@@ -870,7 +870,7 @@ describe('generateWorkflowCode with AI subnodes', () => {
 			// Should use plain array syntax for fan-out with variable references
 			expect(code).toContain('[');
 			// Both target variables should be in the array
-			expect(code).toMatch(/\.then\(\[\s*process_A,\s*process_B\s*\]\)/);
+			expect(code).toMatch(/\.to\(\[\s*process_A,\s*process_B\s*\]\)/);
 		});
 
 		it('should roundtrip fan-out patterns correctly', () => {
@@ -1174,7 +1174,7 @@ describe('parseWorkflowCode with template literals in jsCode', () => {
       position: [240, 300]
     }
   }))
-  .then(node({
+  .to(node({
     type: 'n8n-nodes-base.gmail',
     version: 2.2,
     config: {
@@ -1195,7 +1195,7 @@ describe('parseWorkflowCode with template literals in jsCode', () => {
       position: [540, 300]
     }
   }))
-  .then(node({
+  .to(node({
     type: '@n8n/n8n-nodes-langchain.agent',
     version: 3.1,
     config: {
@@ -1237,7 +1237,7 @@ Provide a clear, organized summary that I can quickly review.\`,
       position: [840, 300]
     }
   }))
-  .then(node({
+  .to(node({
     type: 'n8n-nodes-base.code',
     version: 2,
     config: {
@@ -1278,7 +1278,7 @@ return [{
       position: [1140, 300]
     }
   }))
-  .then(node({
+  .to(node({
     type: 'n8n-nodes-base.gmail',
     version: 2.2,
     config: {
@@ -1324,7 +1324,7 @@ return [{
 		// the parser now auto-escapes it to prevent "$today is not defined" errors
 		const codeWithUnescapedVars = `return workflow('test', 'Test')
   .add(trigger({ type: 'n8n-nodes-base.manualTrigger', version: 1, config: { position: [0, 0] } }))
-  .then(node({
+  .to(node({
     type: 'n8n-nodes-base.code',
     version: 2,
     config: {
@@ -1348,7 +1348,7 @@ return [{
 		// To preserve ${$today} as a literal string in jsCode, escape it as \${$today}
 		const codeWithEscapedVars = `return workflow('test', 'Test')
   .add(trigger({ type: 'n8n-nodes-base.manualTrigger', version: 1, config: { position: [0, 0] } }))
-  .then(node({
+  .to(node({
     type: 'n8n-nodes-base.code',
     version: 2,
     config: {
@@ -1549,11 +1549,11 @@ describe('parseWorkflowCode with splitInBatches', () => {
 		const code = `const loop = node({ type: 'n8n-nodes-base.splitInBatches', version: 3, config: { parameters: { batchSize: 2 }, position: [400, 100], name: 'Loop' } });
 return workflow('test-sib', 'Split In Batches Test')
   .add(trigger({ type: 'n8n-nodes-base.manualTrigger', version: 1, config: { position: [0, 0] } }))
-  .then(node({ type: 'n8n-nodes-base.set', version: 3.4, config: { parameters: { assignments: { assignments: [{ name: 'items', type: 'array', value: '[1,2,3,4,5]' }] } }, position: [200, 0], name: 'Generate Items' } }))
-  .then(
+  .to(node({ type: 'n8n-nodes-base.set', version: 3.4, config: { parameters: { assignments: { assignments: [{ name: 'items', type: 'array', value: '[1,2,3,4,5]' }] } }, position: [200, 0], name: 'Generate Items' } }))
+  .to(
     splitInBatches(loop)
       .onDone(node({ type: 'n8n-nodes-base.noOp', version: 1, config: { position: [600, 0], name: 'Done Processing' } }))
-      .onEachBatch(node({ type: 'n8n-nodes-base.noOp', version: 1, config: { position: [600, 200], name: 'Process Batch' } }).then(loop))
+      .onEachBatch(node({ type: 'n8n-nodes-base.noOp', version: 1, config: { position: [600, 200], name: 'Process Batch' } }).to(loop))
   )`;
 
 		// This should NOT throw "splitInBatches is not defined"
@@ -1597,7 +1597,7 @@ return workflow('IH8D5PUFd8JhwyZP8Ng0g', 'My workflow 15')
       position: [240, 300]
     }
   }))
-  .then(node({
+  .to(node({
     type: 'n8n-nodes-base.httpRequest',
     version: 4.3,
     config: {
@@ -1609,7 +1609,7 @@ return workflow('IH8D5PUFd8JhwyZP8Ng0g', 'My workflow 15')
       position: [540, 300]
     }
   }))
-  .then(node({
+  .to(node({
     type: 'n8n-nodes-base.code',
     version: 2,
     config: {
@@ -1621,7 +1621,7 @@ return workflow('IH8D5PUFd8JhwyZP8Ng0g', 'My workflow 15')
       position: [840, 300]
     }
   }))
-  .then(splitInBatches(processEachArticle)
+  .to(splitInBatches(processEachArticle)
     .onEachBatch(
       node({
         type: 'n8n-nodes-base.set',
@@ -1631,7 +1631,7 @@ return workflow('IH8D5PUFd8JhwyZP8Ng0g', 'My workflow 15')
           parameters: { mode: 'manual' },
           position: [1440, 200]
         }
-      }).then(processEachArticle)
+      }).to(processEachArticle)
     )
     .onDone(
       node({
@@ -1642,7 +1642,7 @@ return workflow('IH8D5PUFd8JhwyZP8Ng0g', 'My workflow 15')
           parameters: { mode: 'runOnceForAllItems', jsCode: 'return [];' },
           position: [2040, 300]
         }
-      }).then(node({
+      }).to(node({
         type: 'n8n-nodes-base.set',
         version: 3.4,
         config: {
@@ -1720,7 +1720,7 @@ describe('cycle detection and variable generation', () => {
 		expect(code).toContain('const node_B = node({');
 
 		// Should reference the cycle target variable in the chain
-		expect(code).toContain('.then(node_A)');
+		expect(code).toContain('.to(node_A)');
 	});
 
 	it('should detect cycle to IF node and generate correct structure', () => {
@@ -1784,7 +1784,7 @@ describe('cycle detection and variable generation', () => {
 		expect(code).toContain('const wait = node({');
 
 		// Should reference the cycle target (IF node) in the loop back
-		expect(code).toContain('.then(check_Status)');
+		expect(code).toContain('.to(check_Status)');
 	});
 
 	it('should handle longer cycle chain', () => {
@@ -1843,7 +1843,7 @@ describe('cycle detection and variable generation', () => {
 		expect(code).toContain('const node_C = node({');
 
 		// Should reference the cycle target variable at the end of the chain
-		expect(code).toContain('.then(node_A)');
+		expect(code).toContain('.to(node_A)');
 	});
 
 	it('should not generate cycle variables for non-cycle workflows', () => {
@@ -1894,8 +1894,8 @@ describe('cycle detection and variable generation', () => {
 		// Should have proper structure
 		expect(code).toContain('return wf');
 		expect(code).toContain('.add(trigger_node)');
-		expect(code).toContain('.then(node_1)');
-		expect(code).toContain('.then(node_2)');
+		expect(code).toContain('.to(node_1)');
+		expect(code).toContain('.to(node_2)');
 	});
 
 	it('should roundtrip a cycle workflow correctly', () => {
@@ -2105,7 +2105,7 @@ describe('SplitInBatches multi-output handling', () => {
 describe('Fan-out pattern handling', () => {
 	it('should preserve all fan-out connections from same output', () => {
 		// Fan-out: one output connects to multiple targets
-		// All targets must be preserved in the .then([a, b]) array
+		// All targets must be preserved in the .to([a, b]) array
 		const workflow: WorkflowJSON = {
 			id: 'fanout-test',
 			name: 'Fan-out Test',
@@ -2412,7 +2412,7 @@ describe('Phase 2b: .input(n) syntax for merge patterns', () => {
 	it('should generate .input(n) syntax for IF branches feeding into Merge', () => {
 		// Pattern: IF true and false branches both connect to Merge at different inputs
 		// OLD behavior: merge(mergeNode, { input0: trueNode, input1: falseNode })
-		// NEW expected: trueNode.then(merge.input(0)), falseNode.then(merge.input(1))
+		// NEW expected: trueNode.to(merge.input(0)), falseNode.to(merge.input(1))
 		const workflow: WorkflowJSON = {
 			id: 'if-merge-input-test',
 			name: 'IF Merge Input Test',

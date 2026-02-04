@@ -58,13 +58,6 @@ class SplitInBatchesNodeInstance
 		throw new Error('SplitInBatches node output connections are managed by SplitInBatchesBuilder');
 	}
 
-	then<T extends NodeInstance<string, string, unknown>>(
-		_target: T | T[] | InputTarget,
-		_outputIndex?: number,
-	): NodeChain<NodeInstance<'n8n-nodes-base.splitInBatches', string, unknown>, T> {
-		throw new Error('SplitInBatches node connections are managed by SplitInBatchesBuilder');
-	}
-
 	to<T extends NodeInstance<string, string, unknown>>(
 		_target: T | T[] | InputTarget,
 		_outputIndex?: number,
@@ -314,11 +307,11 @@ class SplitInBatchesBuilderWithExistingNode implements SplitInBatchesBuilder<unk
  * });
  * workflow('id', 'Test')
  *   .add(trigger(...))
- *   .then(generateItems)
- *   .then(
+ *   .to(generateItems)
+ *   .to(
  *     splitInBatches(sibNode)
  *       .onDone(finalizeNode)
- *       .onEachBatch(processNode.then(sibNode))
+ *       .onEachBatch(processNode.to(sibNode))
  *   );
  *
  * // Or use splitInBatches() directly with { version, config } pattern:
@@ -328,12 +321,12 @@ class SplitInBatchesBuilderWithExistingNode implements SplitInBatchesBuilder<unk
  * });
  * workflow('id', 'Test')
  *   .add(trigger(...))
- *   .then(sib.onDone(finalizeNode).onEachBatch(processNode.then(sib.sibNode)));
+ *   .to(sib.onDone(finalizeNode).onEachBatch(processNode.to(sib.sibNode)));
  *
  * // Named object syntax:
  * splitInBatches(sibNode, {
  *   done: finalizeNode,
- *   each: processNode.then(sibNode)  // loop back
+ *   each: processNode.to(sibNode)  // loop back
  * })
  *
  * // With null for empty branches:
@@ -482,7 +475,7 @@ class SplitInBatchesNamedSyntaxBuilder implements SplitInBatchesBuilder<unknown>
 				this._eachBatches.push(firstEachNodes[0]);
 			}
 			// For named syntax, we DON'T set _hasLoop because the loop is already
-			// expressed in the connection target (e.g., each: sibNode or each: processNode.then(sibNode))
+			// expressed in the connection target (e.g., each: sibNode or each: processNode.to(sibNode))
 			// The workflow-builder's _hasLoop handling is only for the fluent API's .loop() method
 		}
 	}

@@ -54,7 +54,7 @@ describe('generatePinData', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.slack',
 						version: 2,
@@ -205,7 +205,7 @@ describe('generatePinData', () => {
 						output: [{ id: 'existing' }],
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.slack',
 						version: 2,
@@ -279,7 +279,7 @@ describe('generatePinData', () => {
 						output: [{ id: 'old' }],
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.slack',
 						version: 2,
@@ -290,7 +290,7 @@ describe('generatePinData', () => {
 						output: [{ id: 'existing-creds' }],
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.slack',
 						version: 2,
@@ -301,7 +301,7 @@ describe('generatePinData', () => {
 						output: [{ id: 'new-creds' }],
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.httpRequest',
 						version: 4,
@@ -309,7 +309,7 @@ describe('generatePinData', () => {
 						output: [{ id: 'http' }],
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.code',
 						version: 2,

@@ -53,7 +53,7 @@ export const mergeNodeValidator: ValidatorPlugin = {
 				}
 			}
 
-			// Also check connections declared via .then() from NodeInstances
+			// Also check connections declared via .to() from NodeInstances
 			if (typeof otherNode.instance.getConnections === 'function') {
 				const conns = otherNode.instance.getConnections();
 				for (const conn of conns) {

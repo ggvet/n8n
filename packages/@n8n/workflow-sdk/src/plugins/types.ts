@@ -288,7 +288,7 @@ export interface CompositeHandlerPlugin<TInput = unknown> {
 	addNodes(input: TInput, ctx: MutablePluginContext): string;
 
 	/**
-	 * Handle .then() chaining from this composite (optional).
+	 * Handle .to() chaining from this composite (optional).
 	 * Allows composites to define custom continuation behavior.
 	 * @param input The composite input
 	 * @param currentNode The current node name before chaining

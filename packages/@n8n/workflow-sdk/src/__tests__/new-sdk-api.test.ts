@@ -110,9 +110,9 @@ describe('New SDK API', () => {
 			const nodeA = createNode('A');
 			const nodeB = createNode('B');
 
-			// .output(n).then() should return a chainable target
+			// .output(n).to() should return a chainable target
 			// This tests that .output(n) is NOT terminal - you can continue chaining
-			const chain = nodeA.then(nodeB, 1); // outputIndex = 1
+			const chain = nodeA.to(nodeB, 1); // outputIndex = 1
 
 			// Verify chain is defined and chainable
 			expect(chain).toBeDefined();
@@ -120,12 +120,12 @@ describe('New SDK API', () => {
 			expect(chain.tail).toBe(nodeB);
 		});
 
-		it('connects to specific output index via .then(target, outputIndex)', () => {
+		it('connects to specific output index via .to(target, outputIndex)', () => {
 			const nodeA = createNode('A');
 			const nodeB = createNode('B');
 			const t = createTrigger('Start');
 
-			const wf = workflow('test', 'Test').add(t.then(nodeA).then(nodeB, 1)); // Connect A's output 1 to B
+			const wf = workflow('test', 'Test').add(t.to(nodeA).to(nodeB, 1)); // Connect A's output 1 to B
 
 			const json = wf.toJSON();
 
@@ -146,7 +146,7 @@ describe('New SDK API', () => {
 			const t = createTrigger('Start');
 
 			// Use .input(n) to specify target input index
-			const wf = workflow('test', 'Test').add(t.then(nodeA.then(mergeNode.input(1)))); // Connect to input 1 of merge
+			const wf = workflow('test', 'Test').add(t.to(nodeA.to(mergeNode.input(1)))); // Connect to input 1 of merge
 
 			const json = wf.toJSON();
 
@@ -160,7 +160,7 @@ describe('New SDK API', () => {
 		it('returns terminal InputTarget that cannot be chained', () => {
 			const mergeNode = createMergeNode('Merge');
 
-			// .input(n) returns InputTarget which should NOT have .then()
+			// .input(n) returns InputTarget which should NOT have .to()
 			const inputTarget = mergeNode.input(0);
 
 			expect(inputTarget).toHaveProperty('_isInputTarget', true);
@@ -180,7 +180,7 @@ describe('New SDK API', () => {
 
 			const wf = workflow('test', 'Test')
 				.add(t)
-				.then(
+				.to(
 					ifNode.onTrue!([nodeA, nodeB]), // IF output 0 (true) -> both A and B
 				);
 
@@ -205,7 +205,7 @@ describe('New SDK API', () => {
 
 			const wf = workflow('test', 'Test')
 				.add(t)
-				.then(switchNode.onCase!(0, [nodeA, nodeB]).onCase(1, nodeC));
+				.to(switchNode.onCase!(0, [nodeA, nodeB]).onCase(1, nodeC));
 
 			const json = wf.toJSON();
 
@@ -222,8 +222,8 @@ describe('New SDK API', () => {
 	});
 
 	describe('Edge Case 3: Builders Are Terminal', () => {
-		it('allows nesting builders inside .then() chains', () => {
-			// Fluent builders (ifNode.onTrue().onFalse(), switchNode.onCase()) can be passed to .then()
+		it('allows nesting builders inside .to() chains', () => {
+			// Fluent builders (ifNode.onTrue().onFalse(), switchNode.onCase()) can be passed to .to()
 			// and internally handle their branch nodes
 
 			const nodeA = createNode('A');
@@ -232,7 +232,7 @@ describe('New SDK API', () => {
 			const t = createTrigger('Start');
 
 			// trigger -> IF -> (true: A, false: B)
-			const wf = workflow('test', 'Test').add(t).then(ifNode.onTrue!(nodeA).onFalse(nodeB));
+			const wf = workflow('test', 'Test').add(t).to(ifNode.onTrue!(nodeA).onFalse(nodeB));
 
 			const json = wf.toJSON();
 
@@ -259,8 +259,8 @@ describe('New SDK API', () => {
 			// Both branches converge to the same node instance
 			const wf = workflow('test', 'Test')
 				.add(t)
-				.then(
-					ifNode.onTrue!(nodeA.then(convergence)).onFalse(nodeB.then(convergence)), // Same instance
+				.to(
+					ifNode.onTrue!(nodeA.to(convergence)).onFalse(nodeB.to(convergence)), // Same instance
 				);
 
 			const json = wf.toJSON();
@@ -295,11 +295,11 @@ describe('New SDK API', () => {
 			const t = createTrigger('Start');
 
 			// Start -> Check -> Done? -> (true: Result, false: Wait -> Check)
-			// Use workflow.then() with fluent builder
+			// Use workflow.to() with fluent builder
 			const wf = workflow('test', 'Test')
-				.add(t.then(checkStatus))
-				.then(
-					jobComplete.onTrue!(getResult).onFalse(wait.then(checkStatus)), // Loop back
+				.add(t.to(checkStatus))
+				.to(
+					jobComplete.onTrue!(getResult).onFalse(wait.to(checkStatus)), // Loop back
 				);
 
 			const json = wf.toJSON();
@@ -318,7 +318,7 @@ describe('New SDK API', () => {
 			const t = createTrigger('Start');
 
 			// Only case0 and case3, skip 1 and 2
-			const wf = workflow('test', 'Test').add(t).then(
+			const wf = workflow('test', 'Test').add(t).to(
 				switchNode.onCase!(0, nodeA).onCase(3, nodeB), // Skip 1, 2
 			);
 
@@ -346,7 +346,7 @@ describe('New SDK API', () => {
 			const ifNode = createIfNode('IF');
 			const t = createTrigger('Start');
 
-			const wf = workflow('test', 'Test').add(t).then(ifNode.onTrue!(nodeA));
+			const wf = workflow('test', 'Test').add(t).to(ifNode.onTrue!(nodeA));
 
 			const json = wf.toJSON();
 
@@ -361,7 +361,7 @@ describe('New SDK API', () => {
 			const ifNode = createIfNode('IF');
 			const t = createTrigger('Start');
 
-			const wf = workflow('test', 'Test').add(t).then(ifNode.onFalse!(nodeB));
+			const wf = workflow('test', 'Test').add(t).to(ifNode.onFalse!(nodeB));
 
 			const json = wf.toJSON();
 
@@ -382,7 +382,7 @@ describe('New SDK API', () => {
 				config: { name: 'Schedule' },
 			});
 
-			const wf = workflow('test', 'Test').add(manual.then(shared)).add(schedule.then(shared));
+			const wf = workflow('test', 'Test').add(manual.to(shared)).add(schedule.to(shared));
 
 			const json = wf.toJSON();
 
@@ -397,7 +397,7 @@ describe('New SDK API', () => {
 	});
 
 	describe('Edge Case 9: Multi-Output Nodes', () => {
-		it('supports .then(target, outputIndex) on any node type', () => {
+		it('supports .to(target, outputIndex) on any node type', () => {
 			// Text classifier has multiple outputs based on classification
 			const classifier = node({
 				type: '@n8n/n8n-nodes-langchain.textClassifier',
@@ -410,10 +410,10 @@ describe('New SDK API', () => {
 			const t = createTrigger('Start');
 
 			const wf = workflow('test', 'Test')
-				.add(t.then(classifier))
-				.add(classifier.then(categoryA, 0)) // Output 0 -> Category A
-				.add(classifier.then(categoryB, 1)) // Output 1 -> Category B
-				.add(classifier.then(categoryC, 2)); // Output 2 -> Category C
+				.add(t.to(classifier))
+				.add(classifier.to(categoryA, 0)) // Output 0 -> Category A
+				.add(classifier.to(categoryB, 1)) // Output 1 -> Category B
+				.add(classifier.to(categoryC, 2)); // Output 2 -> Category C
 
 			const json = wf.toJSON();
 
@@ -436,7 +436,7 @@ describe('New SDK API', () => {
 			// Using named object syntax with explicit connections
 			const wf = workflow('test', 'Test')
 				.add(t)
-				.then(
+				.to(
 					splitInBatches(sibNode, {
 						done: summaryNode, // Done output (0) -> Summary
 						each: processNode, // Each output (1) -> Process
@@ -481,7 +481,7 @@ describe('New SDK API', () => {
 			// Fan out from trigger, then merge
 			// Use array syntax for fan-out since that's well-typed
 			const wf = workflow('test', 'Test')
-				.add(t.then([nodeA, nodeB]))
+				.add(t.to([nodeA, nodeB]))
 				.add(mergeNode)
 				// Connect A to merge input 0
 				.connect(nodeA, 0, mergeNode, 0)
@@ -519,8 +519,8 @@ describe('New SDK API', () => {
 			const t = createTrigger('Start');
 
 			const wf = workflow('test', 'Test')
-				.add(t.then(http))
-				.add(http.then(success)) // Output 0 -> Success
+				.add(t.to(http))
+				.add(http.to(success)) // Output 0 -> Success
 				.add(http.onError(errorHandler)); // Output 1 (error) -> Error
 
 			const json = wf.toJSON();
@@ -566,7 +566,7 @@ describe('New SDK API', () => {
 			});
 
 			const t = createTrigger('Start');
-			const wf = workflow('test', 'Test').add(t.then(agent));
+			const wf = workflow('test', 'Test').add(t.to(agent));
 
 			const json = wf.toJSON();
 
@@ -596,7 +596,7 @@ describe('New SDK API', () => {
 			});
 			const t = createTrigger('Start');
 
-			const wf = workflow('test', 'Test').add(t.then(nodeA).then(nodeB));
+			const wf = workflow('test', 'Test').add(t.to(nodeA).to(nodeB));
 
 			const json = wf.toJSON();
 
@@ -622,7 +622,7 @@ describe('New SDK API', () => {
 			const t = createTrigger('Start');
 
 			// Multiple .add() calls should chain
-			const wf = workflow('test', 'Test').add(t.then(nodeA)).add(nodeB); // Returns workflow, not void
+			const wf = workflow('test', 'Test').add(t.to(nodeA)).add(nodeB); // Returns workflow, not void
 
 			expect(wf.toJSON).toBeDefined();
 
@@ -668,10 +668,10 @@ describe('New SDK API', () => {
 			// (passing the node instead of builder avoids circular reference)
 			const sibBuilder = splitInBatches(sibNode, {
 				done: summarize,
-				each: processItem.then(nextBatch(sibNode)), // Use nextBatch for explicit loop-back
+				each: processItem.to(nextBatch(sibNode)), // Use nextBatch for explicit loop-back
 			});
 
-			const wf = workflow('test', 'Batch Processing').add(t).then(sibBuilder);
+			const wf = workflow('test', 'Batch Processing').add(t).to(sibBuilder);
 
 			const json = wf.toJSON();
 
@@ -693,8 +693,8 @@ describe('New SDK API', () => {
 
 			const wf = workflow('test', 'Branching Workflow')
 				.add(t)
-				.then(
-					ifNode.onTrue!(trueHandler.then(finalNode)).onFalse(falseHandler.then(finalNode)), // Converge
+				.to(
+					ifNode.onTrue!(trueHandler.to(finalNode)).onFalse(falseHandler.to(finalNode)), // Converge
 				);
 
 			const json = wf.toJSON();
@@ -723,11 +723,11 @@ describe('New SDK API', () => {
 			const summarize = createNode('Summarize');
 
 			const wf = workflow('test', 'Batch Processing')
-				.add(t.then(fetchData))
-				.then(
+				.add(t.to(fetchData))
+				.to(
 					splitInBatches(sibNode, {
 						done: summarize,
-						each: processItem.then(sibNode), // Loop back
+						each: processItem.to(sibNode), // Loop back
 					}),
 				);
 
@@ -755,9 +755,9 @@ describe('New SDK API', () => {
 			const notify = createNode('Notify');
 
 			const wf = workflow('test', 'Error Handling')
-				.add(t.then(riskyOperation))
-				.add(riskyOperation.then(successPath.then(notify)))
-				.add(riskyOperation.onError(errorPath.then(notify)));
+				.add(t.to(riskyOperation))
+				.add(riskyOperation.to(successPath.to(notify)))
+				.add(riskyOperation.onError(errorPath.to(notify)));
 
 			const json = wf.toJSON();
 

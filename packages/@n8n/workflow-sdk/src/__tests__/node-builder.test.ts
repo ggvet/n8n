@@ -347,7 +347,7 @@ describe('Node Builder', () => {
 			});
 
 			// Fan-out: connect source to both targets
-			source.then([target1, target2]);
+			source.to([target1, target2]);
 
 			const connections = source.getConnections();
 			expect(connections).toHaveLength(2);
@@ -375,7 +375,7 @@ describe('Node Builder', () => {
 			});
 
 			// Connect IF true branch (output 0) to multiple targets
-			ifNode.then([target1, target2], 0);
+			ifNode.to([target1, target2], 0);
 
 			const connections = ifNode.getConnections();
 			expect(connections).toHaveLength(2);
@@ -395,7 +395,7 @@ describe('Node Builder', () => {
 			});
 
 			// Single target (existing behavior)
-			source.then(target);
+			source.to(target);
 
 			const connections = source.getConnections();
 			expect(connections).toHaveLength(1);
@@ -419,7 +419,7 @@ describe('Node Builder', () => {
 				config: { name: 'Target 2' },
 			});
 
-			const chain = source.then([target1, target2]);
+			const chain = source.to([target1, target2]);
 
 			// Chain should include all nodes
 			expect(chain.allNodes).toContain(source);
@@ -450,7 +450,7 @@ describe('Node Builder', () => {
 			});
 
 			// Fan-out then chain from last target
-			const chain = source.then([branch1, branch2]).then(finalNode);
+			const chain = source.to([branch1, branch2]).to(finalNode);
 
 			// The chain should connect last target to finalNode
 			expect(chain.tail).toBe(finalNode);
@@ -552,9 +552,9 @@ describe('Node Builder', () => {
 			expect(inputTarget.inputIndex).toBe(0);
 		});
 
-		it('should support .then() method for chaining', () => {
+		it('should support .to() method for chaining', () => {
 			const mergeNode = merge({ version: 3 });
-			expect(typeof mergeNode.then).toBe('function');
+			expect(typeof mergeNode.to).toBe('function');
 		});
 
 		it('should auto-generate name if not provided', () => {

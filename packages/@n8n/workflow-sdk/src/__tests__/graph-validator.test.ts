@@ -93,7 +93,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.agent',
 						version: 3.1,
@@ -125,7 +125,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.agent',
 						version: 3.1,
@@ -154,7 +154,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.agent',
 						version: 3.1,
@@ -187,7 +187,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.agent',
 						version: 3.1,
@@ -219,7 +219,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.agent',
 						version: 3.1,
@@ -251,7 +251,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.httpRequest',
 						version: 4.2,
@@ -291,7 +291,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.httpRequest',
 						version: 4.2,
@@ -328,7 +328,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.httpRequest',
 						version: 4.2,
@@ -370,7 +370,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.set',
 						version: 3.4,
@@ -409,7 +409,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.set',
 						version: 3.4,
@@ -453,7 +453,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(mergeNode); // Only one input connected
+				.to(mergeNode); // Only one input connected
 
 			const result = wf.validate();
 
@@ -491,9 +491,9 @@ describe('graph validation', () => {
 
 			// Build workflow with two branches into merge on different inputs
 			const wf = workflow('test-id', 'Merge Workflow')
-				.add(startTrigger.then([branch1, branch2]))
-				.add(branch1.then(mergeNode.input(0)))
-				.add(branch2.then(mergeNode.input(1))); // Connect to input 1
+				.add(startTrigger.to([branch1, branch2]))
+				.add(branch1.to(mergeNode.input(0)))
+				.add(branch2.to(mergeNode.input(1))); // Connect to input 1
 
 			const result = wf.validate();
 
@@ -555,7 +555,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.httpRequest',
 						version: 4.2,
@@ -601,7 +601,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.httpRequest',
 						version: 4.2,
@@ -638,7 +638,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.agent',
 						version: 1.7,
@@ -671,7 +671,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.httpRequest',
 						version: 4.2,
@@ -703,7 +703,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.toolHttpRequest',
 						version: 1.1,
@@ -731,7 +731,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.httpRequest',
 						version: 4.2,
@@ -761,7 +761,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.chainLlm',
 						version: 1.9,
@@ -791,7 +791,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.chainLlm',
 						version: 1.9,
@@ -820,7 +820,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.chainLlm',
 						version: 1.3,
@@ -850,7 +850,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.set',
 						version: 3.4,
@@ -887,7 +887,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.set',
 						version: 3.4,
@@ -923,7 +923,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.set',
 						version: 3.4,
@@ -959,7 +959,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.agent',
 						version: 3.1,
@@ -1009,7 +1009,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(process1)
+				.to(process1)
 				.add(process2); // Added but not connected - should warn
 
 			const result = wf.validate();
@@ -1086,8 +1086,8 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(set1)
-				.add(set2); // Use .add() (not .then()) to add as separate node with auto-rename
+				.to(set1)
+				.add(set2); // Use .add() (not .to()) to add as separate node with auto-rename
 
 			const result = wf.validate();
 
@@ -1113,7 +1113,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.toolHttpRequest',
 						version: 1.1,
@@ -1142,7 +1142,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.toolHttpRequest',
 						version: 1.1,
@@ -1170,7 +1170,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.toolCalculator',
 						version: 1,
@@ -1198,7 +1198,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.embeddingsGoogleGemini',
 						version: 1,
@@ -1231,7 +1231,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.lmChatOpenAi',
 						version: 1,
@@ -1264,7 +1264,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.vectorStoreSupabase',
 						version: 1.1,
@@ -1303,7 +1303,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.agent',
 						version: 3.1,
@@ -1342,7 +1342,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.vectorStoreSupabase',
 						version: 1.1,
@@ -1370,7 +1370,7 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: '@n8n/n8n-nodes-langchain.toolCode',
 						version: 1,
@@ -1500,14 +1500,14 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.set',
 						version: 3.4,
 						config: { name: 'Set 1' },
 					}),
 				)
-				.then(
+				.to(
 					node({
 						type: 'n8n-nodes-base.set',
 						version: 3.4,
@@ -1550,9 +1550,9 @@ describe('graph validation', () => {
 						config: { name: 'Start' },
 					}),
 				)
-				.then(set1)
-				.then(set2)
-				.then(set3);
+				.to(set1)
+				.to(set2)
+				.to(set3);
 
 			const result = wf.validate({ nodeTypesProvider: nodeTypesProvider as never });
 

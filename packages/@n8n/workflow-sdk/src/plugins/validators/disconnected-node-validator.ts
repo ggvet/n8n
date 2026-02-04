@@ -67,7 +67,7 @@ function findNodesWithIncomingConnections(
 	const nodesWithIncoming = new Set<string>();
 
 	for (const [_name, graphNode] of ctx.nodes) {
-		// Check connections stored in graphNode.connections (from workflow builder's .then())
+		// Check connections stored in graphNode.connections (from workflow builder's .to())
 		const mainConns = graphNode.connections.get('main');
 		if (mainConns) {
 			for (const [_outputIndex, targets] of mainConns) {
@@ -79,7 +79,7 @@ function findNodesWithIncomingConnections(
 			}
 		}
 
-		// Check connections declared via node's .then() (instance-level connections)
+		// Check connections declared via node's .to() (instance-level connections)
 		if (typeof graphNode.instance.getConnections === 'function') {
 			const connections = graphNode.instance.getConnections();
 			for (const conn of connections) {

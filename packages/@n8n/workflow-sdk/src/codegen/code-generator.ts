@@ -553,7 +553,7 @@ function generateChain(chain: ChainNode, ctx: GenerationContext): string {
 		if (i === 0) {
 			parts.push(nodeCode);
 		} else {
-			parts.push(`.then(${nodeCode})`);
+			parts.push(`.to(${nodeCode})`);
 		}
 	}
 
@@ -683,14 +683,14 @@ function branchEndsWithVarRef(branch: CompositeNode | CompositeNode[] | null): b
 
 /**
  * Strip the trailing varRef from a branch code string.
- * For example: "process.then(sibVar)" -> "process"
+ * For example: "process.to(sibVar)" -> "process"
  * Or just "sibVar" -> null (entire branch is just the varRef)
  */
 function stripTrailingVarRefFromCode(code: string, varName: string): string | null {
-	// Pattern: ".then(varName)" at end - strip it
-	const thenPattern = new RegExp(`\\.then\\(${escapeRegexChars(varName)}\\)$`);
-	if (thenPattern.test(code)) {
-		return code.replace(thenPattern, '');
+	// Pattern: ".to(varName)" at end - strip it
+	const toPattern = new RegExp(`\\.to\\(${escapeRegexChars(varName)}\\)$`);
+	if (toPattern.test(code)) {
+		return code.replace(toPattern, '');
 	}
 
 	// Pattern: entire code is just the varName (self-loop with no processing)
@@ -703,7 +703,7 @@ function stripTrailingVarRefFromCode(code: string, varName: string): string | nu
 
 /**
  * Generate code for split in batches using fluent API syntax:
- * splitInBatches(sibVar).onEachBatch(eachCode.then(nextBatch(sibVar))).onDone(doneCode)
+ * splitInBatches(sibVar).onEachBatch(eachCode.to(nextBatch(sibVar))).onDone(doneCode)
  */
 function generateSplitInBatches(sib: SplitInBatchesCompositeNode, ctx: GenerationContext): string {
 	const innerCtx = { ...ctx, indent: ctx.indent + 1 };
@@ -731,7 +731,7 @@ function generateSplitInBatches(sib: SplitInBatchesCompositeNode, ctx: Generatio
 						branchCode = `nextBatch(${sibVarName})`;
 					} else {
 						// Has processing nodes before the loop back
-						branchCode = `${strippedCode}.then(nextBatch(${sibVarName}))`;
+						branchCode = `${strippedCode}.to(nextBatch(${sibVarName}))`;
 					}
 				}
 
@@ -751,7 +751,7 @@ function generateSplitInBatches(sib: SplitInBatchesCompositeNode, ctx: Generatio
 					eachCode = `nextBatch(${sibVarName})`;
 				} else {
 					// Has processing nodes before the loop back
-					eachCode = `${strippedCode}.then(nextBatch(${sibVarName}))`;
+					eachCode = `${strippedCode}.to(nextBatch(${sibVarName}))`;
 				}
 			}
 		}
@@ -783,7 +783,7 @@ function generateFanOut(fanOut: FanOutCompositeNode, ctx: GenerationContext): st
 		.join(',\n' + getIndent(innerCtx));
 
 	// Return with plain array syntax for clarity
-	return `${sourceCode}\n${getIndent(ctx)}.then([\n${getIndent(innerCtx)}${targetsCode}])`;
+	return `${sourceCode}\n${getIndent(ctx)}.to([\n${getIndent(innerCtx)}${targetsCode}])`;
 }
 
 /**
@@ -809,7 +809,7 @@ function generateExplicitConnections(
  */
 function generateMultiOutput(multiOutput: MultiOutputNode, ctx: GenerationContext): string {
 	// The multi-output node becomes a variable reference
-	// The actual .output(n).then() calls are generated at the root level via flattenToWorkflowCalls
+	// The actual .output(n).to() calls are generated at the root level via flattenToWorkflowCalls
 	const varName = getVarName(multiOutput.sourceNode.name, ctx);
 	return varName;
 }
@@ -992,7 +992,7 @@ function generateMultiOutputConnections(
 
 	for (const [outputIndex, targetComposite] of sortedOutputs) {
 		const targetCode = generateComposite(targetComposite, ctx);
-		calls.push(['add', `${sourceVarName}.output(${outputIndex}).then(${targetCode})`]);
+		calls.push(['add', `${sourceVarName}.output(${outputIndex}).to(${targetCode})`]);
 	}
 
 	return calls;
@@ -1000,7 +1000,7 @@ function generateMultiOutputConnections(
 
 /**
  * Flatten a composite tree into workflow-level calls.
- * Returns array of [method, code] tuples where method is 'add', 'then', or 'connect'.
+ * Returns array of [method, code] tuples where method is 'add', 'to', or 'connect'.
  */
 function flattenToWorkflowCalls(
 	root: CompositeNode,
@@ -1009,20 +1009,20 @@ function flattenToWorkflowCalls(
 	const calls: Array<[string, string]> = [];
 
 	if (root.kind === 'multiOutput') {
-		// Multi-output node: generate .add(sourceNode) then .add(sourceNode.output(n).then(target)) for each output
+		// Multi-output node: generate .add(sourceNode) then .add(sourceNode.output(n).to(target)) for each output
 		const multiOutput = root as MultiOutputNode;
 		const sourceVarName = getVarName(multiOutput.sourceNode.name, ctx);
 
 		// First, add the source node itself
 		calls.push(['add', sourceVarName]);
 
-		// Then, for each output with targets, generate sourceNode.output(n).then(target)
+		// Then, for each output with targets, generate sourceNode.output(n).to(target)
 		// Sort by output index for consistent ordering
 		const sortedOutputs = [...multiOutput.outputTargets.entries()].sort((a, b) => a[0] - b[0]);
 
 		for (const [outputIndex, targetComposite] of sortedOutputs) {
 			const targetCode = generateComposite(targetComposite, ctx);
-			calls.push(['add', `${sourceVarName}.output(${outputIndex}).then(${targetCode})`]);
+			calls.push(['add', `${sourceVarName}.output(${outputIndex}).to(${targetCode})`]);
 		}
 	} else if (root.kind === 'explicitConnections') {
 		// Explicit connections pattern: generate .add() for each node, then .connect() for each connection
@@ -1044,7 +1044,7 @@ function flattenToWorkflowCalls(
 			]);
 		}
 	} else if (root.kind === 'chain') {
-		// Chain: first node is .add(), rest are .then()
+		// Chain: first node is .add(), rest are .to()
 		// Special handling when chain contains a multiOutput node
 		const nestedMultiOutputsInChain: MultiOutputNode[] = [];
 
@@ -1053,24 +1053,24 @@ function flattenToWorkflowCalls(
 
 			if (node.kind === 'multiOutput') {
 				// When encountering a multiOutput node in a chain:
-				// 1. Generate .then(sourceNode) to connect the previous node to the multi-output source
+				// 1. Generate .to(sourceNode) to connect the previous node to the multi-output source
 				// 2. Then generate separate .add() calls for each output
 				const multiOutput = node as MultiOutputNode;
 				const sourceVarName = getVarName(multiOutput.sourceNode.name, ctx);
 
 				// Connect to the multi-output source node
-				const method = i === 0 ? 'add' : 'then';
+				const method = i === 0 ? 'add' : 'to';
 				calls.push([method, sourceVarName]);
 
-				// Generate .add(sourceNode.output(n).then(target)) for each output
+				// Generate .add(sourceNode.output(n).to(target)) for each output
 				const sortedOutputs = [...multiOutput.outputTargets.entries()].sort((a, b) => a[0] - b[0]);
 
 				for (const [outputIndex, targetComposite] of sortedOutputs) {
 					const targetCode = generateComposite(targetComposite, ctx);
-					calls.push(['add', `${sourceVarName}.output(${outputIndex}).then(${targetCode})`]);
+					calls.push(['add', `${sourceVarName}.output(${outputIndex}).to(${targetCode})`]);
 				}
 			} else {
-				const method = i === 0 ? 'add' : 'then';
+				const method = i === 0 ? 'add' : 'to';
 				const code = generateComposite(node, ctx);
 				calls.push([method, code]);
 
@@ -1186,10 +1186,8 @@ export function generateCode(
 				? `${sourceVarName}.output(${conn.sourceOutputIndex})`
 				: sourceVarName;
 
-		// Generate: .add(source.then(target.input(n)))
-		workflowCalls.push(
-			`  .add(${sourceRef}.then(${targetVarName}.input(${conn.targetInputIndex})))`,
-		);
+		// Generate: .add(source.to(target.input(n)))
+		workflowCalls.push(`  .add(${sourceRef}.to(${targetVarName}.input(${conn.targetInputIndex})))`);
 	}
 
 	// Generate deferred merge downstream chains
@@ -1198,7 +1196,7 @@ export function generateCode(
 		const mergeVarName = getVarName(downstream.mergeNode.name, ctx);
 		if (downstream.downstreamChain) {
 			const chainCode = generateComposite(downstream.downstreamChain, ctx);
-			workflowCalls.push(`  .add(${mergeVarName}.then(${chainCode}))`);
+			workflowCalls.push(`  .add(${mergeVarName}.to(${chainCode}))`);
 		}
 	}
 

@@ -2,7 +2,7 @@ import type { NodeInstance, SplitInBatchesBuilder } from './types/base';
 
 /**
  * Marker interface for loop-back to split in batches node.
- * Extends NodeInstance so it can be used directly with .then()
+ * Extends NodeInstance so it can be used directly with .to()
  */
 export interface NextBatchMarker
 	extends NodeInstance<'n8n-nodes-base.splitInBatches', string, unknown> {
@@ -13,10 +13,10 @@ export interface NextBatchMarker
  * Create a loop-back connection to a split in batches node.
  *
  * This is a semantic helper that makes the intent explicit in generated code.
- * It returns the SIB node so it can be chained directly with `.then()`.
+ * It returns the SIB node so it can be chained directly with `.to()`.
  *
  * @param sib - The split in batches node or builder to loop back to
- * @returns The SIB node instance for use with .then()
+ * @returns The SIB node instance for use with .to()
  *
  * @example
  * ```typescript
@@ -29,18 +29,18 @@ export interface NextBatchMarker
  * // Using nextBatch() for explicit loop-back (recommended for clarity)
  * workflow
  *   .add(trigger)
- *   .then(
+ *   .to(
  *     splitInBatches(sibNode)
- *       .onEachBatch(processNode.then(nextBatch(sibNode)))
+ *       .onEachBatch(processNode.to(nextBatch(sibNode)))
  *       .onDone(summaryNode)
  *   );
  *
  * // Alternative: direct connection (equivalent but less clear)
  * workflow
  *   .add(trigger)
- *   .then(
+ *   .to(
  *     splitInBatches(sibNode)
- *       .onEachBatch(processNode.then(sibNode))
+ *       .onEachBatch(processNode.to(sibNode))
  *       .onDone(summaryNode)
  *   );
  * ```

@@ -167,7 +167,7 @@ class SDKInterpreter {
 				throw new UnknownIdentifierError(name, node.callee.loc ?? undefined, this.sourceCode);
 			}
 		} else if (node.callee.type === 'MemberExpression') {
-			// Method call: wf.add(...), node.then(...), etc.
+			// Method call: wf.add(...), node.to(...), etc.
 			const memberExpr = node.callee;
 			validateMemberExpression(memberExpr, this.sourceCode);
 

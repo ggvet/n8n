@@ -126,7 +126,7 @@ describe('code-generator', () => {
 
 				const code = generateFromWorkflow(json);
 
-				expect(code).toContain('.then(');
+				expect(code).toContain('.to(');
 				// All nodes should be variables
 				// Note: 'process' is a reserved word, so it becomes 'process_node'
 				expect(code).toContain('const trigger_node = trigger({');
@@ -134,8 +134,8 @@ describe('code-generator', () => {
 				expect(code).toContain('const final = node({');
 				// Workflow should chain variable references
 				expect(code).toMatch(/\.add\(trigger_node\)/);
-				expect(code).toMatch(/\.then\(process_node\)/);
-				expect(code).toMatch(/\.then\(final\)/);
+				expect(code).toMatch(/\.to\(process_node\)/);
+				expect(code).toMatch(/\.to\(final\)/);
 			});
 		});
 
@@ -277,7 +277,7 @@ describe('code-generator', () => {
 				const code = generateFromWorkflow(json);
 
 				// Should use .input(n) syntax for connecting branches to merge
-				// Each branch should have .then(merge_node.input(n))
+				// Each branch should have .to(merge_node.input(n))
 				expect(code).toContain('.input(0)');
 				expect(code).toContain('.input(1)');
 				expect(code).toContain('merge_node'); // The merge node variable
@@ -1552,7 +1552,7 @@ describe('code-generator', () => {
 				const code = generateFromWorkflow(json);
 
 				// Should use plain array syntax for parallel targets
-				expect(code).toContain('.then([');
+				expect(code).toContain('.to([');
 				expect(code).toContain('Target1');
 				expect(code).toContain('Target2');
 				// Should NOT have sequential chaining between targets
@@ -1625,7 +1625,7 @@ describe('code-generator', () => {
 				const code = generateFromWorkflow(json);
 
 				// Should use plain array syntax for parallel targets
-				expect(code).toContain('.then([');
+				expect(code).toContain('.to([');
 				// All three branches should be present
 				expect(code).toContain('Instagram');
 				expect(code).toContain('YouTube');
@@ -1944,7 +1944,7 @@ describe('code-generator', () => {
 		});
 
 		describe('merge node outgoing connections', () => {
-			it('preserves merge node outgoing connections when merge has .then()', () => {
+			it('preserves merge node outgoing connections when merge has .to()', () => {
 				// Pattern: trigger → [branch1, branch2] → merge → loopOverItems
 				// The merge node's connection to loopOverItems should be preserved
 				const json: WorkflowJSON = {
@@ -2075,7 +2075,7 @@ describe('code-generator', () => {
 			});
 
 			it('preserves connection from node chain to splitInBatches composite', () => {
-				// Pattern: trigger → Wait 1 → Wait 2 → splitInBatches with .each().then() chain
+				// Pattern: trigger → Wait 1 → Wait 2 → splitInBatches with .each().to() chain
 				// This replicates the pattern from workflow 5682 where the connection
 				// from Wait 2 to Debate Loop (splitInBatches) is lost
 				const json: WorkflowJSON = {
@@ -2147,7 +2147,7 @@ describe('code-generator', () => {
 
 			it('preserves connection when chain inside splitInBatches.each() ends with another splitInBatches', () => {
 				// Pattern from workflow 5682:
-				// outer_sib.each().then(A.then(B.then(Wait1.then(Wait2.then(inner_sib.each()...)))))
+				// outer_sib.each().to(A.to(B.to(Wait1.to(Wait2.to(inner_sib.each()...)))))
 				// The connection from Wait2 to inner_sib is lost
 				const json: WorkflowJSON = {
 					id: 'nested-sib-test',

@@ -66,7 +66,7 @@ describe('Deterministic Node ID Generation', () => {
 					type: 'n8n-nodes-base.manualTrigger',
 					version: 1,
 					config: { name: 'Start' },
-				}).then(node({ type: 'n8n-nodes-base.set', version: 3.4, config: { name: 'Set Data' } })),
+				}).to(node({ type: 'n8n-nodes-base.set', version: 3.4, config: { name: 'Set Data' } })),
 			);
 
 			// Regenerate IDs deterministically
@@ -91,7 +91,7 @@ describe('Deterministic Node ID Generation', () => {
 					type: 'n8n-nodes-base.manualTrigger',
 					version: 1,
 					config: { name: 'Start' },
-				}).then(node({ type: 'n8n-nodes-base.set', version: 3.4, config: { name: 'Set Data' } })),
+				}).to(node({ type: 'n8n-nodes-base.set', version: 3.4, config: { name: 'Set Data' } })),
 			);
 
 			wf.regenerateNodeIds();
@@ -160,7 +160,7 @@ return wf.add(start);
 					type: 'n8n-nodes-base.manualTrigger',
 					version: 1,
 					config: { name: 'Start' },
-				}).then(node({ type: 'n8n-nodes-base.set', version: 3.4, config: { name: 'Process' } })),
+				}).to(node({ type: 'n8n-nodes-base.set', version: 3.4, config: { name: 'Process' } })),
 			);
 
 			wf1.regenerateNodeIds();
