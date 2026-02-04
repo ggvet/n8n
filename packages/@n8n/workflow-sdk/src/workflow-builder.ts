@@ -1142,8 +1142,8 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 	 * Handle fan-out pattern - connects current node to multiple target nodes
 	 * Supports NodeChain targets (e.g., workflow.then([x1, fb, linkedin.then(sheets)]))
 	 *
-	 * For IF/Switch nodes, each array element maps to a different output index (branching).
-	 * For regular nodes, all targets connect from the same output (fan-out).
+	 * Each array element maps to a different output index (branching).
+	 * Use null to skip an output index.
 	 */
 	private handleFanOut(nodes: unknown[]): WorkflowBuilder {
 		if (nodes.length === 0) {
@@ -1151,19 +1151,11 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		}
 
 		const newNodes = new Map(this._nodes);
-
-		// Check if current node is an IF, Switch, or SplitInBatches node for branch-style connections
-		// These nodes have multiple outputs where each array element maps to a different output index
 		const currentGraphNode = this._currentNode ? newNodes.get(this._currentNode) : undefined;
-		const isBranchingNode =
-			currentGraphNode?.instance.type === 'n8n-nodes-base.if' ||
-			currentGraphNode?.instance.type === 'n8n-nodes-base.switch' ||
-			currentGraphNode?.instance.type === 'n8n-nodes-base.splitInBatches';
 
 		// Add all target nodes and connect them to the current node
 		nodes.forEach((node, index) => {
-			// Skip null values (empty branches for IF/Switch/SplitInBatches outputs)
-			// but preserve the index for correct output mapping
+			// Skip null values (empty branches) but preserve the index for correct output mapping
 			if (node === null) {
 				return;
 			}
@@ -1175,14 +1167,12 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 				node as NodeInstance<string, string, unknown>,
 			);
 
-			// Connect from current node to the head of this target (branch)
+			// Connect from current node to the head of this target
+			// Array syntax always uses incrementing output indices (branching behavior)
 			if (this._currentNode && currentGraphNode) {
 				const mainConns = currentGraphNode.connections.get('main') || new Map();
-				// For IF/Switch/SplitInBatches nodes, each array element uses incrementing output index
-				// For regular nodes, all targets use the same currentOutput (fan-out)
-				const outputIndex = isBranchingNode ? index : this._currentOutput;
-				const outputConnections = mainConns.get(outputIndex) || [];
-				mainConns.set(outputIndex, [
+				const outputConnections = mainConns.get(index) || [];
+				mainConns.set(index, [
 					...outputConnections,
 					{ node: headNodeName, type: 'main', index: 0 },
 				]);

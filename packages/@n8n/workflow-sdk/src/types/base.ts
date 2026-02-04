@@ -896,6 +896,8 @@ export interface WorkflowBuilder {
 	then<T>(splitInBatches: SplitInBatchesBuilder<T>): WorkflowBuilder;
 	then<T>(ifElseBuilder: IfElseBuilder<T>): WorkflowBuilder;
 	then<T>(switchCaseBuilder: SwitchCaseBuilder<T>): WorkflowBuilder;
+	/** Connect to multiple outputs (branching). Each array element connects to incrementing output index. Use null to skip an output. */
+	then(nodes: Array<NodeInstance<string, string, unknown> | NodeChain | null>): WorkflowBuilder;
 
 	settings(settings: WorkflowSettings): WorkflowBuilder;
 

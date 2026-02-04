@@ -1576,4 +1576,74 @@ describe('WorkflowBuilder plugin integration', () => {
 			expect(result.errors.some((e) => e.code === 'MAX_NODES_EXCEEDED')).toBe(true);
 		});
 	});
+
+	describe('Phase 18: handleFanOut branching node detection', () => {
+		it('treats multi-output nodes (like Text Classifier) as branching nodes with array syntax', () => {
+			// Text Classifier is a multi-output node that should work like IF/Switch
+			// when using .then([branch0, branch1, branch2]) syntax.
+			// Currently, only IF, Switch, and SplitInBatches are hardcoded as branching nodes.
+			const textClassifier = node({
+				type: '@n8n/n8n-nodes-langchain.textClassifier',
+				version: 1,
+				config: {
+					name: 'Classify',
+					parameters: {
+						categories: {
+							categories: [
+								{ category: 'Billing', description: 'billing issues' },
+								{ category: 'Support', description: 'support requests' },
+								{ category: 'Sales', description: 'sales inquiries' },
+							],
+						},
+					},
+				},
+			});
+
+			const billingHandler = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'Handle Billing', parameters: {} },
+			});
+
+			const supportHandler = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'Handle Support', parameters: {} },
+			});
+
+			const salesHandler = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'Handle Sales', parameters: {} },
+			});
+
+			// Using array syntax should treat textClassifier as a branching node
+			// Each element should connect to a different output index
+			const wf = workflow('test', 'Text Classifier Branching')
+				.add(
+					trigger({
+						type: 'n8n-nodes-base.manualTrigger',
+						version: 1,
+						config: { name: 'Start' },
+					}),
+				)
+				.then(textClassifier)
+				.then([billingHandler, supportHandler, salesHandler]);
+
+			const json = wf.toJSON();
+
+			// Check connections from Classify node
+			const classifyConns = json.connections['Classify'];
+			expect(classifyConns).toBeDefined();
+			expect(classifyConns.main).toBeDefined();
+
+			// Each handler should be connected to a DIFFERENT output index (branching behavior)
+			// Output 0 -> Handle Billing
+			// Output 1 -> Handle Support
+			// Output 2 -> Handle Sales
+			expect(classifyConns.main[0]).toEqual([{ node: 'Handle Billing', type: 'main', index: 0 }]);
+			expect(classifyConns.main[1]).toEqual([{ node: 'Handle Support', type: 'main', index: 0 }]);
+			expect(classifyConns.main[2]).toEqual([{ node: 'Handle Sales', type: 'main', index: 0 }]);
+		});
+	});
 });
