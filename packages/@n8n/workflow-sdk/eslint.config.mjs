@@ -28,7 +28,6 @@ export default defineConfig(
 			'@typescript-eslint/no-empty-object-type': 'warn',
 			'@typescript-eslint/no-unnecessary-type-assertion': 'warn',
 			'n8n-local-rules/no-uncaught-json-parse': 'warn',
-			'import-x/order': 'warn',
 		},
 	},
 );

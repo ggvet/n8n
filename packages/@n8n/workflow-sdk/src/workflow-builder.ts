@@ -11,6 +11,10 @@ import type {
 	GeneratePinDataOptions,
 	WorkflowBuilderOptions,
 } from './types/base';
+import { isNodeChain } from './types/base';
+import { resolveTargetNodeName as resolveTargetNodeNameUtil } from './workflow-builder/connection-utils';
+import { isInputTarget, cloneNodeWithId } from './workflow-builder/node-builders/node-builder';
+import { shouldGeneratePinData } from './workflow-builder/pin-data-utils';
 import { registerDefaultPlugins } from './workflow-builder/plugins/defaults';
 import { pluginRegistry, type PluginRegistry } from './workflow-builder/plugins/registry';
 import { jsonSerializer } from './workflow-builder/plugins/serializers';
@@ -20,16 +24,12 @@ import type {
 	ValidationIssue,
 	SerializerContext,
 } from './workflow-builder/plugins/types';
+import { generateDeterministicNodeId } from './workflow-builder/string-utils';
+import { addNodeWithSubnodes as addNodeWithSubnodesUtil } from './workflow-builder/subnode-utils';
+import { parseWorkflowJSON } from './workflow-builder/workflow-import';
 
 // Ensure default plugins are registered on module load
 registerDefaultPlugins(pluginRegistry);
-import { isNodeChain } from './types/base';
-import { isInputTarget, cloneNodeWithId } from './workflow-builder/node-builders/node-builder';
-import { generateDeterministicNodeId } from './workflow-builder/string-utils';
-import { shouldGeneratePinData } from './workflow-builder/pin-data-utils';
-import { addNodeWithSubnodes as addNodeWithSubnodesUtil } from './workflow-builder/subnode-utils';
-import { parseWorkflowJSON } from './workflow-builder/workflow-import';
-import { resolveTargetNodeName as resolveTargetNodeNameUtil } from './workflow-builder/connection-utils';
 
 /**
  * Internal workflow builder implementation

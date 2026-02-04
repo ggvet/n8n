@@ -9,8 +9,6 @@ import { ifElseHandler, switchCaseHandler, splitInBatchesHandler } from './compo
 import type { PluginRegistry } from './registry';
 import { jsonSerializer } from './serializers';
 import type { ValidatorPlugin, CompositeHandlerPlugin, SerializerPlugin } from './types';
-
-// Import real validators
 import {
 	agentValidator,
 	chainLlmValidator,
@@ -28,10 +26,6 @@ import {
 	subnodeConnectionValidator,
 	toolNodeValidator,
 } from './validators';
-
-// Import real composite handlers
-
-// Import real serializers
 
 // Note: Core composite handlers are now imported from ./composite-handlers
 
