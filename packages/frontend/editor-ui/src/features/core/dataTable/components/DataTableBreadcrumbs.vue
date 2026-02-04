@@ -123,7 +123,7 @@ watch(
 					data-test-id="data-table-header-name-input"
 					:placeholder="i18n.baseText('dataTable.add.input.name.label')"
 					:class="$style['breadcrumb-current']"
-					:read-only="isReadOnly"
+					:read-only="readOnly"
 					:disabled="isRenameDisabled"
 					@update:model-value="onNameSubmit"
 				/>
@@ -132,7 +132,7 @@ watch(
 		<div :class="$style['data-table-actions']">
 			<DataTableActions
 				:data-table="props.dataTable"
-				:is-read-only="isReadOnly"
+				:is-read-only="readOnly"
 				location="breadcrumbs"
 				@rename="onRename"
 				@on-deleted="onDelete"
