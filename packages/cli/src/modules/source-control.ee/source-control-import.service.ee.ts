@@ -1510,7 +1510,7 @@ export class SourceControlImportService {
 		}
 	}
 
-	async deleteDataTablesNotInWorkfolder(candidates: SourceControlledFile[]) {
+	async deleteDataTablesNotInWorkFolder(candidates: SourceControlledFile[]) {
 		if (candidates.length === 0) {
 			return;
 		}
