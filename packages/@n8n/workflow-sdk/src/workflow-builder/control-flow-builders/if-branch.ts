@@ -36,7 +36,7 @@ class IfNodeInstance implements NodeInstance<'n8n-nodes-base.if', string, unknow
 	private _connections: DeclaredConnection[] = [];
 
 	constructor(config?: IfBranchConfig) {
-		this.version = config?.version != null ? String(config.version) : '2.3';
+		this.version = config?.version !== undefined ? String(config.version) : '2.3';
 		this.id = config?.id ?? uuid();
 		this.name = config?.name ?? 'IF';
 		this.config = {

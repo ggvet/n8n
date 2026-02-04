@@ -35,7 +35,6 @@ export default defineConfig(
 			'n8n-local-rules/no-uncaught-json-parse': 'warn',
 			'import-x/no-cycle': 'warn',
 			'import-x/order': 'warn',
-			'eqeqeq': 'warn',
 		},
 	},
 );
