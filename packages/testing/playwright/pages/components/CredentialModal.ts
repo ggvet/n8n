@@ -169,6 +169,9 @@ export class CredentialModal extends BaseModal {
 	async addUserToSharing(emailOrName: string): Promise<void> {
 		await this.getUsersSelect().click();
 		const dropdown = this.getVisibleDropdown();
+		// Wait for dropdown content to load
+		await dropdown.locator('.el-select-dropdown__item').first().waitFor({ state: 'visible' });
+
 		// Try to find by email or name (personal projects now show "Personal space" instead of email)
 		const byEmail = dropdown.getByText(emailOrName.toLowerCase(), { exact: false });
 		if ((await byEmail.count()) > 0) {

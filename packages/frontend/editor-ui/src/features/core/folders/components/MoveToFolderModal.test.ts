@@ -499,8 +499,7 @@ describe('MoveToFolderModal', () => {
 		await userEvent.click(teamProject as Element);
 
 		const submitButton = getByTestId('confirm-move-folder-button');
-		// Submit button is enabled because project root is selected by default
-		expect(submitButton).toBeEnabled();
+		await waitFor(() => expect(submitButton).toBeEnabled());
 
 		const folderSelect = getByTestId('move-to-folder-dropdown');
 		const folderSelectDropdownItems = await getDropdownItems(folderSelect);
@@ -690,9 +689,8 @@ describe('MoveToFolderModal', () => {
 		await userEvent.click(anotherUserPersonalProject as Element);
 
 		const submitButton = getByTestId('confirm-move-folder-button');
-		expect(submitButton).toBeEnabled();
+		await waitFor(() => expect(submitButton).toBeEnabled());
 
-		expect(submitButton).toBeEnabled();
 		await userEvent.click(submitButton);
 
 		await waitFor(() => {
@@ -811,8 +809,7 @@ describe('MoveToFolderModal', () => {
 		await userEvent.click(teamProject as Element);
 
 		const submitButton = getByTestId('confirm-move-folder-button');
-		// Submit button is enabled because project root is selected by default
-		expect(submitButton).toBeEnabled();
+		await waitFor(() => expect(submitButton).toBeEnabled());
 
 		const folderSelect = getByTestId('move-to-folder-dropdown');
 		const folderSelectDropdownItems = await getDropdownItems(folderSelect);
