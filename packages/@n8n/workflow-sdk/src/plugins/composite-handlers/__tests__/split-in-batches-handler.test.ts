@@ -274,4 +274,286 @@ describe('splitInBatchesHandler', () => {
 			expect(mainConns?.get(1)).toContainEqual(expect.objectContaining({ node: 'Each Node' }));
 		});
 	});
+
+	describe('recursion prevention', () => {
+		it('returns SIB node name immediately if called recursively (prevents infinite loops)', () => {
+			// Simulate a recursive call by calling addNodes twice with the same builder
+			// The second call should return early without re-adding nodes
+			const builder = createSplitInBatchesBuilder({ sibNodeName: 'Outer SIB' });
+			const ctx = createMockContext();
+
+			// Mock addBranchToGraph to call addNodes recursively (simulating nested SIB)
+			let recursiveCallCount = 0;
+			ctx.addBranchToGraph = jest.fn((branch: unknown) => {
+				const branchNode = branch as NodeInstance<string, string, unknown>;
+				ctx.nodes.set(branchNode.name, {
+					instance: branchNode,
+					connections: new Map(),
+				});
+				// On first call, try to add the same builder recursively
+				if (recursiveCallCount === 0 && splitInBatchesHandler.canHandle(builder)) {
+					recursiveCallCount++;
+					// This recursive call should return early
+					splitInBatchesHandler.addNodes(builder, ctx);
+				}
+				return branchNode.name;
+			});
+
+			const eachNode = createMockNode('Each Node');
+			builder._eachTarget = eachNode;
+
+			// Should not throw or infinite loop
+			expect(() => splitInBatchesHandler.addNodes(builder, ctx)).not.toThrow();
+			// Should have the SIB node in the map
+			expect(ctx.nodes.has('Outer SIB')).toBe(true);
+		});
+
+		it('cleans up recursion guard after successful processing', () => {
+			// After processing completes, the builder should be removed from the guard
+			// so it can be processed again if needed (e.g., different workflow)
+			const builder = createSplitInBatchesBuilder({ sibNodeName: 'My SIB' });
+
+			// First call
+			const ctx1 = createMockContext();
+			splitInBatchesHandler.addNodes(builder, ctx1);
+			expect(ctx1.nodes.has('My SIB')).toBe(true);
+
+			// Second call with fresh context should work (guard was cleaned up)
+			const ctx2 = createMockContext();
+			splitInBatchesHandler.addNodes(builder, ctx2);
+			expect(ctx2.nodes.has('My SIB')).toBe(true);
+		});
+	});
+
+	describe('fluent API support (_doneBatches/_eachBatches)', () => {
+		// Extended builder type that includes fluent API properties
+		interface FluentSplitInBatchesBuilder {
+			sibNode: NodeInstance<string, string, unknown>;
+			_doneNodes: NodeInstance<string, string, unknown>[];
+			_eachNodes: NodeInstance<string, string, unknown>[];
+			_doneBatches: (
+				| NodeInstance<string, string, unknown>
+				| NodeInstance<string, string, unknown>[]
+			)[];
+			_eachBatches: (
+				| NodeInstance<string, string, unknown>
+				| NodeInstance<string, string, unknown>[]
+			)[];
+			_hasLoop: boolean;
+			// No _doneTarget/_eachTarget - fluent API uses batches instead
+		}
+
+		function createFluentBuilder(
+			options: {
+				sibNodeName?: string;
+				doneBatches?: (
+					| NodeInstance<string, string, unknown>
+					| NodeInstance<string, string, unknown>[]
+				)[];
+				eachBatches?: (
+					| NodeInstance<string, string, unknown>
+					| NodeInstance<string, string, unknown>[]
+				)[];
+				hasLoop?: boolean;
+			} = {},
+		): FluentSplitInBatchesBuilder {
+			return {
+				sibNode: createMockSibNode(options.sibNodeName),
+				_doneNodes: [],
+				_eachNodes: [],
+				_doneBatches: options.doneBatches ?? [],
+				_eachBatches: options.eachBatches ?? [],
+				_hasLoop: options.hasLoop ?? false,
+			};
+		}
+
+		it('handles fluent API with single done batch', () => {
+			const doneBatch = createMockNode('Done Batch');
+			const builder = createFluentBuilder({ doneBatches: [doneBatch] });
+			const ctx = createMockContext();
+
+			splitInBatchesHandler.addNodes(builder, ctx);
+
+			// SIB output 0 should connect to the done batch
+			const sibNode = ctx.nodes.get('Split In Batches');
+			const mainConns = sibNode?.connections.get('main');
+			expect(mainConns?.get(0)).toContainEqual(
+				expect.objectContaining({ node: 'Done Batch', type: 'main', index: 0 }),
+			);
+		});
+
+		it('handles fluent API with chained done batches', () => {
+			const batch1 = createMockNode('Done Batch 1');
+			const batch2 = createMockNode('Done Batch 2');
+			const builder = createFluentBuilder({ doneBatches: [batch1, batch2] });
+
+			// Create context that tracks connections properly
+			const nodes = new Map<string, GraphNode>();
+			const ctx: MutablePluginContext = {
+				nodes,
+				workflowId: 'test-workflow',
+				workflowName: 'Test Workflow',
+				settings: {},
+				addNodeWithSubnodes: jest.fn((node: NodeInstance<string, string, unknown>) => {
+					nodes.set(node.name, {
+						instance: node,
+						connections: new Map([['main', new Map()]]),
+					});
+					return node.name;
+				}),
+				addBranchToGraph: jest.fn((branch: unknown) => {
+					const branchNode = branch as NodeInstance<string, string, unknown>;
+					if (!nodes.has(branchNode.name)) {
+						nodes.set(branchNode.name, {
+							instance: branchNode,
+							connections: new Map([['main', new Map()]]),
+						});
+					}
+					return branchNode.name;
+				}),
+			};
+
+			splitInBatchesHandler.addNodes(builder, ctx);
+
+			// SIB output 0 should connect to batch1
+			const sibNode = nodes.get('Split In Batches');
+			const sibMainConns = sibNode?.connections.get('main');
+			expect(sibMainConns?.get(0)).toContainEqual(
+				expect.objectContaining({ node: 'Done Batch 1' }),
+			);
+
+			// batch1 should connect to batch2
+			const batch1Node = nodes.get('Done Batch 1');
+			const batch1MainConns = batch1Node?.connections.get('main');
+			expect(batch1MainConns?.get(0)).toContainEqual(
+				expect.objectContaining({ node: 'Done Batch 2' }),
+			);
+		});
+
+		it('handles fluent API with single each batch', () => {
+			const eachBatch = createMockNode('Each Batch');
+			const builder = createFluentBuilder({ eachBatches: [eachBatch] });
+			const ctx = createMockContext();
+
+			splitInBatchesHandler.addNodes(builder, ctx);
+
+			// SIB output 1 should connect to the each batch
+			const sibNode = ctx.nodes.get('Split In Batches');
+			const mainConns = sibNode?.connections.get('main');
+			expect(mainConns?.get(1)).toContainEqual(
+				expect.objectContaining({ node: 'Each Batch', type: 'main', index: 0 }),
+			);
+		});
+
+		it('handles fluent API with loop connection (_hasLoop=true)', () => {
+			const eachBatch = createMockNode('Each Batch');
+			const builder = createFluentBuilder({
+				sibNodeName: 'Loop SIB',
+				eachBatches: [eachBatch],
+				hasLoop: true,
+			});
+
+			// Create context that tracks connections
+			const nodes = new Map<string, GraphNode>();
+			const ctx: MutablePluginContext = {
+				nodes,
+				workflowId: 'test-workflow',
+				workflowName: 'Test Workflow',
+				settings: {},
+				addNodeWithSubnodes: jest.fn((node: NodeInstance<string, string, unknown>) => {
+					nodes.set(node.name, {
+						instance: node,
+						connections: new Map([['main', new Map()]]),
+					});
+					return node.name;
+				}),
+				addBranchToGraph: jest.fn((branch: unknown) => {
+					const branchNode = branch as NodeInstance<string, string, unknown>;
+					if (!nodes.has(branchNode.name)) {
+						nodes.set(branchNode.name, {
+							instance: branchNode,
+							connections: new Map([['main', new Map()]]),
+						});
+					}
+					return branchNode.name;
+				}),
+			};
+
+			splitInBatchesHandler.addNodes(builder, ctx);
+
+			// Last each node should connect back to SIB
+			const eachNode = nodes.get('Each Batch');
+			const eachMainConns = eachNode?.connections.get('main');
+			expect(eachMainConns?.get(0)).toContainEqual(
+				expect.objectContaining({ node: 'Loop SIB', type: 'main', index: 0 }),
+			);
+		});
+
+		it('handles fluent API with fan-out in done batches', () => {
+			const fanOut1 = createMockNode('Fan Out 1');
+			const fanOut2 = createMockNode('Fan Out 2');
+			// First batch is an array (fan-out)
+			const builder = createFluentBuilder({ doneBatches: [[fanOut1, fanOut2]] });
+
+			const nodes = new Map<string, GraphNode>();
+			const ctx: MutablePluginContext = {
+				nodes,
+				workflowId: 'test-workflow',
+				workflowName: 'Test Workflow',
+				settings: {},
+				addNodeWithSubnodes: jest.fn((node: NodeInstance<string, string, unknown>) => {
+					nodes.set(node.name, {
+						instance: node,
+						connections: new Map([['main', new Map()]]),
+					});
+					return node.name;
+				}),
+				addBranchToGraph: jest.fn((branch: unknown) => {
+					const branchNode = branch as NodeInstance<string, string, unknown>;
+					if (!nodes.has(branchNode.name)) {
+						nodes.set(branchNode.name, {
+							instance: branchNode,
+							connections: new Map([['main', new Map()]]),
+						});
+					}
+					return branchNode.name;
+				}),
+			};
+
+			splitInBatchesHandler.addNodes(builder, ctx);
+
+			// SIB output 0 should connect to both fan-out targets
+			const sibNode = nodes.get('Split In Batches');
+			const sibMainConns = sibNode?.connections.get('main');
+			const output0Conns = sibMainConns?.get(0);
+
+			expect(output0Conns).toHaveLength(2);
+			expect(output0Conns).toContainEqual(expect.objectContaining({ node: 'Fan Out 1' }));
+			expect(output0Conns).toContainEqual(expect.objectContaining({ node: 'Fan Out 2' }));
+		});
+
+		it('prefers named syntax over fluent API when both are present', () => {
+			// If _doneTarget is defined, use named syntax even if _doneBatches exists
+			const doneTarget = createMockNode('Done Target');
+			const doneBatch = createMockNode('Done Batch');
+			const builder = {
+				sibNode: createMockSibNode(),
+				_doneNodes: [],
+				_eachNodes: [],
+				_doneTarget: doneTarget,
+				_eachTarget: undefined,
+				_doneBatches: [doneBatch],
+				_eachBatches: [],
+				_hasLoop: false,
+			};
+			const ctx = createMockContext();
+
+			splitInBatchesHandler.addNodes(builder, ctx);
+
+			// Should use _doneTarget (named syntax), not _doneBatches (fluent API)
+			const sibNode = ctx.nodes.get('Split In Batches');
+			const mainConns = sibNode?.connections.get('main');
+			expect(mainConns?.get(0)).toContainEqual(expect.objectContaining({ node: 'Done Target' }));
+		});
+	});
 });

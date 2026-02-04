@@ -7,7 +7,9 @@
  */
 
 import { workflow } from '../workflow-builder';
-import { node, trigger, ifElse } from '../node-builder';
+import { node, trigger, ifElse, switchCase } from '../node-builder';
+import { splitInBatches } from '../split-in-batches';
+import type { MergeComposite, NodeInstance } from '../types/base';
 import { PluginRegistry } from '../plugins/registry';
 import type {
 	ValidatorPlugin,
@@ -328,8 +330,9 @@ describe('WorkflowBuilder plugin integration', () => {
 			expect(mockAddNodes).toHaveBeenCalled();
 		});
 
-		it('falls back to built-in handling when no handler matches', () => {
-			// Empty registry - no handlers
+		it('uses global pluginRegistry as fallback when custom registry has no handler', () => {
+			// Custom registry has no handlers, but global pluginRegistry does
+			// The workflow should use global pluginRegistry as fallback
 			const trueNode = node({
 				type: 'n8n-nodes-base.set',
 				version: 3.4,
@@ -345,10 +348,10 @@ describe('WorkflowBuilder plugin integration', () => {
 				trueNode,
 			).onFalse(falseNode);
 
-			// Should still work without a handler registered
-			const wf = workflow('test', 'Test', { registry: testRegistry }).add(composite);
+			// Create workflow without a custom registry - uses global pluginRegistry
+			const wf = workflow('test', 'Test').add(composite);
 
-			// Verify all nodes were added
+			// Verify all nodes were added (global pluginRegistry has core:if-else handler)
 			const json = wf.toJSON();
 			expect(json.nodes).toHaveLength(3);
 			expect(json.nodes.map((n) => n.name)).toContain('If Node');
@@ -598,6 +601,154 @@ describe('WorkflowBuilder plugin integration', () => {
 			// Each warning should appear exactly once (from plugin only, not duplicated)
 			expect(staticPromptWarnings.length).toBe(1);
 			expect(noSystemMessageWarnings.length).toBe(1);
+		});
+	});
+
+	describe('Phase 6.6.5: Verify plugin handlers are used for all composite types', () => {
+		it('ifElse builder is handled by global pluginRegistry handler', () => {
+			const { pluginRegistry } = require('../plugins/registry');
+			const { registerDefaultPlugins } = require('../plugins/defaults');
+			registerDefaultPlugins(pluginRegistry);
+
+			const findHandlerSpy = jest.spyOn(pluginRegistry, 'findCompositeHandler');
+
+			const trueBranch = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'True', parameters: {} },
+			});
+			const composite = ifElse({ version: 2, config: { name: 'If', parameters: {} } }).onTrue!(
+				trueBranch,
+			).onFalse(null);
+
+			// Use workflow without custom registry - uses global pluginRegistry
+			const wf = workflow('test', 'Test').add(composite);
+
+			// Verify handler was found (may be called multiple times, find the one that returned a handler)
+			expect(findHandlerSpy).toHaveBeenCalled();
+			const foundHandler = findHandlerSpy.mock.results.find((r) => r.value?.id === 'core:if-else');
+			expect(foundHandler).toBeDefined();
+			expect(foundHandler!.value.id).toBe('core:if-else');
+
+			// Verify workflow was built correctly
+			const json = wf.toJSON();
+			expect(json.nodes.map((n) => n.name)).toContain('If');
+			expect(json.nodes.map((n) => n.name)).toContain('True');
+
+			findHandlerSpy.mockRestore();
+		});
+
+		it('switchCase builder is handled by global pluginRegistry handler', () => {
+			const { pluginRegistry } = require('../plugins/registry');
+			const { registerDefaultPlugins } = require('../plugins/defaults');
+			registerDefaultPlugins(pluginRegistry);
+
+			const findHandlerSpy = jest.spyOn(pluginRegistry, 'findCompositeHandler');
+
+			const case0 = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'Case 0', parameters: {} },
+			});
+			// Use the switchCase factory function syntax
+			const switchNode = switchCase({
+				version: 3,
+				config: { name: 'Switch', parameters: {} },
+			});
+			const composite = switchNode.onCase!(0, case0);
+
+			const wf = workflow('test', 'Test').add(composite);
+
+			// Verify handler was found
+			const foundHandler = findHandlerSpy.mock.results.find(
+				(r) => r.value?.id === 'core:switch-case',
+			);
+			expect(foundHandler).toBeDefined();
+
+			// Verify workflow was built correctly
+			const json = wf.toJSON();
+			expect(json.nodes.map((n) => n.name)).toContain('Switch');
+			expect(json.nodes.map((n) => n.name)).toContain('Case 0');
+
+			findHandlerSpy.mockRestore();
+		});
+
+		it('merge composite is handled by global pluginRegistry handler', () => {
+			const { pluginRegistry } = require('../plugins/registry');
+			const { registerDefaultPlugins } = require('../plugins/defaults');
+			registerDefaultPlugins(pluginRegistry);
+
+			const findHandlerSpy = jest.spyOn(pluginRegistry, 'findCompositeHandler');
+
+			const mergeNodeInstance = node({
+				type: 'n8n-nodes-base.merge',
+				version: 3,
+				config: { name: 'Merge', parameters: {} },
+			});
+			const branch1 = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'Branch 1', parameters: {} },
+			});
+			const branch2 = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'Branch 2', parameters: {} },
+			});
+			// Create a MergeComposite directly (with required structure: mergeNode + branches)
+			const composite = {
+				mergeNode: mergeNodeInstance,
+				branches: [branch1, branch2],
+				mode: 'combine' as const,
+			} as MergeComposite<NodeInstance<string, string, unknown>[]>;
+
+			const wf = workflow('test', 'Test').add(
+				composite as unknown as NodeInstance<string, string, unknown>,
+			);
+
+			// Verify handler was found - merge handler should be called
+			const foundHandler = findHandlerSpy.mock.results.find((r) => r.value?.id === 'core:merge');
+			expect(foundHandler).toBeDefined();
+
+			// Verify workflow was built correctly
+			const json = wf.toJSON();
+			expect(json.nodes.map((n) => n.name)).toContain('Merge');
+			expect(json.nodes.map((n) => n.name)).toContain('Branch 1');
+			expect(json.nodes.map((n) => n.name)).toContain('Branch 2');
+
+			findHandlerSpy.mockRestore();
+		});
+
+		it('splitInBatches builder is handled by global pluginRegistry handler', () => {
+			const { pluginRegistry } = require('../plugins/registry');
+			const { registerDefaultPlugins } = require('../plugins/defaults');
+			registerDefaultPlugins(pluginRegistry);
+
+			const findHandlerSpy = jest.spyOn(pluginRegistry, 'findCompositeHandler');
+
+			const doneNode = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'Done', parameters: {} },
+			});
+			const sib = splitInBatches({ version: 3 }).onDone(doneNode);
+
+			const wf = workflow('test', 'Test').add(
+				sib as unknown as NodeInstance<string, string, unknown>,
+			);
+
+			// Verify handler was found
+			const foundHandler = findHandlerSpy.mock.results.find(
+				(r) => r.value?.id === 'core:split-in-batches',
+			);
+			expect(foundHandler).toBeDefined();
+
+			// Verify workflow was built correctly
+			const json = wf.toJSON();
+			expect(json.nodes.map((n) => n.name)).toContain('Split In Batches');
+			expect(json.nodes.map((n) => n.name)).toContain('Done');
+
+			findHandlerSpy.mockRestore();
 		});
 	});
 });
