@@ -13,7 +13,7 @@ import type { StreamGenerationError } from '../../types/streaming';
 import type { ParseAndValidateResult, WorkflowCodeOutput, ValidationWarning } from '../types';
 import type { WarningTracker } from '../state/warning-tracker';
 import { extractTextContent } from '../utils/content-extractors';
-import { extractWorkflowCode } from '../../utils/extract-code';
+import { extractWorkflowCode } from '../utils/extract-code';
 
 /**
  * Debug log callback type

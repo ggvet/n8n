@@ -15,7 +15,7 @@ import { inspect } from 'node:util';
 import { tool } from '@langchain/core/tools';
 import { z } from 'zod';
 import type { IRelatedNode } from 'n8n-workflow';
-import type { NodeTypeParser, ParsedNodeType } from '../../utils/node-type-parser';
+import type { NodeTypeParser, ParsedNodeType } from '../utils/node-type-parser';
 import {
 	extractResourceOperations,
 	type ResourceInfo,

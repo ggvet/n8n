@@ -49,10 +49,10 @@ import type {
 	StreamGenerationError,
 	SessionMessagesChunk,
 } from '../types/streaming';
-import type { TextEditorCommand } from '../types/text-editor';
-import type { EvaluationLogger } from '../utils/evaluation-logger';
-import { SDK_IMPORT_STATEMENT } from '../utils/extract-code';
-import { NodeTypeParser } from '../utils/node-type-parser';
+import type { TextEditorCommand } from './handlers/text-editor.types';
+import type { EvaluationLogger } from './utils/evaluation-logger';
+import { SDK_IMPORT_STATEMENT } from './utils/extract-code';
+import { NodeTypeParser } from './utils/node-type-parser';
 import type { ChatPayload } from '../workflow-builder-agent';
 
 /**

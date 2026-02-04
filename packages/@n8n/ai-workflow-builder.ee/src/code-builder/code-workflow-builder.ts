@@ -21,7 +21,7 @@ import type { INodeTypeDescription } from 'n8n-workflow';
 import { CodeBuilderAgent } from './code-builder-agent';
 import { SessionChatHandler } from './handlers/session-chat-handler';
 import type { StreamOutput } from '../types/streaming';
-import type { EvaluationLogger } from '../utils/evaluation-logger';
+import type { EvaluationLogger } from './utils/evaluation-logger';
 import type { ChatPayload } from '../workflow-builder-agent';
 
 /**

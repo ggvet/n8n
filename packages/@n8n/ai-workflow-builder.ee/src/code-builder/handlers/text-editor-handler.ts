@@ -12,14 +12,14 @@ import type {
 	CreateCommand,
 	StrReplaceCommand,
 	InsertCommand,
-} from '../../types/text-editor';
+} from './text-editor.types';
 import {
 	NoMatchFoundError,
 	MultipleMatchesError,
 	InvalidLineNumberError,
 	InvalidPathError,
 	FileNotFoundError,
-} from '../../types/text-editor';
+} from './text-editor.types';
 
 /** The only supported file path for workflow code */
 const WORKFLOW_FILE_PATH = '/workflow.ts';

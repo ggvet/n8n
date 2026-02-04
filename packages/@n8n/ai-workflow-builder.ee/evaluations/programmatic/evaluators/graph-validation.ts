@@ -4,7 +4,7 @@
  */
 import { parseWorkflowCodeToBuilder } from '@n8n/workflow-sdk';
 
-import { stripImportStatements } from '@/utils/extract-code';
+import { stripImportStatements } from '@/code-builder/utils/extract-code';
 import type {
 	ProgrammaticViolation,
 	ProgrammaticViolationName,

@@ -8,9 +8,9 @@
  */
 
 import type { INodeTypeDescription } from 'n8n-workflow';
-import { NodeSearchEngine } from '../tools/engines/node-search-engine';
-import { extractResourceOperations } from './resource-operation-extractor';
-import { extractModeDiscriminator, type ModeInfo } from '../code-builder/utils/discriminator-utils';
+import { NodeSearchEngine } from '../../tools/engines/node-search-engine';
+import { extractResourceOperations } from '../../utils/resource-operation-extractor';
+import { extractModeDiscriminator, type ModeInfo } from './discriminator-utils';
 
 export interface ParsedNodeType {
 	id: string;

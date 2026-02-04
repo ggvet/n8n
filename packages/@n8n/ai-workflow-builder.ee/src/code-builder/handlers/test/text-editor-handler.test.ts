@@ -6,7 +6,7 @@ import {
 	InvalidPathError,
 	FileExistsError,
 	FileNotFoundError,
-} from '../../../types/text-editor';
+} from '../text-editor.types';
 
 describe('TextEditorHandler', () => {
 	let handler: TextEditorHandler;
