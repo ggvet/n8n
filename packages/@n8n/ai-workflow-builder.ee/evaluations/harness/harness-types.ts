@@ -8,14 +8,6 @@ import type { SimpleWorkflow } from '../../src/types/workflow.js';
 export type LlmCallLimiter = ReturnType<typeof pLimit>;
 
 /**
- * Token usage statistics from workflow generation.
- */
-export interface TokenUsage {
-	inputTokens: number;
-	outputTokens: number;
-}
-
-/**
  * Shared context passed to all evaluators.
  *
  * Keep this as the single "base" context so callers (CLI/runner) never need casts.
@@ -45,11 +37,6 @@ export interface EvaluationContext {
 	 * Populated from GenerationResult when available.
 	 */
 	generatedCode?: string;
-	/**
-	 * Number of agentic loop iterations required for generation.
-	 * Populated from GenerationResult when available.
-	 */
-	iterationCount?: number;
 	/**
 	 * Errors encountered during generation (parse errors, type errors).
 	 * Populated from GenerationResult when available.
@@ -127,7 +114,10 @@ export type EvaluationSuite = 'llm-judge' | 'pairwise' | 'programmatic' | 'simil
  */
 export interface RunConfigBase {
 	/** Function to generate workflow from prompt. May return GenerationResult with source code. Optional collectors receive metrics. */
-	generateWorkflow: (prompt: string, collectors?: GenerationCollectors) => Promise<SimpleWorkflow | GenerationResult>;
+	generateWorkflow: (
+		prompt: string,
+		collectors?: GenerationCollectors,
+	) => Promise<SimpleWorkflow | GenerationResult>;
 	/** Evaluators to run on each generated workflow */
 	evaluators: Array<Evaluator<EvaluationContext>>;
 	/** Global context available to all evaluators */
@@ -232,19 +222,11 @@ export interface ExampleResult {
 	workflow?: SimpleWorkflow;
 	/** Generated source code (e.g., TypeScript SDK code from coding agent) */
 	generatedCode?: string;
-	/** Token usage statistics from the generation */
-	tokenUsage?: TokenUsage;
-	/** Number of agentic loop iterations required */
-	iterationCount?: number;
 	/** Errors encountered during generation (parse errors, type errors) */
 	generationErrors?: GenerationError[];
 	/** Captured debug logs from the generation process */
 	logs?: string;
 	error?: string;
-	/** Pairwise criteria: required behaviors */
-	dos?: string;
-	/** Pairwise criteria: forbidden behaviors */
-	donts?: string;
 }
 
 /**
@@ -269,10 +251,6 @@ export interface GenerationResult {
 	workflow: SimpleWorkflow;
 	/** Source code that generated the workflow (e.g., TypeScript SDK code) */
 	generatedCode?: string;
-	/** Token usage statistics from the generation */
-	tokenUsage?: TokenUsage;
-	/** Number of agentic loop iterations required */
-	iterationCount?: number;
 	/** Errors encountered during generation (parse errors, type errors) */
 	generationErrors?: GenerationError[];
 	/** Captured debug logs from the generation process */
@@ -304,8 +282,6 @@ export interface RunSummary {
 	averageScore: number;
 	totalDurationMs: number;
 	evaluatorAverages?: Record<string, number>;
-	/** Aggregated token usage across all examples */
-	totalTokenUsage?: TokenUsage;
 	/** LangSmith IDs for constructing comparison URLs (only available in langsmith mode) */
 	langsmith?: {
 		experimentName: string;

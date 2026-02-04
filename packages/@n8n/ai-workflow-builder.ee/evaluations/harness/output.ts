@@ -161,7 +161,6 @@ function formatFeedbackForExport(result: ExampleResult): object {
 		generationInputTokens: result.generationInputTokens,
 		generationOutputTokens: result.generationOutputTokens,
 		score: result.score,
-		...(result.tokenUsage ? { tokenUsage: result.tokenUsage } : {}),
 		// Include subgraph metrics if available
 		...(result.subgraphMetrics && {
 			subgraphMetrics: {
@@ -216,18 +215,6 @@ function formatSummaryForExport(summary: RunSummary, results: ExampleResult[]): 
 		evaluatorAverages[name] = stats.scores.reduce((a, b) => a + b, 0) / stats.scores.length;
 	}
 
-	// Aggregate token usage across all results
-	const totalTokenUsage = resultsSorted.reduce(
-		(acc, r) => {
-			if (r.tokenUsage) {
-				acc.inputTokens += r.tokenUsage.inputTokens;
-				acc.outputTokens += r.tokenUsage.outputTokens;
-			}
-			return acc;
-		},
-		{ inputTokens: 0, outputTokens: 0 },
-	);
-
 	return {
 		timestamp: new Date().toISOString(),
 		totalExamples: summary.totalExamples,
@@ -237,7 +224,6 @@ function formatSummaryForExport(summary: RunSummary, results: ExampleResult[]): 
 		passRate: summary.totalExamples > 0 ? summary.passed / summary.totalExamples : 0,
 		averageScore: summary.averageScore,
 		totalDurationMs: summary.totalDurationMs,
-		...(totalTokenUsage.inputTokens > 0 ? { totalTokenUsage } : {}),
 		evaluatorAverages,
 		results: resultsSorted.map((r) => ({
 			index: r.index,
@@ -245,7 +231,6 @@ function formatSummaryForExport(summary: RunSummary, results: ExampleResult[]): 
 			status: r.status,
 			score: r.score,
 			durationMs: r.durationMs,
-			...(r.tokenUsage ? { tokenUsage: r.tokenUsage } : {}),
 			generationDurationMs: r.generationDurationMs,
 			generationInputTokens: r.generationInputTokens,
 			generationOutputTokens: r.generationOutputTokens,
@@ -256,8 +241,6 @@ function formatSummaryForExport(summary: RunSummary, results: ExampleResult[]): 
 				responderDurationMs: r.subgraphMetrics.responderDurationMs,
 			}),
 			...(r.error ? { error: r.error } : {}),
-			...(r.dos ? { dos: r.dos } : {}),
-			...(r.donts ? { donts: r.donts } : {}),
 		})),
 	};
 }

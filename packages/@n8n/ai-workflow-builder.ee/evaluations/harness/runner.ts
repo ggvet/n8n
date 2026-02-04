@@ -24,7 +24,6 @@ import {
 	type LlmCallLimiter,
 	type GenerationResult,
 	type GenerationError,
-	type TokenUsage,
 } from './harness-types.js';
 import { WorkflowGenerationError } from '../errors';
 import type { EvalLogger } from './logger';
@@ -182,7 +181,6 @@ function buildContext(args: {
 	testCaseContext?: TestCaseContext;
 	referenceWorkflows?: SimpleWorkflow[];
 	generatedCode?: string;
-	iterationCount?: number;
 	generationErrors?: GenerationError[];
 }): EvaluationContext {
 	const {
@@ -191,7 +189,6 @@ function buildContext(args: {
 		testCaseContext,
 		referenceWorkflows,
 		generatedCode,
-		iterationCount,
 		generationErrors,
 	} = args;
 
@@ -201,7 +198,6 @@ function buildContext(args: {
 		...(testCaseContext ?? {}),
 		...(referenceWorkflows?.length ? { referenceWorkflows } : {}),
 		...(generatedCode ? { generatedCode } : {}),
-		...(iterationCount !== undefined ? { iterationCount } : {}),
 		...(generationErrors?.length ? { generationErrors } : {}),
 	};
 }
@@ -446,7 +442,10 @@ async function runLocalExample(args: {
 	index: number;
 	total: number;
 	testCase: TestCase;
-	generateWorkflow: (prompt: string, collectors?: GenerationCollectors) => Promise<SimpleWorkflow | GenerationResult>;
+	generateWorkflow: (
+		prompt: string,
+		collectors?: GenerationCollectors,
+	) => Promise<SimpleWorkflow | GenerationResult>;
 	evaluators: Array<Evaluator<EvaluationContext>>;
 	globalContext?: GlobalRunContext;
 	passThreshold: number;
@@ -502,11 +501,9 @@ async function runLocalExample(args: {
 		}, globalContext?.llmCallLimiter);
 		const genDurationMs = Date.now() - genStartTime;
 
-		// Extract workflow, optional generated code, token usage, and generation metadata
+		// Extract workflow, optional generated code, and generation metadata
 		const workflow = isGenerationResult(genResult) ? genResult.workflow : genResult;
 		const generatedCode = isGenerationResult(genResult) ? genResult.generatedCode : undefined;
-		const tokenUsage = isGenerationResult(genResult) ? genResult.tokenUsage : undefined;
-		const iterationCount = isGenerationResult(genResult) ? genResult.iterationCount : undefined;
 		const generationErrors = isGenerationResult(genResult) ? genResult.generationErrors : undefined;
 		const logs = isGenerationResult(genResult) ? genResult.logs : undefined;
 
@@ -521,7 +518,6 @@ async function runLocalExample(args: {
 			testCaseContext: testCase.context,
 			referenceWorkflows: testCase.referenceWorkflows,
 			generatedCode,
-			iterationCount,
 			generationErrors,
 		});
 
@@ -555,12 +551,8 @@ async function runLocalExample(args: {
 					: undefined,
 			workflow,
 			generatedCode,
-			tokenUsage,
-			iterationCount,
 			generationErrors,
 			logs,
-			dos: testCase.context?.dos,
-			donts: testCase.context?.donts,
 		};
 
 		artifactSaver?.saveExample(result);
@@ -587,8 +579,6 @@ async function runLocalExample(args: {
 			durationMs,
 			error: errorMessage,
 			logs,
-			dos: testCase.context?.dos,
-			donts: testCase.context?.donts,
 		};
 
 		artifactSaver?.saveExample(result);
@@ -611,7 +601,10 @@ function createArtifactSaverIfRequested(args: {
 
 async function runLocalDataset(params: {
 	testCases: TestCase[];
-	generateWorkflow: (prompt: string, collectors?: GenerationCollectors) => Promise<SimpleWorkflow | GenerationResult>;
+	generateWorkflow: (
+		prompt: string,
+		collectors?: GenerationCollectors,
+	) => Promise<SimpleWorkflow | GenerationResult>;
 	evaluators: Array<Evaluator<EvaluationContext>>;
 	globalContext?: GlobalRunContext;
 	passThreshold: number;
@@ -660,18 +653,6 @@ function buildRunSummary(results: ExampleResult[]): RunSummary {
 		results.length > 0 ? results.reduce((sum, r) => sum + r.score, 0) / results.length : 0;
 	const totalDurationMs = results.reduce((sum, r) => sum + r.durationMs, 0);
 
-	// Aggregate token usage across all examples
-	const totalTokenUsage = results.reduce<TokenUsage>(
-		(acc, r) => {
-			if (r.tokenUsage) {
-				acc.inputTokens += r.tokenUsage.inputTokens;
-				acc.outputTokens += r.tokenUsage.outputTokens;
-			}
-			return acc;
-		},
-		{ inputTokens: 0, outputTokens: 0 },
-	);
-
 	return {
 		totalExamples: results.length,
 		passed,
@@ -679,7 +660,6 @@ function buildRunSummary(results: ExampleResult[]): RunSummary {
 		errors,
 		averageScore,
 		totalDurationMs,
-		...(totalTokenUsage.inputTokens > 0 ? { totalTokenUsage } : {}),
 	};
 }
 
@@ -1069,7 +1049,10 @@ async function runLangsmith(config: LangsmithRunConfig): Promise<RunSummary> {
 	const traceableGenerateWorkflow = traceable(
 		async (args: {
 			prompt: string;
-			genFn: (prompt: string, collectors?: GenerationCollectors) => Promise<SimpleWorkflow | GenerationResult>;
+			genFn: (
+				prompt: string,
+				collectors?: GenerationCollectors,
+			) => Promise<SimpleWorkflow | GenerationResult>;
 			collectors?: GenerationCollectors;
 			limiter?: LlmCallLimiter;
 			genTimeoutMs?: number;
@@ -1143,11 +1126,9 @@ async function runLangsmith(config: LangsmithRunConfig): Promise<RunSummary> {
 			});
 			const genDurationMs = Date.now() - genStart;
 
-			// Extract workflow, optional generated code, token usage, and generation metadata
+			// Extract workflow, optional generated code, and generation metadata
 			const workflow = isGenerationResult(genResult) ? genResult.workflow : genResult;
 			const generatedCode = isGenerationResult(genResult) ? genResult.generatedCode : undefined;
-			const tokenUsage = isGenerationResult(genResult) ? genResult.tokenUsage : undefined;
-			const iterationCount = isGenerationResult(genResult) ? genResult.iterationCount : undefined;
 			const generationErrors = isGenerationResult(genResult)
 				? genResult.generationErrors
 				: undefined;
@@ -1164,7 +1145,6 @@ async function runLangsmith(config: LangsmithRunConfig): Promise<RunSummary> {
 				globalContext: effectiveGlobalContext,
 				testCaseContext: extracted,
 				generatedCode,
-				iterationCount,
 				generationErrors,
 			});
 
@@ -1213,8 +1193,6 @@ async function runLangsmith(config: LangsmithRunConfig): Promise<RunSummary> {
 						: undefined,
 				workflow,
 				generatedCode,
-				tokenUsage,
-				iterationCount,
 				generationErrors,
 				logs,
 			};

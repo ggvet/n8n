@@ -13,7 +13,7 @@ import { EvaluationLogger } from '@/code-builder/utils/evaluation-logger.js';
 import type { CoordinationLogEntry } from '@/types/coordination';
 import type { SimpleWorkflow } from '@/types/workflow';
 import type { StreamChunk, WorkflowUpdateChunk } from '@/types/streaming';
-import type { TokenUsage, GenerationError } from '../harness/harness-types.js';
+import type { GenerationError } from '../harness/harness-types.js';
 import type { BuilderFeatureFlags } from '@/workflow-builder-agent';
 
 import {
@@ -183,8 +183,6 @@ function createCodeWorkflowBuilderGenerator(
 
 		let workflow: SimpleWorkflow | null = null;
 		let generatedCode: string | undefined;
-		let tokenUsage: TokenUsage | undefined;
-		let iterationCount: number | undefined;
 		let generationErrors: GenerationError[] | undefined;
 
 		// Create an AbortController to properly cancel the agent on timeout or error.
@@ -209,13 +207,6 @@ function createCodeWorkflowBuilderGenerator(
 					if (isWorkflowUpdateChunk(message)) {
 						workflow = JSON.parse(message.codeSnippet) as SimpleWorkflow;
 						generatedCode = message.sourceCode;
-						if (message.tokenUsage) {
-							tokenUsage = {
-								inputTokens: message.tokenUsage.inputTokens,
-								outputTokens: message.tokenUsage.outputTokens,
-							};
-						}
-						iterationCount = message.iterationCount;
 						if (message.generationErrors) {
 							generationErrors = message.generationErrors;
 						}
@@ -235,7 +226,7 @@ function createCodeWorkflowBuilderGenerator(
 			throw new WorkflowGenerationError('CodeWorkflowBuilder did not produce a workflow', logs);
 		}
 
-		return { workflow, generatedCode, tokenUsage, iterationCount, generationErrors, logs };
+		return { workflow, generatedCode, generationErrors, logs };
 	};
 }
 
