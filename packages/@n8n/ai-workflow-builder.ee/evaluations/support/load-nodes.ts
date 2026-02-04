@@ -72,8 +72,9 @@ export function loadNodesFromFile(): INodeTypeDescription[] {
 	const nodesData = readFileSync(nodesPath, 'utf-8');
 	const allNodes = jsonParse<NodeWithVersion[]>(nodesData);
 
-	// Keep all version entries so workflows using any version can be validated.
-	// The node-type-map.ts will register each version for lookup.
+	// Keep all version entries instead of selecting only the latest version.
+	// Workflows may use older node versions (e.g., removeDuplicates v1.1), and
+	// discarding those entries causes "Node type not found" validation errors.
 	const disabledNodes = getDisabledNodes();
 	return filterNodeTypes(allNodes, disabledNodes);
 }
