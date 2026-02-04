@@ -3,7 +3,7 @@ import { createAgent, HumanMessage, tool } from 'langchain';
 import z from 'zod';
 
 import { OpenAIChatModel } from './models/openai';
-import { createChatModel } from '../src/creators/create-chat-model';
+import { createChatModel } from '../../ai-node-sdk/src/creators/create-chat-model';
 
 dotenv.config();
 

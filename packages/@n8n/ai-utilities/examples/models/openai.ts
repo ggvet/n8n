@@ -9,8 +9,8 @@ import {
 	type StreamChunk,
 	type Tool,
 	type ToolCall,
-} from '../../src';
-import { parseSSEStream } from '../../src/utils/sse';
+} from '../../../ai-node-sdk/src';
+import { parseSSEStream } from '../../../ai-node-sdk/src/utils/sse';
 
 // =============================================================================
 // OpenAI API Types
