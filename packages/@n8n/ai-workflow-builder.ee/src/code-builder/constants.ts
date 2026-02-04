@@ -4,6 +4,8 @@
  * Extracted from code-builder-agent.ts for better organization and testability.
  */
 
+import { BuilderToolBase } from '@/utils/stream-processor';
+
 /** Maximum iterations for the agentic loop to prevent infinite loops */
 export const MAX_AGENT_ITERATIONS = 50;
 
@@ -49,4 +51,27 @@ export const VALIDATE_TOOL = {
 export const SONNET_4_5_PRICING = {
 	inputPerMillion: 3,
 	outputPerMillion: 15,
+};
+
+/**
+ * CodeBuilderAgent tools for display when session is loaded
+ */
+export const CODE_BUILDER_TEXT_EDITOR_TOOL: BuilderToolBase = {
+	toolName: 'str_replace_based_edit_tool',
+	displayTitle: 'Crafting workflow',
+};
+
+export const CODE_BUILDER_VALIDATE_TOOL: BuilderToolBase = {
+	toolName: 'validate_workflow',
+	displayTitle: 'Validating workflow',
+};
+
+export const CODE_BUILDER_GET_NODE_TYPES_TOOL: BuilderToolBase = {
+	toolName: 'get_node_types',
+	displayTitle: 'Looking up nodes',
+};
+
+export const CODE_BUILDER_GET_SUGGESTED_NODES_TOOL: BuilderToolBase = {
+	toolName: 'get_suggested_nodes',
+	displayTitle: 'Getting suggestions',
 };

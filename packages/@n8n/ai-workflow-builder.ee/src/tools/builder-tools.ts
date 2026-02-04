@@ -21,29 +21,12 @@ import { RENAME_NODE_TOOL } from './rename-node.tool';
 import { UPDATING_NODE_PARAMETER_TOOL } from './update-node-parameters.tool';
 import { VALIDATE_CONFIGURATION_TOOL } from './validate-configuration.tool';
 import { VALIDATE_STRUCTURE_TOOL } from './validate-structure.tool';
-
-/**
- * CodeBuilderAgent tools for display
- */
-export const CODE_BUILDER_TEXT_EDITOR_TOOL: BuilderToolBase = {
-	toolName: 'str_replace_based_edit_tool',
-	displayTitle: 'Crafting workflow',
-};
-
-export const CODE_BUILDER_VALIDATE_TOOL: BuilderToolBase = {
-	toolName: 'validate_workflow',
-	displayTitle: 'Validating workflow',
-};
-
-export const CODE_BUILDER_GET_NODE_TYPES_TOOL: BuilderToolBase = {
-	toolName: 'get_node_types',
-	displayTitle: 'Looking up nodes',
-};
-
-export const CODE_BUILDER_GET_SUGGESTED_NODES_TOOL: BuilderToolBase = {
-	toolName: 'get_suggested_nodes',
-	displayTitle: 'Getting suggestions',
-};
+import {
+	CODE_BUILDER_GET_NODE_TYPES_TOOL,
+	CODE_BUILDER_GET_SUGGESTED_NODES_TOOL,
+	CODE_BUILDER_TEXT_EDITOR_TOOL,
+	CODE_BUILDER_VALIDATE_TOOL,
+} from '@/code-builder/constants';
 
 /**
  * Return display information for tools
