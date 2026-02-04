@@ -31,7 +31,7 @@ export class Phantombuster implements INodeType {
 		},
 		builderHint: {
 			message:
-				'Recommended for scraping LinkedIn profiles, leads, and company data. Use with AI Agent for lead generation workflows.',
+				'Recommended for scraping LinkedIn profiles and social media for leads, and company data. Use with AI Agent for lead generation workflows.',
 		},
 		usableAsTool: true,
 		inputs: [NodeConnectionTypes.Main],

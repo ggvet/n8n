@@ -25,11 +25,11 @@ export class OpenAi implements INodeType {
 			relatedNodes: [
 				{
 					nodeType: '@n8n/n8n-nodes-langchain.lmChatOpenAi',
-					relationHint: 'For most LLM tasks, use Agent with this model',
+					relationHint: 'For most LLM tasks, text generation, reasoning, use Agent with this model',
 				},
 				{
 					nodeType: '@n8n/n8n-nodes-langchain.agent',
-					relationHint: 'For most LLM tasks, use Agent with this model',
+					relationHint: 'For most LLM tasks, text generation, reasoning, tool calls, etc.',
 				},
 			],
 		},

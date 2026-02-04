@@ -150,7 +150,8 @@ export const responseModeProperty: INodeProperties = {
 	options: responseModeOptions,
 	default: 'onReceived',
 	description: 'When and how to respond to the webhook',
-	builderHint: "Use 'responseNode' to respond via a Respond to Webhook node later in the workflow",
+	builderHint:
+		"Use 'responseNode' to respond via a 'Respond to Webhook' node later in the workflow",
 	displayOptions: {
 		show: {
 			'@version': [1, 1.1, 2],
@@ -172,7 +173,8 @@ export const responseModePropertyStreaming: INodeProperties = {
 	],
 	default: 'onReceived',
 	description: 'When and how to respond to the webhook',
-	builderHint: "Use 'responseNode' to respond via a Respond to Webhook node later in the workflow",
+	builderHint:
+		"Use 'responseNode' to respond via a 'Respond to Webhook' node later in the workflow",
 	displayOptions: {
 		hide: {
 			'@version': [1, 1.1, 2],
