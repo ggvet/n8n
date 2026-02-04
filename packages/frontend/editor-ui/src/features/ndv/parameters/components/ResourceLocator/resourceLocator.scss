@@ -63,6 +63,15 @@ $--mode-selector-width: 92px;
 		--input--radius--top-left: 0;
 		--input--radius--bottom-left: 0;
 
+		// Suppress N8nInput's border since .background div handles it
+		--input--border-color: transparent;
+		--input--border-width: 0;
+
+		// Remove gap that breaks visual unity with .background div
+		:global(.n8n-input) {
+			gap: 0;
+		}
+
 		> div {
 			width: 100%;
 
