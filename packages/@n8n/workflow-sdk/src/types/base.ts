@@ -535,65 +535,65 @@ export interface SubnodeInstance<
 	readonly _subnodeType: TSubnodeType;
 }
 
-export interface LanguageModelInstance<
+export type LanguageModelInstance<
 	TType extends string = string,
 	TVersion extends string = string,
 	TOutput = unknown,
-> extends SubnodeInstance<TType, TVersion, TOutput, 'ai_languageModel'> {}
+> = SubnodeInstance<TType, TVersion, TOutput, 'ai_languageModel'>;
 
-export interface MemoryInstance<
+export type MemoryInstance<
 	TType extends string = string,
 	TVersion extends string = string,
 	TOutput = unknown,
-> extends SubnodeInstance<TType, TVersion, TOutput, 'ai_memory'> {}
+> = SubnodeInstance<TType, TVersion, TOutput, 'ai_memory'>;
 
-export interface ToolInstance<
+export type ToolInstance<
 	TType extends string = string,
 	TVersion extends string = string,
 	TOutput = unknown,
-> extends SubnodeInstance<TType, TVersion, TOutput, 'ai_tool'> {}
+> = SubnodeInstance<TType, TVersion, TOutput, 'ai_tool'>;
 
-export interface OutputParserInstance<
+export type OutputParserInstance<
 	TType extends string = string,
 	TVersion extends string = string,
 	TOutput = unknown,
-> extends SubnodeInstance<TType, TVersion, TOutput, 'ai_outputParser'> {}
+> = SubnodeInstance<TType, TVersion, TOutput, 'ai_outputParser'>;
 
-export interface EmbeddingInstance<
+export type EmbeddingInstance<
 	TType extends string = string,
 	TVersion extends string = string,
 	TOutput = unknown,
-> extends SubnodeInstance<TType, TVersion, TOutput, 'ai_embedding'> {}
+> = SubnodeInstance<TType, TVersion, TOutput, 'ai_embedding'>;
 
-export interface VectorStoreInstance<
+export type VectorStoreInstance<
 	TType extends string = string,
 	TVersion extends string = string,
 	TOutput = unknown,
-> extends SubnodeInstance<TType, TVersion, TOutput, 'ai_vectorStore'> {}
+> = SubnodeInstance<TType, TVersion, TOutput, 'ai_vectorStore'>;
 
-export interface RetrieverInstance<
+export type RetrieverInstance<
 	TType extends string = string,
 	TVersion extends string = string,
 	TOutput = unknown,
-> extends SubnodeInstance<TType, TVersion, TOutput, 'ai_retriever'> {}
+> = SubnodeInstance<TType, TVersion, TOutput, 'ai_retriever'>;
 
-export interface DocumentLoaderInstance<
+export type DocumentLoaderInstance<
 	TType extends string = string,
 	TVersion extends string = string,
 	TOutput = unknown,
-> extends SubnodeInstance<TType, TVersion, TOutput, 'ai_document'> {}
+> = SubnodeInstance<TType, TVersion, TOutput, 'ai_document'>;
 
-export interface TextSplitterInstance<
+export type TextSplitterInstance<
 	TType extends string = string,
 	TVersion extends string = string,
 	TOutput = unknown,
-> extends SubnodeInstance<TType, TVersion, TOutput, 'ai_textSplitter'> {}
+> = SubnodeInstance<TType, TVersion, TOutput, 'ai_textSplitter'>;
 
-export interface RerankerInstance<
+export type RerankerInstance<
 	TType extends string = string,
 	TVersion extends string = string,
 	TOutput = unknown,
-> extends SubnodeInstance<TType, TVersion, TOutput, 'ai_reranker'> {}
+> = SubnodeInstance<TType, TVersion, TOutput, 'ai_reranker'>;
 
 // =============================================================================
 // Composite types

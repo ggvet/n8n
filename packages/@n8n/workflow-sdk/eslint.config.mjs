@@ -25,7 +25,6 @@ export default defineConfig(
 			'@typescript-eslint/prefer-nullish-coalescing': 'warn',
 			'@typescript-eslint/no-require-imports': 'warn',
 			'@typescript-eslint/consistent-type-imports': 'warn',
-			'@typescript-eslint/no-empty-object-type': 'warn',
 			'@typescript-eslint/no-unnecessary-type-assertion': 'warn',
 			'n8n-local-rules/no-uncaught-json-parse': 'warn',
 		},
