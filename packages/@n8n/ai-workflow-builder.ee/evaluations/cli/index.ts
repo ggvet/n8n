@@ -78,29 +78,19 @@ function hasCoordinationLog(
  * LangSmith tracing is handled via traceable() in the runner.
  * Callbacks are passed explicitly from the runner to ensure correct trace context
  * under high concurrency (avoids AsyncLocalStorage race conditions).
- *
- * IMPORTANT: This generator explicitly sets codeBuilder: false to ensure the
- * multi-agent system is used. The WorkflowBuilderAgent.chat() method defaults
- * to codeBuilder: true, so we must override it here.
  */
 function createWorkflowGenerator(
 	parsedNodeTypes: INodeTypeDescription[],
 	llms: ResolvedStageLLMs,
 	featureFlags?: BuilderFeatureFlags,
 ): (prompt: string, collectors?: GenerationCollectors) => Promise<SimpleWorkflow> {
-	// Ensure codeBuilder is explicitly set to false for multi-agent evaluation
-	const multiAgentFeatureFlags: BuilderFeatureFlags = {
-		...featureFlags,
-		codeBuilder: false,
-	};
-
 	return async (prompt: string, collectors?: GenerationCollectors): Promise<SimpleWorkflow> => {
 		const runId = generateRunId();
 
 		const agent = createAgent({
 			parsedNodeTypes,
 			llms,
-			featureFlags: multiAgentFeatureFlags,
+			featureFlags,
 		});
 
 		// Create token tracking handler to capture usage from all LLM calls
@@ -113,7 +103,7 @@ function createWorkflowGenerator(
 					evalType: EVAL_TYPES.LANGSMITH,
 					message: prompt,
 					workflowId: runId,
-					featureFlags: multiAgentFeatureFlags,
+					featureFlags,
 				}),
 				EVAL_USERS.LANGSMITH,
 				undefined, // abortSignal

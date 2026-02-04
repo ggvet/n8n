@@ -82,7 +82,7 @@ export interface ExpressionValue {
 
 export interface BuilderFeatureFlags {
 	templateExamples?: boolean;
-	/** Enable CodeWorkflowBuilder (default: true). When false, uses legacy multi-agent system. */
+	/** Enable CodeWorkflowBuilder (default: false). When false, uses legacy multi-agent system. */
 	codeBuilder?: boolean;
 }
 
@@ -167,8 +167,8 @@ export class WorkflowBuilderAgent {
 	) {
 		this.validateMessageLength(payload.message);
 
-		// Feature flag: Route to CodeWorkflowBuilder if enabled (default: true)
-		const useCodeWorkflowBuilder = payload.featureFlags?.codeBuilder ?? true;
+		// Feature flag: Route to CodeWorkflowBuilder if enabled (default: false)
+		const useCodeWorkflowBuilder = payload.featureFlags?.codeBuilder ?? false;
 
 		if (useCodeWorkflowBuilder) {
 			this.logger?.debug('Routing to CodeWorkflowBuilder', { userId });
