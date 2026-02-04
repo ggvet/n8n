@@ -448,8 +448,8 @@ describe('MoveToFolderModal', () => {
 		await waitFor(() => expect(getByTestId('moveFolder-modal')).toBeInTheDocument());
 
 		const submitButton = getByTestId('confirm-move-folder-button');
-		// Submit button is enabled because project root is selected by default
-		expect(submitButton).toBeEnabled();
+		// Wait for dropdown to load and auto-select project root
+		await waitFor(() => expect(submitButton).toBeEnabled());
 
 		const folderSelect = getByTestId('move-to-folder-dropdown');
 		const folderSelectDropdownItems = await getDropdownItems(folderSelect);
@@ -754,8 +754,8 @@ describe('MoveToFolderModal', () => {
 		await waitFor(() => expect(getByTestId('moveFolder-modal')).toBeInTheDocument());
 
 		const submitButton = getByTestId('confirm-move-folder-button');
-		// Submit button is enabled because project root is selected by default
-		expect(submitButton).toBeEnabled();
+		// Wait for dropdown to load and auto-select project root
+		await waitFor(() => expect(submitButton).toBeEnabled());
 
 		const folderSelect = getByTestId('move-to-folder-dropdown');
 		const folderSelectDropdownItems = await getDropdownItems(folderSelect);

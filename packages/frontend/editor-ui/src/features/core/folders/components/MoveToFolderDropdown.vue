@@ -4,7 +4,7 @@ import type { ChangeLocationSearchResult } from '../folders.types';
 import { useFoldersStore } from '../folders.store';
 import { computed, ref, watch } from 'vue';
 
-import { N8nIcon, N8nOption, N8nSelect, N8nText } from '@n8n/design-system';
+import { N8nIcon, N8nLoading, N8nOption, N8nSelect, N8nText } from '@n8n/design-system';
 /**
  * This component is used to select a folder within a project.
  * If parentFolderId is provided it will filter out the parent folder from the results.
@@ -49,6 +49,7 @@ const selectedLocationId = computed<string | null>({
 });
 
 const loading = ref(false);
+const initialLoading = ref(true);
 
 const fetchAvailableLocations = async (query?: string) => {
 	loading.value = true;
@@ -87,12 +88,14 @@ const fetchAvailableLocations = async (query?: string) => {
 	}
 
 	loading.value = false;
+	initialLoading.value = false;
 };
 
 watch(
 	() => [props.selectedProjectId, props.currentFolderId, props.parentFolderId],
 	() => {
 		availableLocations.value = [];
+		initialLoading.value = true;
 		void fetchAvailableLocations();
 	},
 	{ immediate: true },
@@ -108,7 +111,9 @@ const isTopLevelFolder = (location: ChangeLocationSearchResult, index: number) =
 
 <template>
 	<div :class="$style['move-folder-dropdown']" data-test-id="move-to-folder-dropdown">
+		<N8nLoading v-if="initialLoading" :rows="1" :class="$style['loading-skeleton']" />
 		<N8nSelect
+			v-else
 			ref="moveFolderDropdown"
 			v-model="selectedLocationId"
 			:filterable="true"
@@ -176,6 +181,16 @@ const isTopLevelFolder = (location: ChangeLocationSearchResult, index: number) =
 .move-folder-dropdown {
 	display: flex;
 	padding-top: var(--spacing--2xs);
+}
+
+.loading-skeleton {
+	width: 100%;
+	margin: 0;
+
+	:global(.el-skeleton__item) {
+		height: 40px;
+		margin: 0;
+	}
 }
 
 .folder-select-item {
