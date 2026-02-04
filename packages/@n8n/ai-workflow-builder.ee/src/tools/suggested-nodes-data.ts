@@ -181,8 +181,6 @@ export const suggestedNodesData: Record<string, CategoryData> = {
 			{ name: 'n8n-nodes-base.dataTable', note: 'PREFERRED for form data storage' },
 			{ name: 'n8n-nodes-base.googleSheets' },
 			{ name: 'n8n-nodes-base.airtable' },
-			{ name: 'n8n-nodes-base.set', note: 'NOT storage - only transforms in memory' },
-			{ name: 'n8n-nodes-base.merge', note: 'NOT storage - only combines in memory' },
 		],
 	},
 
@@ -190,13 +188,20 @@ export const suggestedNodesData: Record<string, CategoryData> = {
 		description: 'Creating text, images, audio, or video',
 		patternHint: 'Trigger → Generate (Text/Image/Video) → Deliver',
 		nodes: [
-			{ name: '@n8n/n8n-nodes-langchain.openAi', note: 'DALL-E, TTS, Sora video generation' },
+			{ name: '@n8n/n8n-nodes-langchain.agent', note: 'For text generation' },
+			{
+				name: '@n8n/n8n-nodes-langchain.openAi',
+				note: 'Use for image/video generation. DALL-E, TTS, Sora video generation',
+			},
 			{ name: '@n8n/n8n-nodes-langchain.lmChatGoogleGemini', note: 'Imagen, video generation' },
 			{ name: 'n8n-nodes-base.httpRequest', note: 'For APIs without dedicated nodes' },
 			{ name: 'n8n-nodes-base.editImage', note: 'Resize, crop, format conversion' },
 			{ name: 'n8n-nodes-base.markdown', note: 'Convert to HTML' },
 			{ name: 'n8n-nodes-base.facebookGraphApi', note: 'Use binary data, not URLs for uploads' },
-			{ name: 'n8n-nodes-base.wait', note: 'Video generation is async, needs polling' },
+			{
+				name: 'n8n-nodes-base.wait',
+				note: 'Video generation is async, use wait while polling for updated',
+			},
 		],
 	},
 
@@ -204,12 +209,6 @@ export const suggestedNodesData: Record<string, CategoryData> = {
 		description: 'Classifying data for routing or prioritization',
 		patternHint: 'Trigger → Classify → Route → Act',
 		nodes: [
-			{ name: 'n8n-nodes-base.if', note: 'Simple binary decisions' },
-			{ name: 'n8n-nodes-base.switch', note: 'ALWAYS configure Default output' },
-			{
-				name: 'n8n-nodes-base.merge',
-				note: 'If unified logging is needed, use Merge to consolidate branches',
-			},
 			{
 				name: '@n8n/n8n-nodes-langchain.textClassifier',
 				note: 'Set "When No Clear Match" to Other branch',
@@ -226,19 +225,24 @@ export const suggestedNodesData: Record<string, CategoryData> = {
 		patternHint: 'Trigger → Fetch → Extract → Store',
 		nodes: [
 			{
-				name: 'n8n-nodes-base.httpRequest',
-				note: 'For social media scraping (LinkedIn, Facebook), Phantombuster is more reliable than HTTP Request',
+				name: 'n8n-nodes-base.dataTable',
+				note: 'Use this to store scraped data. Preferred because no external config needed',
 			},
-			{ name: 'n8n-nodes-base.htmlExtract', note: 'JS-rendered sites may return empty' },
-			{ name: 'n8n-nodes-base.splitInBatches', note: 'Process 200 rows at a time' },
-			{ name: 'n8n-nodes-base.wait', note: 'Avoid rate limits (429 errors)' },
-			{ name: 'n8n-nodes-base.code', note: 'Prefer built-in nodes over custom code' },
 			{
 				name: 'n8n-nodes-base.phantombuster',
-				note: 'For LinkedIn, Facebook, Instagram, Twitter',
+				note: 'Use this for social media requests: LinkedIn, Facebook, Instagram, Twitter, etc.',
 			},
 			{ name: '@n8n/n8n-nodes-langchain.toolSerpApi', note: 'Give agent web search capability' },
-			{ name: '@n8n/n8n-nodes-langchain.agent', note: 'For research and summarization' },
+			{
+				name: 'n8n-nodes-base.htmlExtract',
+				note: 'Use to extract HTML content from http requests. Though, JS-rendered sites may return empty',
+			},
+			{
+				name: 'n8n-nodes-base.splitInBatches',
+				note: 'Use to batch the processing of items. General recommendation: 200 rows at a time if processing is fast',
+			},
+			{ name: 'n8n-nodes-base.wait', note: 'Use this to avoid rate limits (429 errors)' },
+			{ name: 'n8n-nodes-base.httpRequest' },
 		],
 	},
 };

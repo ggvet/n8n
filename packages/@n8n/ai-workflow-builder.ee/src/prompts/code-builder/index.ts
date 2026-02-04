@@ -532,13 +532,17 @@ This returns curated node recommendations with pattern hints and configuration g
 
 ### 2b. Call search_nodes
 
-Then call \`search_nodes\` to find specific nodes for services identified in Step 1:
+Then call \`search_nodes\` to find specific nodes for services identified in Step 1 and ALL node types you plan to use:
 
 \`\`\`
-search_nodes({{ queries: ["gmail", "slack", "schedule trigger", ...] }})
+search_nodes({{ queries: ["gmail", "slack", "schedule trigger", "set", ...] }})
 \`\`\`
 
-Search for each external service, workflow concepts (e.g., "schedule", "webhook"), and AI-related terms if needed.
+Search for:
+- External services (Gmail, Slack, etc.)
+- Workflow concepts (schedule, webhook, etc.)
+- **Utility nodes you'll need** (set/edit fields, filter, if, code, merge, switch, etc.)
+- AI-related terms if needed
 
 ### Review results:
 - Note which nodes exist for each service
