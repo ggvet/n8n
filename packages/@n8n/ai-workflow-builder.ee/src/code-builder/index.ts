@@ -4,6 +4,9 @@
  * Public API for the code builder agent and related utilities.
  */
 
+// Agent
+export { CodeBuilderAgent } from './code-builder-agent';
+
 // Constants
 export {
 	MAX_AGENT_ITERATIONS,
@@ -25,6 +28,8 @@ export type {
 // Utilities
 export { calculateCost } from './utils/cost-calculator';
 export { extractTextContent, extractThinkingContent } from './utils/content-extractors';
+export { processLlmResponse } from './utils/llm-response-processor';
+export type { LlmResponseResult, ToolCall } from './utils/llm-response-processor';
 
 // State management
 export { ChatState } from './state/chat-state';
@@ -51,3 +56,10 @@ export type {
 	TextEditorToolParams,
 	TextEditorToolResult,
 } from './handlers/text-editor-tool-handler';
+
+export { AutoFinalizeHandler } from './handlers/auto-finalize-handler';
+export type {
+	AutoFinalizeHandlerConfig,
+	AutoFinalizeParams,
+	AutoFinalizeResult,
+} from './handlers/auto-finalize-handler';

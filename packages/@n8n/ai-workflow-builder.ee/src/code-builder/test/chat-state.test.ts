@@ -203,4 +203,50 @@ describe('ChatState', () => {
 			expect(state.validatePassedThisIteration).toBe(false);
 		});
 	});
+
+	describe('generation errors tracking', () => {
+		it('should start with empty generation errors', () => {
+			expect(state.generationErrors).toHaveLength(0);
+		});
+
+		it('should add generation errors', () => {
+			state.addGenerationError({
+				message: 'Parse error',
+				code: 'const x = 1;',
+				iteration: 1,
+				type: 'parse',
+			});
+
+			expect(state.generationErrors).toHaveLength(1);
+			expect(state.generationErrors[0].message).toBe('Parse error');
+			expect(state.generationErrors[0].type).toBe('parse');
+		});
+
+		it('should accumulate multiple generation errors', () => {
+			state.addGenerationError({
+				message: 'Parse error',
+				iteration: 1,
+				type: 'parse',
+			});
+			state.addGenerationError({
+				message: 'Validation warning',
+				iteration: 2,
+				type: 'validation',
+			});
+
+			expect(state.generationErrors).toHaveLength(2);
+		});
+
+		it('should check if there are generation errors', () => {
+			expect(state.hasGenerationErrors()).toBe(false);
+
+			state.addGenerationError({
+				message: 'Error',
+				iteration: 1,
+				type: 'parse',
+			});
+
+			expect(state.hasGenerationErrors()).toBe(true);
+		});
+	});
 });
