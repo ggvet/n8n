@@ -449,10 +449,12 @@ useKeybindings({
 
 onMounted(() => {
 	nodeViewEventBus.on('publishWorkflow', onPublishButtonClick);
+	nodeViewEventBus.on('unpublishWorkflow', onUnpublish);
 });
 
 onBeforeUnmount(() => {
 	nodeViewEventBus.off('publishWorkflow', onPublishButtonClick);
+	nodeViewEventBus.off('unpublishWorkflow', onUnpublish);
 });
 
 defineExpose({
