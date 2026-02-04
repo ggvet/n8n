@@ -1,4 +1,4 @@
-import { computed, ref, watch, type Ref } from 'vue';
+import { computed, type Ref } from 'vue';
 import sortBy from 'lodash/sortBy';
 
 import type { INodeUi } from '@/Interface';
@@ -7,71 +7,38 @@ import type { NodeCredentialRequirement, NodeSetupState } from '../setupPanel.ty
 import { useWorkflowsStore } from '@/app/stores/workflows.store';
 import { useCredentialsStore } from '@/features/credentials/credentials.store';
 import { useNodeHelpers } from '@/app/composables/useNodeHelpers';
+import { useNodeTypesStore } from '@/app/stores/nodeTypes.store';
 import { injectWorkflowState } from '@/app/composables/useWorkflowState';
+import { getNodeTypeDisplayableCredentials } from '@/app/utils/nodes/nodeTransforms';
 
 /**
  * Composable that manages workflow setup state for credential configuration.
- * Tracks nodes that have credential issues and provides data for setup UI.
- * It sources nodes with issues from n8n's internal validation system but
- * has it's own tracking to ensure nodes are not removed from the setup panel once issues are resolved.
- *
+ * Derives state from node type definitions and current node credentials,
+ * marking nodes as complete/incomplete based on credential selection and issues.
  * @param nodes Optional sub-set of nodes to check (defaults to full workflow)
  */
 export const useWorkflowSetupState = (nodes?: Ref<INodeUi[]>) => {
 	const workflowsStore = useWorkflowsStore();
 	const credentialsStore = useCredentialsStore();
+	const nodeTypesStore = useNodeTypesStore();
 	const nodeHelpers = useNodeHelpers();
 	const workflowState = injectWorkflowState();
-
-	/**
-	 * Keep internal record of nodes that need setup so we can keep cards
-	 * visible even after node issues are resolved
-	 */
-	const trackedNodes = ref<Map<string, Set<string>>>(new Map());
 
 	const sourceNodes = computed(() => nodes?.value ?? workflowsStore.allNodes);
 
 	/**
-	 * Nodes with current credential issues (used to update tracking).
+	 * Get nodes that require credentials, sorted by X position (left to right).
 	 */
-	const nodesWithCredentialIssues = computed(() => {
-		return sourceNodes.value.filter((node) => {
-			if (node.disabled) return false;
-			// TODO: Once we start adding support for parameter issues, we need to filter those out here
-			return node.issues?.credentials && Object.keys(node.issues.credentials).length > 0;
-		});
-	});
+	const nodesRequiringCredentials = computed(() => {
+		const nodesWithCredentials = sourceNodes.value
+			.filter((node) => !node.disabled)
+			.map((node) => ({
+				node,
+				requiredCredentials: getNodeTypeDisplayableCredentials(nodeTypesStore, node),
+			}))
+			.filter(({ requiredCredentials }) => requiredCredentials.length > 0);
 
-	watch(
-		nodesWithCredentialIssues,
-		(nodesWithIssues) => {
-			for (const node of nodesWithIssues) {
-				const credentialTypes = Object.keys(node.issues?.credentials ?? {});
-				if (credentialTypes.length === 0) continue;
-
-				const existing = trackedNodes.value.get(node.id);
-				if (existing) {
-					for (const credType of credentialTypes) {
-						existing.add(credType);
-					}
-				} else {
-					trackedNodes.value.set(node.id, new Set(credentialTypes));
-				}
-			}
-		},
-		{ immediate: true },
-	);
-
-	/**
-	 * Get tracked nodes that still exist in sourceNodes and are enabled.
-	 * Sorted by X position (left to right).
-	 */
-	const trackedNodesSorted = computed(() => {
-		const validNodes = sourceNodes.value.filter((node) => {
-			if (node.disabled) return false;
-			return trackedNodes.value.has(node.id);
-		});
-		return sortBy(validNodes, (node) => node.position[0]);
+		return sortBy(nodesWithCredentials, ({ node }) => node.position[0]);
 	});
 
 	const getCredentialDisplayName = (credentialType: string): string => {
@@ -80,17 +47,17 @@ export const useWorkflowSetupState = (nodes?: Ref<INodeUi[]>) => {
 	};
 
 	/**
-	 * Node setup states - one entry per tracked node.
-	 * This data is used by cards component
+	 * Node setup states - one entry per node that requires credentials.
+	 * This data is used by cards component.
 	 */
 	const nodeSetupStates = computed<NodeSetupState[]>(() => {
-		return trackedNodesSorted.value.map((node) => {
-			const trackedCredTypes = trackedNodes.value.get(node.id) ?? new Set();
+		return nodesRequiringCredentials.value.map(({ node, requiredCredentials }) => {
 			const credentialIssues = node.issues?.credentials ?? {};
 
-			// Build requirements from tracked credential types
-			const credentialRequirements: NodeCredentialRequirement[] = Array.from(trackedCredTypes).map(
-				(credType) => {
+			// Build requirements from node type's required credentials
+			const credentialRequirements: NodeCredentialRequirement[] = requiredCredentials.map(
+				(credentialDescription) => {
+					const credType = credentialDescription.name;
 					const credValue = node.credentials?.[credType];
 					const selectedCredentialId =
 						typeof credValue === 'string' ? undefined : (credValue?.id ?? undefined);
@@ -139,10 +106,6 @@ export const useWorkflowSetupState = (nodes?: Ref<INodeUi[]>) => {
 		);
 	});
 
-	/**
-	 * Set a credential for a specific node and credential type.
-	 * Updates the workflow node immediately.
-	 */
 	const setCredential = (nodeName: string, credentialType: string, credentialId: string): void => {
 		const credential = credentialsStore.getCredentialById(credentialId);
 		if (!credential) return;
@@ -162,10 +125,6 @@ export const useWorkflowSetupState = (nodes?: Ref<INodeUi[]>) => {
 		nodeHelpers.updateNodeCredentialIssuesByName(nodeName);
 	};
 
-	/**
-	 * Unset a credential for a specific node and credential type.
-	 * Removes the credential from the workflow node.
-	 */
 	const unsetCredential = (nodeName: string, credentialType: string): void => {
 		const node = workflowsStore.getNodeByName(nodeName);
 		if (!node) return;
