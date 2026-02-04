@@ -116,7 +116,7 @@ async function main() {
 		const openaiChatModel = new OpenAIChatModel('gpt-4o', {
 			apiKey: process.env.OPENAI_API_KEY,
 		});
-		chatModel = supplyModel(openaiChatModel);
+		chatModel = supplyModel(openaiChatModel).response;
 	} else {
 		throw new Error(`Unsupported model: ${model}`);
 	}
