@@ -5,8 +5,11 @@
  * Extracts initialization logic to reduce cyclomatic complexity in chat().
  */
 
-import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
-import type { BaseMessage } from '@langchain/core/messages';
+import type {
+	BaseChatModel,
+	BaseChatModelCallOptions,
+} from '@langchain/core/language_models/chat_models';
+import type { AIMessage, BaseMessage } from '@langchain/core/messages';
 import type { Runnable } from '@langchain/core/runnables';
 import type { StructuredToolInterface } from '@langchain/core/tools';
 import { generateWorkflowCode } from '@n8n/workflow-sdk';
@@ -60,11 +63,15 @@ export interface ChatSetupParams {
 }
 
 /**
+ * Type for LLM with tools bound - matches what AgentIterationHandler expects
+ */
+export type LlmWithTools = Runnable<BaseMessage[], AIMessage, BaseChatModelCallOptions>;
+
+/**
  * Result of chat setup
  */
 export interface ChatSetupResult {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	llmWithTools: Runnable<any, any, any>;
+	llmWithTools: LlmWithTools;
 	messages: BaseMessage[];
 	textEditorEnabled: boolean;
 	preGeneratedWorkflowCode?: string;
@@ -225,9 +232,10 @@ export class ChatSetupHandler {
 
 	/**
 	 * Bind tools to LLM
+	 *
+	 * @returns LLM with tools bound, typed for use with AgentIterationHandler
 	 */
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	private bindToolsToLlm(textEditorEnabled: boolean): Runnable<any, any, any> {
+	private bindToolsToLlm(textEditorEnabled: boolean): LlmWithTools {
 		this.debugLog('CHAT_SETUP', 'Binding tools to LLM...');
 
 		if (!this.llm.bindTools) {
@@ -237,7 +245,10 @@ export class ChatSetupHandler {
 		const toolsToUse = textEditorEnabled
 			? [...this.tools, TEXT_EDITOR_TOOL, VALIDATE_TOOL]
 			: this.tools;
-		const llmWithTools = this.llm.bindTools(toolsToUse);
+
+		// bindTools returns a Runnable that accepts BaseMessage[] and returns AIMessage
+		// The type assertion is safe because we're binding tools to a chat model
+		const llmWithTools = this.llm.bindTools(toolsToUse) as LlmWithTools;
 
 		this.debugLog('CHAT_SETUP', 'Tools bound to LLM', {
 			toolCount: toolsToUse.length,

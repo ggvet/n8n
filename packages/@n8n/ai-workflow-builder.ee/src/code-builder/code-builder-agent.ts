@@ -9,7 +9,6 @@
  */
 
 import type { AIMessage, BaseMessage } from '@langchain/core/messages';
-import type { Runnable } from '@langchain/core/runnables';
 import type { StructuredToolInterface } from '@langchain/core/tools';
 import type { Logger } from '@n8n/backend-common';
 import type { WorkflowJSON } from '@n8n/workflow-sdk';
@@ -28,7 +27,7 @@ import type { ChatPayload } from '../workflow-builder-agent';
 import { MAX_AGENT_ITERATIONS, MAX_VALIDATE_ATTEMPTS } from './constants';
 import { AgentIterationHandler } from './handlers/agent-iteration-handler';
 import { AutoFinalizeHandler } from './handlers/auto-finalize-handler';
-import { ChatSetupHandler } from './handlers/chat-setup-handler';
+import { ChatSetupHandler, type LlmWithTools } from './handlers/chat-setup-handler';
 import { FinalResponseHandler } from './handlers/final-response-handler';
 import { ParseValidateHandler } from './handlers/parse-validate-handler';
 import type { TextEditorHandler } from './handlers/text-editor-handler';
@@ -418,14 +417,12 @@ ${'='.repeat(50)}
 			state.iteration++;
 
 			// Invoke LLM and stream response
-			/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 			const llmResult = yield* this.iterationHandler.invokeLlm({
 				llmWithTools,
 				messages,
 				abortSignal,
 				iteration: state.iteration,
 			});
-			/* eslint-enable @typescript-eslint/no-unsafe-assignment */
 
 			const iterationResult = yield* this.processIteration({
 				llmResult,
@@ -663,8 +660,7 @@ ${'='.repeat(50)}
  * Parameters for the agentic loop
  */
 interface AgenticLoopParams {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	llmWithTools: Runnable<any, any, any>;
+	llmWithTools: LlmWithTools;
 	messages: BaseMessage[];
 	textEditorEnabled: boolean;
 	currentWorkflow?: WorkflowJSON;

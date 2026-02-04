@@ -9,6 +9,7 @@ export type {
 	ChatSetupHandlerConfig,
 	ChatSetupParams,
 	ChatSetupResult,
+	LlmWithTools,
 } from './chat-setup-handler';
 export { FinalResponseHandler } from './final-response-handler';
 export { ParseValidateHandler } from './parse-validate-handler';
