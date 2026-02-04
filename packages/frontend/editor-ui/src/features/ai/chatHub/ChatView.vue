@@ -67,6 +67,7 @@ import ChatGreetings from './components/ChatGreetings.vue';
 import { useChatPushHandler } from './composables/useChatPushHandler';
 import ChatArtifactViewer from './components/ChatArtifactViewer.vue';
 import { useChatArtifacts } from './composables/useChatArtifacts';
+import { useChatInputFocus } from './composables/useChatInputFocus';
 
 const router = useRouter();
 const route = useRoute();
@@ -343,6 +344,12 @@ const canAcceptFiles = computed(() => {
 });
 
 const fileDrop = useFileDrop(canAcceptFiles, onFilesDropped);
+
+// Enable "type-to-focus" behavior: when user starts typing anywhere in the view,
+// focus the chat input and insert the typed character
+useChatInputFocus(inputRef, {
+	disabled: computed(() => showWelcomeScreen.value === true || messagingState.value !== 'idle'),
+});
 
 function scrollToBottom(smooth: boolean) {
 	scrollContainerRef.value?.scrollTo({
