@@ -493,7 +493,7 @@ describe('Workflow Builder', () => {
 			const wf = workflow('test-id', 'Test Workflow');
 			const str = wf.toString();
 			// eslint-disable-next-line n8n-local-rules/no-uncaught-json-parse -- Testing toString() output
-			const parsed = JSON.parse(str);
+			const parsed = JSON.parse(str) as { name: string };
 			expect(parsed.name).toBe('Test Workflow');
 		});
 	});
@@ -1492,7 +1492,7 @@ describe('Workflow Builder', () => {
 			});
 
 			// This pattern loses the trigger: trigger.to(switch).onCase()
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
 			const switchBuilder = triggerNode.to(switchNode).onCase!(0, case0).onCase(1, case1) as any;
 			const wf = workflow('test', 'Test').add(switchBuilder);
 

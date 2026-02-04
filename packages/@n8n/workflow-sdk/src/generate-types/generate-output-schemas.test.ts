@@ -151,7 +151,7 @@ describe('generate-output-schemas', () => {
 
 			const content = generateOutputSchemaJson(schemas);
 			// eslint-disable-next-line n8n-local-rules/no-uncaught-json-parse -- Testing generator output
-			const parsed = JSON.parse(content);
+			const parsed = JSON.parse(content) as Array<{ parameters?: { resource?: string } }>;
 
 			expect(parsed).toHaveLength(2);
 			expect(parsed[0].parameters?.resource).toBe('channel');
@@ -172,7 +172,9 @@ describe('generate-output-schemas', () => {
 
 			const content = generateOutputSchemaJson(schemas);
 			// eslint-disable-next-line n8n-local-rules/no-uncaught-json-parse -- Testing generator output
-			const parsed = JSON.parse(content);
+			const parsed = JSON.parse(content) as Array<{
+				schemas: Array<{ schema: { properties: { id: { type: string } } } }>;
+			}>;
 
 			// Verify the structure matches what the resolver expects
 			expect(parsed[0].schemas[0].schema.properties.id.type).toBe('string');
@@ -181,7 +183,7 @@ describe('generate-output-schemas', () => {
 		it('handles empty schemas', () => {
 			const content = generateOutputSchemaJson([]);
 			// eslint-disable-next-line n8n-local-rules/no-uncaught-json-parse -- Testing generator output
-			const parsed = JSON.parse(content);
+			const parsed = JSON.parse(content) as unknown[];
 
 			expect(parsed).toEqual([]);
 		});

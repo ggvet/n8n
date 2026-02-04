@@ -220,7 +220,7 @@ describe('pluginRegistry singleton', () => {
 
 	it('returns the same instance on multiple imports', () => {
 		// Import again to verify singleton - intentionally using require() to test module-level singleton
-		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-unsafe-assignment
 		const { pluginRegistry: anotherRegistry } = require('./registry');
 		expect(anotherRegistry).toBe(pluginRegistry);
 	});
