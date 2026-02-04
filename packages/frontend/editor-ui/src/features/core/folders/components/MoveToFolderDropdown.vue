@@ -65,21 +65,27 @@ const fetchAvailableLocations = async (query?: string) => {
 
 	const rootFolderName = i18n.baseText('folders.move.project.root.name');
 	const isQueryMatchesRoot = !query || rootFolderName.toLowerCase().includes(query?.toLowerCase());
-	const isTransfer = props.selectedProjectId !== props.currentProjectId;
 
-	// Finally always add project root to the results (if folder is not already in root)
-	if (isQueryMatchesRoot && (!!props.parentFolderId || isTransfer)) {
-		availableLocations.value.unshift({
-			id: props.selectedProjectId,
-			name: rootFolderName,
-			resource: 'project',
-			createdAt: '',
-			updatedAt: '',
-			workflowCount: 0,
-			subFolderCount: 0,
-			path: [],
-		});
+	// Finally always add project root to the results
+	const projectRoot: ChangeLocationSearchResult = {
+		id: props.selectedProjectId,
+		name: rootFolderName,
+		resource: 'project',
+		createdAt: '',
+		updatedAt: '',
+		workflowCount: 0,
+		subFolderCount: 0,
+		path: [],
+	};
+	if (isQueryMatchesRoot) {
+		availableLocations.value.unshift(projectRoot);
 	}
+
+	// Auto-select project root if no location is selected (initial load, not search)
+	if (!query && !props.selectedLocation) {
+		emit('location:selected', projectRoot);
+	}
+
 	loading.value = false;
 };
 

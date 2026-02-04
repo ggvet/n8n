@@ -387,7 +387,10 @@ describe('MoveToFolderModal', () => {
 
 		const folderSelect = getByTestId('move-to-folder-dropdown');
 		expect(folderSelect).toBeVisible();
-		expect(within(folderSelect).getByRole('combobox')).toHaveValue('');
+		// Project root is auto-selected by the dropdown after loading
+		await waitFor(() =>
+			expect(within(folderSelect).getByRole('combobox')).toHaveValue('No folder (project root)'),
+		);
 
 		const folderSelectDropdownItems = await getDropdownItems(folderSelect);
 		expect(folderSelectDropdownItems).toHaveLength(2); // root, test
@@ -396,7 +399,7 @@ describe('MoveToFolderModal', () => {
 		expect(within(folderSelect).getByRole('combobox')).toHaveValue('test');
 	});
 
-	it('should clear selected folder when switching projects', async () => {
+	it('should reset to project root when switching projects', async () => {
 		settingsStore.settings = enableSharing;
 		foldersStore.fetchFoldersAvailableForMove = vi.fn().mockResolvedValue([folder]);
 
@@ -425,7 +428,8 @@ describe('MoveToFolderModal', () => {
 		);
 		await userEvent.click(teamProject as Element);
 
-		expect(within(folderSelect).getByRole('combobox')).toHaveValue('');
+		// After switching projects, the project root should be selected
+		expect(within(folderSelect).getByRole('combobox')).toHaveValue('No folder (project root)');
 	});
 
 	it('should move selected folder on submit', async () => {
@@ -444,7 +448,8 @@ describe('MoveToFolderModal', () => {
 		await waitFor(() => expect(getByTestId('moveFolder-modal')).toBeInTheDocument());
 
 		const submitButton = getByTestId('confirm-move-folder-button');
-		expect(submitButton).toBeDisabled();
+		// Submit button is enabled because project root is selected by default
+		expect(submitButton).toBeEnabled();
 
 		const folderSelect = getByTestId('move-to-folder-dropdown');
 		const folderSelectDropdownItems = await getDropdownItems(folderSelect);
@@ -494,7 +499,8 @@ describe('MoveToFolderModal', () => {
 		await userEvent.click(teamProject as Element);
 
 		const submitButton = getByTestId('confirm-move-folder-button');
-		expect(submitButton).toBeDisabled();
+		// Submit button is enabled because project root is selected by default
+		expect(submitButton).toBeEnabled();
 
 		const folderSelect = getByTestId('move-to-folder-dropdown');
 		const folderSelectDropdownItems = await getDropdownItems(folderSelect);
@@ -748,7 +754,8 @@ describe('MoveToFolderModal', () => {
 		await waitFor(() => expect(getByTestId('moveFolder-modal')).toBeInTheDocument());
 
 		const submitButton = getByTestId('confirm-move-folder-button');
-		expect(submitButton).toBeDisabled();
+		// Submit button is enabled because project root is selected by default
+		expect(submitButton).toBeEnabled();
 
 		const folderSelect = getByTestId('move-to-folder-dropdown');
 		const folderSelectDropdownItems = await getDropdownItems(folderSelect);
@@ -804,7 +811,8 @@ describe('MoveToFolderModal', () => {
 		await userEvent.click(teamProject as Element);
 
 		const submitButton = getByTestId('confirm-move-folder-button');
-		expect(submitButton).toBeDisabled();
+		// Submit button is enabled because project root is selected by default
+		expect(submitButton).toBeEnabled();
 
 		const folderSelect = getByTestId('move-to-folder-dropdown');
 		const folderSelectDropdownItems = await getDropdownItems(folderSelect);
