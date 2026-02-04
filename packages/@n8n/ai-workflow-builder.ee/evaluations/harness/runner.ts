@@ -23,7 +23,7 @@ import {
 	type LangsmithExampleFilters,
 	type LlmCallLimiter,
 	type GenerationResult,
-} from './harness-types.js';
+} from './harness-types';
 import type { EvalLogger } from './logger';
 import { createArtifactSaver, type ArtifactSaver } from './output';
 import {
@@ -31,7 +31,7 @@ import {
 	selectScoringItems,
 	calculateFiniteAverage,
 } from './score-calculator';
-import type { SimpleWorkflow } from '../../src/types/workflow.js';
+import type { SimpleWorkflow } from '../../src/types/workflow';
 import { extractMessageContent } from '../langsmith/types';
 
 const DEFAULT_PASS_THRESHOLD = 0.7;

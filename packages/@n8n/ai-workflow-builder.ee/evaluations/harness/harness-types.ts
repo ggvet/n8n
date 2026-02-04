@@ -1,9 +1,9 @@
 import type { Client as LangsmithClient } from 'langsmith/client';
 import type pLimit from 'p-limit';
 
-import type { EvalLogger } from './logger.js';
-import type { GenerationCollectors } from './runner.js';
-import type { SimpleWorkflow } from '../../src/types/workflow.js';
+import type { EvalLogger } from './logger';
+import type { GenerationCollectors } from './runner';
+import type { SimpleWorkflow } from '../../src/types/workflow';
 
 export type LlmCallLimiter = ReturnType<typeof pLimit>;
 

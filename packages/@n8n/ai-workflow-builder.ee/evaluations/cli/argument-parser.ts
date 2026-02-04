@@ -6,7 +6,7 @@ import type { BuilderFeatureFlags } from '@/workflow-builder-agent';
 
 import type { LangsmithExampleFilters } from '../harness/harness-types';
 import { DEFAULTS } from '../support/constants';
-import type { StageModels } from '../support/environment.js';
+import type { StageModels } from '../support/environment';
 
 export type EvaluationSuite = 'llm-judge' | 'pairwise' | 'programmatic' | 'similarity';
 export type EvaluationBackend = 'local' | 'langsmith';

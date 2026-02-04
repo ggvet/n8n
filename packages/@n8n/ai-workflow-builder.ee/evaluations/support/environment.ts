@@ -8,13 +8,13 @@ import { DEFAULT_MODEL, getApiKeyEnvVar, MODEL_FACTORIES, type ModelId } from '@
 import type { BuilderFeatureFlags } from '@/workflow-builder-agent';
 import { WorkflowBuilderAgent } from '@/workflow-builder-agent';
 
-import { loadNodesFromFile } from './load-nodes.js';
-import type { EvalLogger } from '../harness/logger.js';
+import { loadNodesFromFile } from './load-nodes';
+import type { EvalLogger } from '../harness/logger';
 import {
 	createTraceFilters,
 	isMinimalTracingEnabled,
 	type TraceFilters,
-} from '../langsmith/trace-filters.js';
+} from '../langsmith/trace-filters';
 
 /** Maximum memory for trace queue (3GB) */
 const MAX_INGEST_MEMORY_BYTES = 3 * 1024 * 1024 * 1024;
