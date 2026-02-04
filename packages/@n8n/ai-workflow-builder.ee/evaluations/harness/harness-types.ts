@@ -32,6 +32,11 @@ export interface EvaluationContext {
 	 * Note: timeouts are best-effort unless underlying calls support cancellation (AbortSignal).
 	 */
 	timeoutMs?: number;
+	/**
+	 * Generated TypeScript SDK code for code-level evaluators.
+	 * Populated from GenerationResult when available.
+	 */
+	generatedCode?: string;
 }
 
 /** Context attached to an individual test case (prompt is provided separately). */
@@ -210,14 +215,19 @@ export interface ExampleResult {
 	/** Subgraph timing and workflow metrics */
 	subgraphMetrics?: SubgraphMetrics;
 	workflow?: SimpleWorkflow;
+	/** Generated source code (e.g., TypeScript SDK code from coding agent) */
+	generatedCode?: string;
 	error?: string;
 }
 
 /**
- * Result from workflow generation.
+ * Result from workflow generation that may include source code.
+ * Used by generators that produce code (e.g., coding agent).
  */
 export interface GenerationResult {
 	workflow: SimpleWorkflow;
+	/** Source code that generated the workflow (e.g., TypeScript SDK code) */
+	generatedCode?: string;
 }
 
 /**

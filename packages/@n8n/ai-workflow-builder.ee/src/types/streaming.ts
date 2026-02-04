@@ -27,6 +27,8 @@ export interface WorkflowUpdateChunk {
 	codeSnippet: string;
 	/** Number of agentic loop iterations required */
 	iterationCount?: number;
+	/** Source code that generated the workflow (only populated during evaluations) */
+	sourceCode?: string;
 }
 
 /**

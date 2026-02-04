@@ -76,6 +76,11 @@ export function createArtifactSaver(options: ArtifactSaverOptions): ArtifactSave
 				);
 			}
 
+			// Save generated code if available (e.g., TypeScript SDK code from coding agent)
+			if (result.generatedCode) {
+				fs.writeFileSync(path.join(exampleDir, 'code.ts'), result.generatedCode, 'utf-8');
+			}
+
 			// Save feedback
 			const feedbackOutput = formatFeedbackForExport(result);
 			fs.writeFileSync(

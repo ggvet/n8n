@@ -66,6 +66,8 @@ export interface FinalResponseResult {
 	success: boolean;
 	/** The validated workflow (only on success) */
 	workflow?: WorkflowJSON;
+	/** The source code (only on success) */
+	sourceCode?: string;
 	/** Parse duration in milliseconds */
 	parseDuration?: number;
 	/** Whether this was a parse error (should increment consecutiveParseErrors) */
@@ -186,6 +188,7 @@ export class FinalResponseHandler {
 			return {
 				success: true,
 				workflow: result.workflow,
+				sourceCode: workflowCode,
 				parseDuration,
 				shouldContinue: false,
 			};

@@ -372,6 +372,8 @@ ${'='.repeat(50)}
 			let consecutiveParseErrors = 0;
 			let workflow: WorkflowJSON | null = null;
 			let parseDuration = 0;
+			// Track source code for evaluations (only populated when evalLogger is present)
+			let sourceCode: string | null = null;
 			// Track warnings that have been sent to agent (to avoid repeating)
 			const warningTracker = new WarningTracker();
 
@@ -471,6 +473,10 @@ ${'='.repeat(50)}
 							// If create command auto-validated successfully, break the loop
 							if (result?.workflowReady) {
 								this.debugLog('CHAT', 'Text editor auto-validate succeeded, exiting loop');
+								// Capture source code for evaluations
+								if (this.evalLogger) {
+									sourceCode = textEditorHandler!.getWorkflowCode();
+								}
 								break;
 							}
 						} else if (toolCall.name === 'validate_workflow' && textEditorToolHandler) {
@@ -511,6 +517,10 @@ ${'='.repeat(50)}
 					// Skip if validate just passed - let agent have another turn to finalize
 					if (textEditorEnabled && workflow && !validatePassedThisIteration) {
 						this.debugLog('CHAT', 'Workflow ready from text editor, exiting loop');
+						// Capture source code for evaluations
+						if (this.evalLogger && textEditorHandler) {
+							sourceCode = textEditorHandler.getWorkflowCode();
+						}
 						break;
 					}
 
@@ -534,6 +544,10 @@ ${'='.repeat(50)}
 					if (autoFinalizeResult.success && autoFinalizeResult.workflow) {
 						workflow = autoFinalizeResult.workflow;
 						parseDuration = autoFinalizeResult.parseDuration ?? 0;
+						// Capture source code for evaluations
+						if (this.evalLogger) {
+							sourceCode = textEditorHandler.getWorkflowCode();
+						}
 						break;
 					}
 					if (autoFinalizeResult.parseDuration) {
@@ -559,6 +573,10 @@ ${'='.repeat(50)}
 					// Check result
 					if (finalResult.success && finalResult.workflow) {
 						workflow = finalResult.workflow;
+						// Capture source code for evaluations
+						if (this.evalLogger && finalResult.sourceCode) {
+							sourceCode = finalResult.sourceCode;
+						}
 						break;
 					}
 					// Otherwise, shouldContinue is implied - loop continues
@@ -602,6 +620,8 @@ ${'='.repeat(50)}
 						type: 'workflow-updated',
 						codeSnippet: JSON.stringify(workflow, null, 2),
 						iterationCount: iteration,
+						// Only include sourceCode during evaluations
+						...(this.evalLogger && sourceCode ? { sourceCode } : {}),
 					} as WorkflowUpdateChunk,
 				],
 			};
