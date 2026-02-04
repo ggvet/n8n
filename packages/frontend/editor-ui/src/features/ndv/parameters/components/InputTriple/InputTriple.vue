@@ -28,7 +28,7 @@ withDefaults(defineProps<Props>(), { middleWidth: '160px' });
 <style lang="scss" module>
 .container {
 	--parameter-input-options--height: 22px;
-	container-type: inline-size;
+	container: input-triple / inline-size;
 	width: 100%;
 }
 
@@ -76,7 +76,7 @@ withDefaults(defineProps<Props>(), { middleWidth: '160px' });
 }
 
 // Stacked layout when container is narrow
-@container (max-width: 400px) {
+@container input-triple (max-width: 400px) {
 	.item {
 		flex-basis: 100%;
 		margin: 0;
