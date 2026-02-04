@@ -569,7 +569,7 @@ export class SourceControlService {
 			);
 		}
 		const dataTablesToBeDeleted = getDeletedResources(statusResult, 'datatable');
-		await this.sourceControlImportService.deleteDataTablesNotInWorkfolder(dataTablesToBeDeleted);
+		await this.sourceControlImportService.deleteDataTablesNotInWorkFolder(dataTablesToBeDeleted);
 
 		const foldersToBeDeleted = getDeletedResources(statusResult, 'folders');
 		await this.sourceControlImportService.deleteFoldersNotInWorkfolder(foldersToBeDeleted);
