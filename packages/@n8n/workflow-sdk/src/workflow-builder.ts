@@ -29,6 +29,7 @@ import { isInputTarget, cloneNodeWithId } from './node-builder';
 import { generateDeterministicNodeId } from './workflow-builder/string-utils';
 import { shouldGeneratePinData } from './workflow-builder/pin-data-utils';
 import { parseWorkflowJSON } from './workflow-builder/workflow-import';
+import { resolveTargetNodeName as resolveTargetNodeNameUtil } from './workflow-builder/connection-utils';
 
 /**
  * Internal workflow builder implementation
@@ -687,69 +688,15 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 	}
 
 	/**
-	 * Find the map key for a node instance by its ID.
-	 * This handles renamed duplicate nodes where the map key differs from instance.name.
-	 */
-	private findMapKeyForNodeId(nodeId: string): string | undefined {
-		for (const [key, graphNode] of this._nodes) {
-			if (graphNode.instance.id === nodeId) {
-				return key;
-			}
-		}
-		return undefined;
-	}
-
-	/**
 	 * Resolve the target node name from a connection target.
-	 * Handles NodeInstance, NodeChain, and composites (via registry's resolveCompositeHeadName).
-	 * Returns the map key (which may differ from instance.name for renamed duplicates).
-	 * @param nameMapping - Optional map from node ID to actual map key (used when nodes are renamed during addBranchToGraph)
+	 * Delegates to the resolveTargetNodeName utility function.
 	 */
 	private resolveTargetNodeName(
 		target: unknown,
 		nameMapping?: Map<string, string>,
 	): string | undefined {
-		if (target === null || typeof target !== 'object') return undefined;
-
-		// Helper to get the actual node name, accounting for auto-renamed nodes
-		const getNodeName = (nodeInstance: NodeInstance<string, string, unknown>): string => {
-			// First check the passed-in nameMapping (used during addBranchToGraph)
-			const mappedKey = nameMapping?.get(nodeInstance.id);
-			if (mappedKey) return mappedKey;
-
-			// Fall back to searching in this._nodes
-			const mapKey = this.findMapKeyForNodeId(nodeInstance.id);
-			if (!mapKey) return nodeInstance.name;
-
-			// Check if this is an auto-renamed node (e.g., "Process 1" from "Process")
-			// Auto-renamed nodes have pattern: mapKey = instance.name + " " + number
-			const isAutoRenamed =
-				mapKey !== nodeInstance.name &&
-				mapKey.startsWith(nodeInstance.name + ' ') &&
-				/^\d+$/.test(mapKey.slice(nodeInstance.name.length + 1));
-
-			return isAutoRenamed ? mapKey : nodeInstance.name;
-		};
-
-		// Check for NodeChain - return the head's name (where connections enter the chain)
-		if (isNodeChain(target)) {
-			return getNodeName(target.head);
-		}
-
-		// Try registry resolution for composites (IfElse, SwitchCase, SplitInBatches)
 		const registry = this._registry ?? pluginRegistry;
-		const compositeHeadName = registry.resolveCompositeHeadName(target, nameMapping);
-		if (compositeHeadName !== undefined) {
-			return compositeHeadName;
-		}
-
-		// Check for InputTarget - return the referenced node's name
-		if (isInputTarget(target)) {
-			return getNodeName(target.node as NodeInstance<string, string, unknown>);
-		}
-
-		// Regular NodeInstance
-		return getNodeName(target as NodeInstance<string, string, unknown>);
+		return resolveTargetNodeNameUtil(target, this._nodes, registry, nameMapping);
 	}
 
 	/**
