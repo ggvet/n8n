@@ -241,6 +241,28 @@ describe('Workflow Builder', () => {
 			expect(json.connections['Source 2']?.main[0]?.[0]?.node).toBe('Merge');
 			expect(json.connections['Source 2']?.main[0]?.[0]?.index).toBe(1);
 		});
+
+		it('should mutate the builder in place when add() return value is discarded', () => {
+			const t = trigger({
+				type: 'n8n-nodes-base.manualTrigger',
+				version: 1,
+				config: { name: 'Trigger' },
+			});
+			const n = node({
+				type: 'n8n-nodes-base.httpRequest',
+				version: 4.2,
+				config: { name: 'HTTP' },
+			});
+
+			// This pattern MUST work (AI-generated code style)
+			const wf = workflow('test-id', 'Test Workflow');
+			wf.add(t); // Return value intentionally discarded
+			wf.add(n); // Return value intentionally discarded
+
+			const json = wf.toJSON();
+			expect(json.nodes).toHaveLength(2); // Should have both nodes
+			expect(json.nodes.map((node) => node.name).sort()).toEqual(['HTTP', 'Trigger'].sort());
+		});
 	});
 
 	describe('.to()', () => {
