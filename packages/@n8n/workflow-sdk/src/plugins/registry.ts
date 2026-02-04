@@ -118,6 +118,51 @@ export class PluginRegistry {
 	}
 
 	/**
+	 * Check if a target is a composite type that has a registered handler.
+	 * Use this to determine if a target should be skipped or handled specially.
+	 * @param target The target to check
+	 * @returns true if a composite handler exists for this target
+	 */
+	isCompositeType(target: unknown): boolean {
+		return this.findCompositeHandler(target) !== undefined;
+	}
+
+	/**
+	 * Resolve the head node name for a composite target.
+	 * This allows looking up connection targets without type-specific knowledge.
+	 * @param target The target to resolve
+	 * @param nameMapping Optional map from node ID to actual map key (for renamed nodes)
+	 * @returns The head node name if target is a composite with getHeadNodeName, undefined otherwise
+	 */
+	resolveCompositeHeadName(target: unknown, nameMapping?: Map<string, string>): string | undefined {
+		const handler = this.findCompositeHandler(target);
+		if (!handler?.getHeadNodeName) {
+			return undefined;
+		}
+
+		// Get the head node info from the handler
+		const info = handler.getHeadNodeName(target);
+
+		// If handler returns { name, id }, we can use nameMapping
+		// Otherwise it returns just the name string
+		if (typeof info === 'object' && info !== null && 'name' in info && 'id' in info) {
+			const { name, id } = info as { name: string; id: string };
+			// Check if this node was renamed
+			const mappedName = nameMapping?.get(id);
+			return mappedName ?? name;
+		}
+
+		// Handler returned just the name - can't use nameMapping without ID
+		// But we can check if the name is a key in nameMapping (legacy support)
+		const baseName = info as string;
+		if (nameMapping) {
+			const mappedName = nameMapping.get(baseName);
+			if (mappedName) return mappedName;
+		}
+		return baseName;
+	}
+
+	/**
 	 * Register a serializer plugin.
 	 * @throws Error if a serializer with the same id is already registered
 	 * @throws Error if a serializer for the same format is already registered

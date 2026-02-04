@@ -74,6 +74,26 @@ function getTargetNodeName(target: unknown): string | undefined {
 }
 
 /**
+ * Helper to collect nodes from a case for pin data gathering.
+ * Handles null, single nodes, and arrays.
+ */
+function collectFromCase(
+	caseNode: unknown,
+	collector: (node: NodeInstance<string, string, unknown>) => void,
+): void {
+	if (caseNode === null || caseNode === undefined) return;
+	if (Array.isArray(caseNode)) {
+		for (const n of caseNode) {
+			if (n !== null && n !== undefined) {
+				collector(n as NodeInstance<string, string, unknown>);
+			}
+		}
+	} else {
+		collector(caseNode as NodeInstance<string, string, unknown>);
+	}
+}
+
+/**
  * Add nodes from a branch target to the nodes map, recursively handling nested composites.
  * This is used for SwitchCaseBuilder to add case nodes AFTER setting up Switch connections.
  */
@@ -170,6 +190,35 @@ export const switchCaseHandler: CompositeHandlerPlugin<SwitchCaseInput> = {
 
 	canHandle(input: unknown): input is SwitchCaseInput {
 		return isSwitchCaseComposite(input) || isSwitchCaseBuilder(input);
+	},
+
+	getHeadNodeName(input: SwitchCaseInput): { name: string; id: string } {
+		if (isSwitchCaseBuilder(input)) {
+			return { name: input.switchNode.name, id: input.switchNode.id };
+		}
+		const composite = input as SwitchCaseComposite;
+		return { name: composite.switchNode.name, id: composite.switchNode.id };
+	},
+
+	collectPinData(
+		input: SwitchCaseInput,
+		collector: (node: NodeInstance<string, string, unknown>) => void,
+	): void {
+		// Collect from Switch node
+		collector(input.switchNode);
+
+		// Collect from cases
+		if ('caseMapping' in input && input.caseMapping instanceof Map) {
+			// SwitchCaseBuilder
+			for (const [, target] of input.caseMapping) {
+				collectFromCase(target, collector);
+			}
+		} else if ('cases' in input && Array.isArray(input.cases)) {
+			// SwitchCaseComposite
+			for (const caseNode of input.cases) {
+				collectFromCase(caseNode, collector);
+			}
+		}
 	},
 
 	addNodes(input: SwitchCaseInput, ctx: MutablePluginContext): string {

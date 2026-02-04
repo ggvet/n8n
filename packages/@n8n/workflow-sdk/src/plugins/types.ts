@@ -270,6 +270,25 @@ export interface CompositeHandlerPlugin<TInput = unknown> {
 		currentOutput: number,
 		ctx: MutablePluginContext,
 	): { currentNode: string; currentOutput: number };
+
+	/**
+	 * Get the head node name from a composite (optional).
+	 * Used to resolve connection targets without needing type-specific knowledge.
+	 * @param input The composite input (guaranteed to pass canHandle)
+	 * @returns Either a string (node name) or { name, id } for nameMapping support
+	 */
+	getHeadNodeName?(input: TInput): string | { name: string; id: string };
+
+	/**
+	 * Collect nodes from this composite for pin data gathering (optional).
+	 * Called with a collector function that should be invoked for each node.
+	 * @param input The composite input (guaranteed to pass canHandle)
+	 * @param collector Function to call for each node that might have pin data
+	 */
+	collectPinData?(
+		input: TInput,
+		collector: (node: NodeInstance<string, string, unknown>) => void,
+	): void;
 }
 
 // =============================================================================

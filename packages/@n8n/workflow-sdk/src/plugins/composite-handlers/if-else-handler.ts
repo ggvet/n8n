@@ -74,6 +74,26 @@ function getTargetNodeName(target: unknown): string | undefined {
 }
 
 /**
+ * Helper to collect nodes from a branch for pin data gathering.
+ * Handles null, single nodes, and arrays.
+ */
+function collectFromBranch(
+	branch: unknown,
+	collector: (node: NodeInstance<string, string, unknown>) => void,
+): void {
+	if (branch === null || branch === undefined) return;
+	if (Array.isArray(branch)) {
+		for (const n of branch) {
+			if (n !== null && n !== undefined) {
+				collector(n as NodeInstance<string, string, unknown>);
+			}
+		}
+	} else {
+		collector(branch as NodeInstance<string, string, unknown>);
+	}
+}
+
+/**
  * Add nodes from a branch target to the nodes map, recursively handling nested composites.
  * This is used for IfElseBuilder to add branch nodes AFTER setting up IF connections.
  */
@@ -168,6 +188,31 @@ export const ifElseHandler: CompositeHandlerPlugin<IfElseInput> = {
 
 	canHandle(input: unknown): input is IfElseInput {
 		return isIfElseComposite(input) || isIfElseBuilder(input);
+	},
+
+	getHeadNodeName(input: IfElseInput): { name: string; id: string } {
+		if (isIfElseBuilder(input)) {
+			return { name: input.ifNode.name, id: input.ifNode.id };
+		}
+		const composite = input as IfElseComposite;
+		return { name: composite.ifNode.name, id: composite.ifNode.id };
+	},
+
+	collectPinData(
+		input: IfElseInput,
+		collector: (node: NodeInstance<string, string, unknown>) => void,
+	): void {
+		// Collect from IF node
+		if (isIfElseBuilder(input)) {
+			collector(input.ifNode);
+			collectFromBranch(input.trueBranch, collector);
+			collectFromBranch(input.falseBranch, collector);
+		} else {
+			const composite = input as IfElseComposite;
+			collector(composite.ifNode);
+			collectFromBranch(composite.trueBranch, collector);
+			collectFromBranch(composite.falseBranch, collector);
+		}
 	},
 
 	addNodes(input: IfElseInput, ctx: MutablePluginContext): string {

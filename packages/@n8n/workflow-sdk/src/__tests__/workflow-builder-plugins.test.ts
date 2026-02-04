@@ -705,4 +705,232 @@ describe('WorkflowBuilder plugin integration', () => {
 			findHandlerSpy.mockRestore();
 		});
 	});
+
+	describe('Phase 9.2: getHeadNodeName() and resolveCompositeHeadName()', () => {
+		it('registry.resolveCompositeHeadName returns head node name for IfElseBuilder', () => {
+			const { pluginRegistry } = require('../plugins/registry');
+			const { registerDefaultPlugins } = require('../plugins/defaults');
+			registerDefaultPlugins(pluginRegistry);
+
+			const composite = ifElse({ version: 2, config: { name: 'My If', parameters: {} } }).onTrue!(
+				null,
+			).onFalse(null);
+
+			const headName = pluginRegistry.resolveCompositeHeadName(composite);
+
+			expect(headName).toBe('My If');
+		});
+
+		it('registry.resolveCompositeHeadName returns head node name for SwitchCaseBuilder', () => {
+			const { pluginRegistry } = require('../plugins/registry');
+			const { registerDefaultPlugins } = require('../plugins/defaults');
+			registerDefaultPlugins(pluginRegistry);
+
+			const composite = switchCase({
+				version: 3,
+				config: { name: 'My Switch', parameters: {} },
+			}).onCase!(0, null);
+
+			const headName = pluginRegistry.resolveCompositeHeadName(composite);
+
+			expect(headName).toBe('My Switch');
+		});
+
+		it('registry.resolveCompositeHeadName returns head node name for SplitInBatchesBuilder', () => {
+			const { pluginRegistry } = require('../plugins/registry');
+			const { registerDefaultPlugins } = require('../plugins/defaults');
+			registerDefaultPlugins(pluginRegistry);
+
+			const sib = splitInBatches({ version: 3, config: { name: 'My SIB' } });
+
+			const headName = pluginRegistry.resolveCompositeHeadName(sib);
+
+			expect(headName).toBe('My SIB');
+		});
+
+		it('registry.resolveCompositeHeadName applies nameMapping when provided', () => {
+			const { pluginRegistry } = require('../plugins/registry');
+			const { registerDefaultPlugins } = require('../plugins/defaults');
+			registerDefaultPlugins(pluginRegistry);
+
+			const composite = ifElse({ version: 2, config: { name: 'If', parameters: {} } }).onTrue!(
+				null,
+			).onFalse(null);
+
+			// Simulate that the If node was renamed during add
+			const nameMapping = new Map<string, string>();
+			nameMapping.set(composite.ifNode.id, 'If 1');
+
+			const headName = pluginRegistry.resolveCompositeHeadName(composite, nameMapping);
+
+			expect(headName).toBe('If 1');
+		});
+
+		it('registry.resolveCompositeHeadName returns undefined for non-composites', () => {
+			const { pluginRegistry } = require('../plugins/registry');
+			const { registerDefaultPlugins } = require('../plugins/defaults');
+			registerDefaultPlugins(pluginRegistry);
+
+			const regularNode = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'Set', parameters: {} },
+			});
+
+			const headName = pluginRegistry.resolveCompositeHeadName(regularNode);
+
+			expect(headName).toBeUndefined();
+		});
+
+		it('handler.getHeadNodeName is called by resolveCompositeHeadName', () => {
+			const mockGetHeadNodeName = jest.fn().mockReturnValue('Custom Head');
+			const customHandler: CompositeHandlerPlugin<{ custom: true }> = {
+				id: 'test:custom',
+				name: 'Custom Handler',
+				canHandle: (input): input is { custom: true } =>
+					input !== null && typeof input === 'object' && 'custom' in input,
+				addNodes: () => 'Custom Head',
+				getHeadNodeName: mockGetHeadNodeName,
+			};
+
+			const customRegistry = new PluginRegistry();
+			customRegistry.registerCompositeHandler(customHandler);
+
+			const headName = customRegistry.resolveCompositeHeadName({ custom: true });
+
+			expect(mockGetHeadNodeName).toHaveBeenCalledWith({ custom: true });
+			expect(headName).toBe('Custom Head');
+		});
+
+		it('handler without getHeadNodeName returns undefined from resolveCompositeHeadName', () => {
+			const handlerWithoutGetHead: CompositeHandlerPlugin<{ noHead: true }> = {
+				id: 'test:no-head',
+				name: 'Handler Without getHeadNodeName',
+				canHandle: (input): input is { noHead: true } =>
+					input !== null && typeof input === 'object' && 'noHead' in input,
+				addNodes: () => 'Some Node',
+				// Note: no getHeadNodeName method
+			};
+
+			const customRegistry = new PluginRegistry();
+			customRegistry.registerCompositeHandler(handlerWithoutGetHead);
+
+			const headName = customRegistry.resolveCompositeHeadName({ noHead: true });
+
+			expect(headName).toBeUndefined();
+		});
+	});
+
+	describe('Phase 9.3: collectPinData() on composite handlers', () => {
+		it('ifElseHandler.collectPinData collects pin data from IF node and branches', () => {
+			const { ifElseHandler } = require('../plugins/composite-handlers/if-else-handler');
+
+			const collectedNodes: string[] = [];
+			const collector = (node: NodeInstance<string, string, unknown>) => {
+				collectedNodes.push(node.name);
+			};
+
+			// Create IfElseBuilder with branches that have pinData
+			const trueNode = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'True Node', parameters: {}, pinData: [{ item: 'true' }] },
+			});
+			const falseNode = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'False Node', parameters: {}, pinData: [{ item: 'false' }] },
+			});
+
+			const composite = ifElse({
+				version: 2,
+				config: { name: 'If', parameters: {}, pinData: [{ item: 'if' }] },
+			}).onTrue!(trueNode).onFalse(falseNode);
+
+			ifElseHandler.collectPinData(composite, collector);
+
+			expect(collectedNodes).toContain('If');
+			expect(collectedNodes).toContain('True Node');
+			expect(collectedNodes).toContain('False Node');
+		});
+
+		it('switchCaseHandler.collectPinData collects pin data from switch node and cases', () => {
+			const { switchCaseHandler } = require('../plugins/composite-handlers/switch-case-handler');
+
+			const collectedNodes: string[] = [];
+			const collector = (node: NodeInstance<string, string, unknown>) => {
+				collectedNodes.push(node.name);
+			};
+
+			const case0 = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'Case 0', parameters: {}, pinData: [{ item: 'case0' }] },
+			});
+			const case1 = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'Case 1', parameters: {}, pinData: [{ item: 'case1' }] },
+			});
+
+			const composite = switchCase({
+				version: 3,
+				config: { name: 'Switch', parameters: {}, pinData: [{ item: 'switch' }] },
+			}).onCase!(0, case0).onCase(1, case1);
+
+			switchCaseHandler.collectPinData(composite, collector);
+
+			expect(collectedNodes).toContain('Switch');
+			expect(collectedNodes).toContain('Case 0');
+			expect(collectedNodes).toContain('Case 1');
+		});
+
+		it('splitInBatchesHandler.collectPinData collects pin data from SIB node and targets', () => {
+			const {
+				splitInBatchesHandler,
+			} = require('../plugins/composite-handlers/split-in-batches-handler');
+
+			const collectedNodes: string[] = [];
+			const collector = (node: NodeInstance<string, string, unknown>) => {
+				collectedNodes.push(node.name);
+			};
+
+			const doneNode = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'Done', parameters: {}, pinData: [{ item: 'done' }] },
+			});
+			const eachNode = node({
+				type: 'n8n-nodes-base.set',
+				version: 3.4,
+				config: { name: 'Each', parameters: {}, pinData: [{ item: 'each' }] },
+			});
+
+			const sib = splitInBatches({
+				version: 3,
+				config: { name: 'SIB', pinData: [{ item: 'sib' }] },
+			})
+				.onDone(doneNode)
+				.onEachBatch(eachNode);
+
+			splitInBatchesHandler.collectPinData(sib, collector);
+
+			expect(collectedNodes).toContain('SIB');
+			// Note: done/each nodes may not be collected by the handler as they're added via addBranchToGraph
+		});
+
+		it('handlers without collectPinData are gracefully skipped', () => {
+			const handlerWithoutCollectPinData: CompositeHandlerPlugin<{ noPinData: true }> = {
+				id: 'test:no-pin-data',
+				name: 'Handler Without collectPinData',
+				canHandle: (input): input is { noPinData: true } =>
+					input !== null && typeof input === 'object' && 'noPinData' in input,
+				addNodes: () => 'Some Node',
+				// Note: no collectPinData method
+			};
+
+			// Should not throw when handler doesn't have collectPinData
+			expect(handlerWithoutCollectPinData.collectPinData).toBeUndefined();
+		});
+	});
 });

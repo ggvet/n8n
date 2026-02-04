@@ -5,9 +5,6 @@ import type {
 	WorkflowJSON,
 	NodeJSON,
 	NodeInstance,
-	TriggerInstance,
-	IfElseComposite,
-	SwitchCaseComposite,
 	ConnectionTarget,
 	GraphNode,
 	SubnodeConfig,
@@ -26,12 +23,7 @@ import type { PluginContext, MutablePluginContext, ValidationIssue } from './plu
 // Ensure default plugins are registered on module load
 registerDefaultPlugins(pluginRegistry);
 import { isNodeChain } from './types/base';
-import {
-	isInputTarget,
-	isIfElseBuilder,
-	isSwitchCaseBuilder,
-	cloneNodeWithId,
-} from './node-builder';
+import { isInputTarget, cloneNodeWithId } from './node-builder';
 import {
 	parseVersion,
 	normalizeResourceLocators,
@@ -39,14 +31,7 @@ import {
 	generateDeterministicNodeId,
 } from './workflow-builder/string-utils';
 import { NODE_SPACING_X, DEFAULT_Y, START_X } from './workflow-builder/constants';
-import {
-	isSplitInBatchesBuilder,
-	extractSplitInBatchesBuilder,
-	isSwitchCaseComposite,
-	isIfElseComposite,
-} from './workflow-builder/type-guards';
 import { isTriggerNode } from './workflow-builder/validation-helpers';
-import type { IfElseBuilder, SwitchCaseBuilder } from './types/base';
 
 /**
  * Internal workflow builder implementation
@@ -167,54 +152,18 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 	 */
 	private collectPinDataFromChain(chain: NodeChain): Record<string, IDataObject[]> | undefined {
 		let pinData = this._pinData;
+		const registry = this._registry ?? pluginRegistry;
+
 		for (const chainNode of chain.allNodes) {
-			// Handle composites that may be in the chain (they don't have a config property)
-			if (isSwitchCaseComposite(chainNode)) {
-				const composite = chainNode as unknown as SwitchCaseComposite;
-				pinData = this.collectPinDataFromNode(composite.switchNode, pinData);
-				for (const caseNode of composite.cases) {
-					if (caseNode === null) continue;
-					if (Array.isArray(caseNode)) {
-						for (const branchNode of caseNode) {
-							if (branchNode !== null) {
-								pinData = this.collectPinDataFromNode(branchNode, pinData);
-							}
-						}
-					} else {
-						pinData = this.collectPinDataFromNode(caseNode, pinData);
-					}
-				}
-			} else if (isIfElseComposite(chainNode)) {
-				const composite = chainNode as unknown as IfElseComposite;
-				pinData = this.collectPinDataFromNode(composite.ifNode, pinData);
-				// Handle array branches (fan-out within branch)
-				if (composite.trueBranch) {
-					if (Array.isArray(composite.trueBranch)) {
-						for (const branchNode of composite.trueBranch) {
-							pinData = this.collectPinDataFromNode(branchNode, pinData);
-						}
-					} else {
-						pinData = this.collectPinDataFromNode(composite.trueBranch, pinData);
-					}
-				}
-				if (composite.falseBranch) {
-					if (Array.isArray(composite.falseBranch)) {
-						for (const branchNode of composite.falseBranch) {
-							pinData = this.collectPinDataFromNode(branchNode, pinData);
-						}
-					} else {
-						pinData = this.collectPinDataFromNode(composite.falseBranch, pinData);
-					}
-				}
-			} else {
-				// Regular node
-				const nodePinData = chainNode.config?.pinData;
-				if (nodePinData && nodePinData.length > 0) {
-					pinData = {
-						...pinData,
-						[chainNode.name]: nodePinData,
-					};
-				}
+			// Try plugin dispatch for composites
+			const handler = registry.findCompositeHandler(chainNode);
+			if (handler?.collectPinData) {
+				handler.collectPinData(chainNode, (node) => {
+					pinData = this.collectPinDataFromNode(node, pinData);
+				});
+			} else if (chainNode?.config?.pinData) {
+				// Regular node with pinData
+				pinData = this.collectPinDataFromNode(chainNode, pinData);
 			}
 		}
 		return pinData;
@@ -237,14 +186,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		return existingPinData;
 	}
 
-	add<
-		N extends
-			| NodeInstance<string, string, unknown>
-			| TriggerInstance<string, string, unknown>
-			| NodeChain
-			| IfElseBuilder<unknown>
-			| SwitchCaseBuilder<unknown>,
-	>(node: N): WorkflowBuilder {
+	add(node: unknown): WorkflowBuilder {
 		const newNodes = new Map(this._nodes);
 
 		// Handle plain array (fan-out)
@@ -353,9 +295,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		});
 	}
 
-	then<N extends NodeInstance<string, string, unknown>>(
-		nodeOrComposite: N | N[] | IfElseComposite | SwitchCaseComposite | NodeChain,
-	): WorkflowBuilder {
+	then(nodeOrComposite: unknown): WorkflowBuilder {
 		// Handle array of nodes (fan-out pattern)
 		if (Array.isArray(nodeOrComposite)) {
 			return this.handleFanOut(nodeOrComposite);
@@ -399,7 +339,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 
 		// At this point, plugin dispatch handled all composite types (IfElse, SwitchCase, Merge, SplitInBatches).
 		// Remaining type is a regular NodeInstance.
-		const node = nodeOrComposite as N;
+		const node = nodeOrComposite as NodeInstance<string, string, unknown>;
 		const newNodes = new Map(this._nodes);
 
 		// Check if node already exists in the workflow (cycle connection)
@@ -955,22 +895,23 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 
 			// Check connections declared via node's .then() (instance-level connections)
 			if (typeof graphNode.instance.getConnections === 'function') {
+				const registry = this._registry ?? pluginRegistry;
 				const connections = graphNode.instance.getConnections();
 				for (const conn of connections) {
 					// Get the target node name
 					// For NodeChains, use head.name (entry point of the chain)
 					if (isNodeChain(conn.target)) {
 						nodesWithIncoming.add(conn.target.head.name);
-					} else if (isSwitchCaseBuilder(conn.target)) {
-						// SwitchCaseBuilder wraps a switch node
-						nodesWithIncoming.add(conn.target.switchNode.name);
-					} else if (isIfElseBuilder(conn.target)) {
-						// IfElseBuilder wraps an if node
-						nodesWithIncoming.add(conn.target.ifNode.name);
-					} else if (typeof conn.target === 'object' && 'name' in conn.target) {
-						nodesWithIncoming.add(conn.target.name);
 					} else {
-						nodesWithIncoming.add(String(conn.target));
+						// Try composite resolution via registry
+						const compositeHeadName = registry.resolveCompositeHeadName(conn.target);
+						if (compositeHeadName !== undefined) {
+							nodesWithIncoming.add(compositeHeadName);
+						} else if (typeof conn.target === 'object' && 'name' in conn.target) {
+							nodesWithIncoming.add(conn.target.name);
+						} else {
+							nodesWithIncoming.add(String(conn.target));
+						}
 					}
 				}
 			}
@@ -1217,7 +1158,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 
 	/**
 	 * Resolve the target node name from a connection target.
-	 * Handles NodeInstance, NodeChain, and composites (SwitchCaseComposite, IfElseComposite).
+	 * Handles NodeInstance, NodeChain, and composites (via registry's resolveCompositeHeadName).
 	 * Returns the map key (which may differ from instance.name for renamed duplicates).
 	 * @param nameMapping - Optional map from node ID to actual map key (used when nodes are renamed during addBranchToGraph)
 	 */
@@ -1252,30 +1193,11 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			return getNodeName(target.head);
 		}
 
-		// Check for SwitchCaseComposite
-		if (isSwitchCaseComposite(target)) {
-			return getNodeName((target as SwitchCaseComposite).switchNode);
-		}
-
-		// Check for IfElseComposite
-		if (isIfElseComposite(target)) {
-			return getNodeName((target as IfElseComposite).ifNode);
-		}
-
-		// Check for IfElseBuilder (fluent API)
-		if (isIfElseBuilder(target)) {
-			return getNodeName((target as IfElseBuilder<unknown>).ifNode);
-		}
-
-		// Check for SwitchCaseBuilder (fluent API)
-		if (isSwitchCaseBuilder(target)) {
-			return getNodeName((target as SwitchCaseBuilder<unknown>).switchNode);
-		}
-
-		// Check for SplitInBatchesBuilder or its chains (EachChainImpl/DoneChainImpl)
-		if (isSplitInBatchesBuilder(target)) {
-			const builder = extractSplitInBatchesBuilder(target);
-			return getNodeName(builder.sibNode);
+		// Try registry resolution for composites (IfElse, SwitchCase, SplitInBatches)
+		const registry = this._registry ?? pluginRegistry;
+		const compositeHeadName = registry.resolveCompositeHeadName(target, nameMapping);
+		if (compositeHeadName !== undefined) {
+			return compositeHeadName;
 		}
 
 		// Check for InputTarget - return the referenced node's name
@@ -1297,14 +1219,11 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		chain: NodeChain,
 		nameMapping?: Map<string, string>,
 	): void {
+		const registry = this._registry ?? pluginRegistry;
 		const connections = chain.getConnections();
 		for (const { target } of connections) {
-			// Skip if target is a composite or builder (already handled elsewhere)
-			if (isSwitchCaseComposite(target)) continue;
-			if (isIfElseComposite(target)) continue;
-			if (isSplitInBatchesBuilder(target)) continue;
-			if (isIfElseBuilder(target)) continue;
-			if (isSwitchCaseBuilder(target)) continue;
+			// Skip if target is a composite type (already handled by plugin dispatch elsewhere)
+			if (registry.isCompositeType(target)) continue;
 
 			// Handle NodeChains - use addBranchToGraph to add all nodes with their connections
 			if (isNodeChain(target)) {
@@ -1346,14 +1265,11 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 		// Check if node has getConnections method (some composites don't)
 		if (typeof nodeInstance.getConnections !== 'function') return;
 
+		const registry = this._registry ?? pluginRegistry;
 		const connections = nodeInstance.getConnections();
 		for (const { target } of connections) {
-			// Skip if target is a composite or builder (already handled elsewhere)
-			if (isSwitchCaseComposite(target)) continue;
-			if (isIfElseComposite(target)) continue;
-			if (isSplitInBatchesBuilder(target)) continue;
-			if (isIfElseBuilder(target)) continue;
-			if (isSwitchCaseBuilder(target)) continue;
+			// Skip if target is a composite type (already handled by plugin dispatch elsewhere)
+			if (registry.isCompositeType(target)) continue;
 
 			// Handle NodeChains - use addBranchToGraph to add all nodes with their connections
 			if (isNodeChain(target)) {
@@ -1685,9 +1601,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 	 * For IF/Switch nodes, each array element maps to a different output index (branching).
 	 * For regular nodes, all targets connect from the same output (fan-out).
 	 */
-	private handleFanOut<N extends NodeInstance<string, string, unknown>>(
-		nodes: N[],
-	): WorkflowBuilder {
+	private handleFanOut(nodes: unknown[]): WorkflowBuilder {
 		if (nodes.length === 0) {
 			return this;
 		}
@@ -1712,7 +1626,10 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 
 			// Use addBranchToGraph to handle NodeChains properly
 			// This returns the head node name for connection
-			const headNodeName = this.addBranchToGraph(newNodes, node);
+			const headNodeName = this.addBranchToGraph(
+				newNodes,
+				node as NodeInstance<string, string, unknown>,
+			);
 
 			// Connect from current node to the head of this target (branch)
 			if (this._currentNode && currentGraphNode) {
@@ -1731,12 +1648,12 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 
 		// Set the last non-null node in the array as the current node (for continued chaining)
 		// For NodeChains, use the tail node name (if tail is not null)
-		const nonNullNodes = nodes.filter((n): n is NonNullable<typeof n> => n !== null);
+		const nonNullNodes = nodes.filter((n): n is NonNullable<unknown> => n !== null);
 		const lastNode = nonNullNodes[nonNullNodes.length - 1];
 		const lastNodeName = lastNode
 			? isNodeChain(lastNode)
 				? (lastNode.tail?.name ?? this._currentNode)
-				: lastNode.name
+				: (lastNode as NodeInstance<string, string, unknown>).name
 			: this._currentNode;
 
 		return this.clone({
@@ -1797,6 +1714,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 	): string {
 		// Create nameMapping if not passed (tracks node ID -> actual map key for renamed nodes)
 		const effectiveNameMapping = nameMapping ?? new Map<string, string>();
+		const registry = this._registry ?? pluginRegistry;
 
 		// Try plugin dispatch first - handles all composite types
 		const pluginResult = this.tryPluginDispatch(nodes, branch, effectiveNameMapping);
@@ -1814,14 +1732,10 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 				}
 
 				// Skip invalid objects that aren't valid nodes or composites
+				// An object is valid if it has a 'name' property (NodeInstance) or is a registered composite type
 				if (
 					typeof chainNode !== 'object' ||
-					(!('name' in chainNode) &&
-						!isSwitchCaseComposite(chainNode) &&
-						!isIfElseComposite(chainNode) &&
-						!isSplitInBatchesBuilder(chainNode) &&
-						!isIfElseBuilder(chainNode) &&
-						!isSwitchCaseBuilder(chainNode))
+					(!('name' in chainNode) && !registry.isCompositeType(chainNode))
 				) {
 					continue;
 				}
@@ -1850,17 +1764,12 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 					}
 
 					// Get the actual node instance that might have connections
-					// For SplitInBatchesBuilder, skip - connections to SIB are handled differently
-					let nodeToCheck: NodeInstance<string, string, unknown> | null = null;
-					let nodeName: string | null = null;
-
-					if (isSplitInBatchesBuilder(chainNode)) {
-						// SplitInBatchesBuilder doesn't have getConnections - skip
+					// Nodes without getConnections (like SplitInBatchesBuilder) are skipped
+					if (typeof chainNode.getConnections !== 'function') {
 						continue;
-					} else if (typeof chainNode.getConnections === 'function') {
-						nodeToCheck = chainNode;
-						nodeName = chainNode.name;
 					}
+					const nodeToCheck = chainNode;
+					const nodeName = chainNode.name;
 
 					if (nodeToCheck && nodeName && typeof nodeToCheck.getConnections === 'function') {
 						const nodeConns = nodeToCheck.getConnections();

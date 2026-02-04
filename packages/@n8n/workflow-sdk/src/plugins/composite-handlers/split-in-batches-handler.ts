@@ -70,6 +70,23 @@ export const splitInBatchesHandler: CompositeHandlerPlugin<SplitInBatchesBuilder
 		return isSplitInBatchesBuilderShape(input);
 	},
 
+	getHeadNodeName(input: SplitInBatchesBuilderShape): { name: string; id: string } {
+		return { name: input.sibNode.name, id: input.sibNode.id };
+	},
+
+	collectPinData(
+		input: SplitInBatchesBuilderShape,
+		collector: (node: NodeInstance<string, string, unknown>) => void,
+	): void {
+		// Collect from SIB node
+		collector(input.sibNode);
+
+		// Note: We don't collect from _doneTarget/_eachTarget here because they are
+		// handled via addBranchToGraph which processes them as chains/composites.
+		// The pin data for those nodes will be collected when they are visited
+		// in the chain's allNodes iteration.
+	},
+
 	addNodes(input: SplitInBatchesBuilderShape, ctx: MutablePluginContext): string {
 		// Check if we're already processing this builder (prevents infinite recursion)
 		// This happens when onEachBatch chain loops back to the same SIB builder
