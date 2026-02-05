@@ -21,6 +21,9 @@ export interface EventPayloadAudit extends AbstractEventPayload {
 	workflowId?: string;
 	workflowName?: string;
 	activeVersionId?: string | null;
+	versionId?: string;
+	versionName?: string | null;
+	versionDescription?: string | null;
 	settingsChanged?: Record<string, { from: JsonValue; to: JsonValue }>;
 	variableId?: string;
 	variableKey?: string;

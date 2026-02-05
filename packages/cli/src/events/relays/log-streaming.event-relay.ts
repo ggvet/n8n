@@ -34,6 +34,7 @@ export class LogStreamingEventRelay extends EventRelay {
 			'workflow-activated': (event) => this.workflowActivated(event),
 			'workflow-deactivated': (event) => this.workflowDeactivated(event),
 			'workflow-saved': (event) => this.workflowSaved(event),
+			'workflow-version-updated': (event) => this.workflowVersionUpdated(event),
 			'workflow-pre-execute': (event) => this.workflowPreExecute(event),
 			'workflow-post-execute': (event) => this.workflowPostExecute(event),
 			'workflow-executed': (event) => this.workflowExecuted(event),
@@ -170,6 +171,28 @@ export class LogStreamingEventRelay extends EventRelay {
 				workflowId: workflow.id,
 				workflowName: workflow.name,
 				...(settingsChanged && { settingsChanged }),
+			},
+		});
+	}
+
+	@Redactable()
+	private workflowVersionUpdated({
+		user,
+		workflowId,
+		workflowName,
+		versionId,
+		versionName,
+		versionDescription,
+	}: RelayEventMap['workflow-version-updated']) {
+		void this.eventBus.sendAuditEvent({
+			eventName: 'n8n.audit.workflow.version.updated',
+			payload: {
+				...user,
+				workflowId,
+				workflowName,
+				versionId,
+				...(versionName !== undefined && { versionName }),
+				...(versionDescription !== undefined && { versionDescription }),
 			},
 		});
 	}

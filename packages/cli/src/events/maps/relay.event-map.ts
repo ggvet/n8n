@@ -149,6 +149,15 @@ export type RelayEventMap = {
 			| 'chat';
 	};
 
+	'workflow-version-updated': {
+		user: UserLike;
+		workflowId: string;
+		workflowName: string;
+		versionId: string;
+		versionName?: string | null;
+		versionDescription?: string | null;
+	};
+
 	// #endregion
 
 	// #region Node
