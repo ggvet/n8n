@@ -13,13 +13,6 @@ import {
 } from '../../src';
 import { parseSSEStream } from '../../src/utils/sse';
 
-// =============================================================================
-// OpenAI API Types
-// =============================================================================
-
-/**
- * OpenAI API tool definition
- */
 export type OpenAITool =
 	| {
 			type: 'function';
@@ -32,14 +25,8 @@ export type OpenAITool =
 			type: 'web_search';
 	  };
 
-/**
- * OpenAI API tool choice
- */
 export type OpenAIToolChoice = 'auto' | 'required' | 'none' | { type: 'function'; name: string };
 
-/**
- * OpenAI Responses API request body
- */
 export interface OpenAIResponsesRequest {
 	model: string;
 	input: string | ResponsesInputItem[];
@@ -55,9 +42,6 @@ export interface OpenAIResponsesRequest {
 	metadata?: Record<string, unknown>;
 }
 
-/**
- * OpenAI Responses API response
- */
 export interface OpenAIResponsesResponse {
 	id: string;
 	object: string;
@@ -82,9 +66,6 @@ export interface OpenAIResponsesResponse {
 	service_tier?: string;
 }
 
-/**
- * OpenAI Responses API output item
- */
 export type ResponsesOutputItem =
 	| {
 			type: 'message';
@@ -111,9 +92,6 @@ export type ResponsesOutputItem =
 			}>;
 	  };
 
-/**
- * OpenAI streaming event types
- */
 export interface OpenAIStreamEvent {
 	type: string;
 	delta?: string;
@@ -122,9 +100,6 @@ export interface OpenAIStreamEvent {
 	response?: Record<string, unknown>;
 }
 
-/**
- * OpenAI API error response
- */
 export interface OpenAIErrorResponse {
 	error: {
 		message: string;
@@ -134,19 +109,11 @@ export interface OpenAIErrorResponse {
 	};
 }
 
-// =============================================================================
-// HTTP Helper Functions
-// =============================================================================
-
-/**
- * Make a POST request to OpenAI API
- */
 async function openAIFetch(
 	url: string,
 	apiKey: string,
 	body: OpenAIResponsesRequest,
 ): Promise<OpenAIResponsesResponse> {
-	// Remove undefined values from request body
 	const cleanedBody = Object.fromEntries(
 		Object.entries(body).filter(([_, value]) => value !== undefined),
 	);
@@ -173,15 +140,11 @@ async function openAIFetch(
 	return (await response.json()) as OpenAIResponsesResponse;
 }
 
-/**
- * Make a streaming POST request to OpenAI API
- */
 async function openAIFetchStream(
 	url: string,
 	apiKey: string,
 	body: OpenAIResponsesRequest,
 ): Promise<ReadableStream<Uint8Array>> {
-	// Remove undefined values from request body
 	const cleanedBody = Object.fromEntries(
 		Object.entries(body).filter(([_, value]) => value !== undefined),
 	);
@@ -212,35 +175,23 @@ async function openAIFetchStream(
 	return response.body;
 }
 
-/**
- * Parse OpenAI streaming events from SSE stream
- * Uses the robust SSE parser and extracts OpenAI-specific event data
- */
 async function* parseOpenAIStreamEvents(
 	body: ReadableStream<Uint8Array>,
 ): AsyncIterable<OpenAIStreamEvent> {
 	for await (const message of parseSSEStream(body)) {
-		// OpenAI sends events in the data field
 		if (!message.data) continue;
-
-		// Skip [DONE] marker
 		if (message.data === '[DONE]') continue;
 
 		try {
 			const event = JSON.parse(message.data);
 			yield event as OpenAIStreamEvent;
 		} catch (e) {
-			// Skip invalid JSON - log warning in development
 			if (process.env.NODE_ENV !== 'production') {
 				console.warn('Failed to parse OpenAI SSE event:', message.data);
 			}
 		}
 	}
 }
-
-// =============================================================================
-// OpenAI Responses API – input/output conversion
-// =============================================================================
 
 type ResponsesInputItem =
 	| { role: 'user'; content: string }
@@ -258,10 +209,6 @@ type ResponsesInputItem =
 	  }
 	| { type: 'function_call_output'; call_id: string; output: string };
 
-/**
- * Convert N8nMessage[] to OpenAI Responses API input and instructions.
- * @see https://platform.openai.com/docs/api-reference/responses/create
- */
 function genericMessagesToResponsesInput(messages: Message[]): {
 	instructions?: string;
 	input: string | ResponsesInputItem[];
@@ -292,7 +239,6 @@ function genericMessagesToResponsesInput(messages: Message[]): {
 
 		if (msg.role === 'ai') {
 			for (const contentPart of msg.content) {
-				// Otherwise reconstruct from message content
 				if (contentPart.type === 'text') {
 					inputItems.push({
 						type: 'message',
@@ -361,9 +307,6 @@ function genericMessagesToResponsesInput(messages: Message[]): {
 	return { instructions, input: inputItems };
 }
 
-/**
- * Convert N8nTool to OpenAI Responses API function tool format.
- */
 function genericToolToResponsesTool(tool: Tool): OpenAITool {
 	if (tool.type === 'provider') {
 		if (tool.name === 'web_search') {
@@ -384,9 +327,6 @@ function genericToolToResponsesTool(tool: Tool): OpenAITool {
 	};
 }
 
-/**
- * Parse Responses API output array into text and tool calls.
- */
 function parseResponsesOutput(output: unknown[]): {
 	text: string;
 	toolCalls: ToolCall[];
@@ -422,9 +362,6 @@ function parseResponsesOutput(output: unknown[]): {
 	return { text, toolCalls };
 }
 
-/**
- * Parse OpenAI Responses API usage into TokenUsage.
- */
 function parseTokenUsage(
 	usage: OpenAIResponsesResponse['usage'] | undefined,
 ): TokenUsage | undefined {
@@ -447,32 +384,11 @@ function parseTokenUsage(
 		: undefined;
 }
 
-// =============================================================================
-// OpenAI Chat Model (Responses API)
-// =============================================================================
-
 export interface OpenAIChatModelConfig extends ChatModelConfig {
-	/**
-	 * OpenAI API key (defaults to process.env.OPENAI_API_KEY)
-	 */
 	apiKey?: string;
-
-	/**
-	 * Base URL for the API (optional, for proxies)
-	 */
 	baseURL?: string;
 }
 
-/**
- * N8n chat model implementation using the OpenAI Responses API.
- * Supports text, tools (function calling), and streaming.
- *
- * Note: This model does NOT execute tools automatically. When tool calls are
- * returned by the model, they are passed to the framework (e.g., LangChain)
- * which handles tool execution via its agent loop.
- *
- * @see https://platform.openai.com/docs/api-reference/responses/create
- */
 export class OpenAIChatModel extends BaseChatModel<OpenAIChatModelConfig> {
 	private apiKey: string;
 	private baseURL: string;
@@ -510,7 +426,6 @@ export class OpenAIChatModel extends BaseChatModel<OpenAIChatModelConfig> {
 
 		const usage = parseTokenUsage(response.usage);
 
-		// Build response metadata
 		const responseMetadata: Record<string, unknown> = {
 			model_provider: 'openai',
 			model: response.model,
@@ -523,11 +438,9 @@ export class OpenAIChatModel extends BaseChatModel<OpenAIChatModelConfig> {
 			user: response.user,
 			service_tier: response.service_tier,
 			model_name: response.model,
-			// Store raw output for reconstructing messages later
 			output: response.output,
 		};
 
-		// Parse output for reasoning and other content
 		for (const item of response.output as unknown[]) {
 			const o = item as Record<string, unknown>;
 			if (o.type === 'reasoning') {
@@ -535,7 +448,6 @@ export class OpenAIChatModel extends BaseChatModel<OpenAIChatModelConfig> {
 			}
 		}
 
-		// Create the message object
 		const message: Message = {
 			role: 'ai',
 			content: [{ type: 'text', text }],
@@ -581,7 +493,6 @@ export class OpenAIChatModel extends BaseChatModel<OpenAIChatModelConfig> {
 
 		const toolCallBuffers: Record<number, { name: string; arguments: string }> = {};
 
-		// Parse SSE stream
 		for await (const event of parseOpenAIStreamEvents(streamBody)) {
 			const type = event.type;
 
@@ -601,7 +512,6 @@ export class OpenAIChatModel extends BaseChatModel<OpenAIChatModelConfig> {
 						arguments: (item.arguments as string) ?? '',
 					};
 				}
-				// Handle reasoning items
 				if (item?.type === 'reasoning') {
 					const summary = (item.summary as Array<Record<string, unknown>>) ?? [];
 					const reasoningText = summary
