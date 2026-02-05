@@ -148,6 +148,8 @@ const groups = computed<SelectItemProps[]>(() => {
 
 		<SelectPortal>
 			<SelectContent :class="$style.selectContent">
+				<slot name="header" />
+
 				<SelectScrollUpButton :class="$style.selectScrollButton">
 					<Icon icon="chevron-up" />
 				</SelectScrollUpButton>

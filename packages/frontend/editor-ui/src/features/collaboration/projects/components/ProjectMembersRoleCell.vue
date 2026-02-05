@@ -1,7 +1,14 @@
 <script lang="ts" setup>
-import { N8nBadge, N8nIcon, N8nSelect2, N8nSelect2Item, N8nText } from '@n8n/design-system';
+import {
+	N8nBadge,
+	N8nIcon,
+	N8nInput,
+	N8nSelect2,
+	N8nSelect2Item,
+	N8nText,
+} from '@n8n/design-system';
 import type { AllRolesMap, Role } from '@n8n/permissions';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from '@n8n/i18n';
 import { VIEWS } from '@/app/constants';
@@ -38,6 +45,14 @@ const usersStore = useUsersStore();
 const dropdownOpen = ref(false);
 const contactAdminModalVisible = ref(false);
 const upgradeModalVisible = ref(false);
+const searchQuery = ref('');
+
+// Clear search when dropdown closes
+watch(dropdownOpen, (open) => {
+	if (!open) {
+		searchQuery.value = '';
+	}
+});
 
 const closeDropdown = () => {
 	dropdownOpen.value = false;
@@ -56,17 +71,30 @@ const isAdminOrOwner = computed(() => usersStore.isInstanceOwner || usersStore.i
 const systemRoles = computed(() => props.roles.filter((role) => role.systemRole));
 const customRoles = computed(() => props.roles.filter((role) => !role.systemRole));
 
+// Filter roles based on search query
+const filteredSystemRoles = computed(() => {
+	const query = searchQuery.value.toLowerCase().trim();
+	if (!query) return systemRoles.value;
+	return systemRoles.value.filter((role) => role.displayName.toLowerCase().includes(query));
+});
+
+const filteredCustomRoles = computed(() => {
+	const query = searchQuery.value.toLowerCase().trim();
+	if (!query) return customRoles.value;
+	return customRoles.value.filter((role) => role.displayName.toLowerCase().includes(query));
+});
+
 // Build items for N8nSelect2 with section labels
 const roleItems = computed<RoleSelectItem[]>(() => {
 	const items: RoleSelectItem[] = [];
 
 	// System roles section
-	if (systemRoles.value.length > 0) {
+	if (filteredSystemRoles.value.length > 0) {
 		items.push({
 			type: 'label',
 			label: i18n.baseText('projects.settings.role.selector.section.system'),
 		});
-		systemRoles.value.forEach((role) => {
+		filteredSystemRoles.value.forEach((role) => {
 			items.push({
 				value: role.slug,
 				label: role.displayName,
@@ -75,14 +103,14 @@ const roleItems = computed<RoleSelectItem[]>(() => {
 		});
 	}
 
-	// Custom roles section
-	items.push({
-		type: 'label',
-		label: i18n.baseText('projects.settings.role.selector.section.custom'),
-	});
+	// Custom roles section (always show label for upgrade badge)
+	if (filteredCustomRoles.value.length > 0 || !searchQuery.value) {
+		items.push({
+			type: 'label',
+			label: i18n.baseText('projects.settings.role.selector.section.custom'),
+		});
 
-	if (customRoles.value.length > 0) {
-		customRoles.value.forEach((role) => {
+		filteredCustomRoles.value.forEach((role) => {
 			items.push({
 				value: role.slug,
 				label: role.displayName,
@@ -145,6 +173,20 @@ const onAddCustomRoleClick = () => {
 				</span>
 			</template>
 
+			<!-- Search input header -->
+			<template #header>
+				<div :class="$style.searchContainer">
+					<N8nInput
+						v-model="searchQuery"
+						:placeholder="i18n.baseText('generic.search')"
+						size="small"
+						:class="$style.searchInput"
+						@click.stop
+						@keydown.stop
+					/>
+				</div>
+			</template>
+
 			<!-- Custom item rendering with hover popover -->
 			<template #item="{ item }">
 				<template v-if="(item as RoleSelectItem).role">
@@ -153,7 +195,7 @@ const onAddCustomRoleClick = () => {
 							<template #item-label>
 								<N8nText
 									tag="span"
-									size="small"
+									size="medium"
 									:color="item.disabled ? 'text-light' : 'text-dark'"
 								>
 									{{ item.label }}
@@ -223,6 +265,20 @@ const onAddCustomRoleClick = () => {
 <style lang="scss" module>
 .container {
 	display: inline-block;
+}
+
+.searchContainer {
+	border-bottom: var(--border);
+}
+
+.searchInput {
+	width: 100%;
+
+	:global(.el-input__wrapper) {
+		border: none;
+		border-radius: 0;
+		box-shadow: none;
+	}
 }
 
 .roleSelect {

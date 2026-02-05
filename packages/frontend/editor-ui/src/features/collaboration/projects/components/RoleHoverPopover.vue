@@ -95,6 +95,7 @@ const onButtonClick = () => {
 		placement="right"
 		:show-after="300"
 		:enterable="true"
+		:offset="1"
 		content-class="role-hover-popover"
 	>
 		<slot />
@@ -158,11 +159,14 @@ const onButtonClick = () => {
 /* Global styles to override default tooltip styling for role popover */
 .role-hover-popover {
 	max-width: 280px !important;
-	background: var(--color--background) !important;
+	background: var(--color--background--light-2) !important;
 	color: var(--color--text) !important;
+	border: var(--border) !important;
+	border-radius: var(--radius--sm) !important;
+	box-shadow: var(--shadow) !important;
 
 	svg {
-		fill: var(--color--background) !important;
+		fill: var(--color--background--light-2) !important;
 	}
 }
 </style>
