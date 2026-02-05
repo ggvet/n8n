@@ -2,20 +2,22 @@
 import { N8nButton } from '@n8n/design-system';
 import CredentialIcon from './CredentialIcon.vue';
 import GoogleAuthButton from './CredentialEdit/GoogleAuthButton.vue';
+import { useCredentialOAuth } from '../composables/useCredentialOAuth';
 
 defineProps<{
 	credentialTypeName: string;
 	buttonText: string;
-	isGoogle: boolean;
 }>();
 
 defineEmits<{
 	click: [];
 }>();
+
+const { isGoogleOAuthType } = useCredentialOAuth();
 </script>
 
 <template>
-	<GoogleAuthButton v-if="isGoogle" @click="$emit('click')" />
+	<GoogleAuthButton v-if="isGoogleOAuthType(credentialTypeName)" @click="$emit('click')" />
 	<N8nButton
 		v-else
 		size="large"
