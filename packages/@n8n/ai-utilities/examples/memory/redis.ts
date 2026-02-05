@@ -14,9 +14,11 @@ export interface RedisConfig {
 }
 
 export interface RedisConnection {
-	get(key: string): Promise<string | null>;
-	set(key: string, value: string, options?: { ex?: number }): Promise<void>;
+	// List operations (atomic)
+	rpush(key: string, ...values: string[]): Promise<number>;
+	lrange(key: string, start: number, stop: number): Promise<string[]>;
 	del(key: string): Promise<void>;
+	expire(key: string, seconds: number): Promise<void>;
 	quit(): Promise<void>;
 }
 
@@ -41,41 +43,49 @@ export interface RedisConnection {
  *   });
  *
  *   return {
- *     async get(key) { return client.get(key); },
- *     async set(key, value, options) {
- *       if (options?.ex) {
- *         await client.set(key, value, 'EX', options.ex);
- *       } else {
- *         await client.set(key, value);
- *       }
- *     },
+ *     async rpush(key, ...values) { return client.rpush(key, ...values); },
+ *     async lrange(key, start, stop) { return client.lrange(key, start, stop); },
  *     async del(key) { await client.del(key); },
+ *     async expire(key, seconds) { await client.expire(key, seconds); },
  *     async quit() { await client.quit(); },
  *   };
  * }
  * ```
  */
 export function createRedisConnection(_config: RedisConfig): RedisConnection {
-	const storage = new Map<string, { value: string; expiresAt?: number }>();
+	const storage = new Map<string, { values: string[]; expiresAt?: number }>();
 
 	return {
-		async get(key: string): Promise<string | null> {
-			const entry = storage.get(key);
-			if (!entry) return null;
-			if (entry.expiresAt && Date.now() > entry.expiresAt) {
-				storage.delete(key);
-				return null;
+		async rpush(key: string, ...values: string[]): Promise<number> {
+			let entry = storage.get(key);
+			if (!entry || (entry.expiresAt && Date.now() > entry.expiresAt)) {
+				entry = { values: [] };
+				storage.set(key, entry);
 			}
-			return entry.value;
+			entry.values.push(...values);
+			return entry.values.length;
 		},
 
-		async set(key: string, value: string, options?: { ex?: number }): Promise<void> {
-			const expiresAt = options?.ex ? Date.now() + options.ex * 1000 : undefined;
-			storage.set(key, { value, expiresAt });
+		async lrange(key: string, start: number, stop: number): Promise<string[]> {
+			const entry = storage.get(key);
+			if (!entry) return [];
+			if (entry.expiresAt && Date.now() > entry.expiresAt) {
+				storage.delete(key);
+				return [];
+			}
+			const end = stop === -1 ? entry.values.length : stop + 1;
+			return entry.values.slice(start, end);
 		},
 
 		async del(key: string): Promise<void> {
 			storage.delete(key);
+		},
+
+		async expire(key: string, seconds: number): Promise<void> {
+			const entry = storage.get(key);
+			if (entry) {
+				entry.expiresAt = Date.now() + seconds * 1000;
+			}
 		},
 
 		async quit(): Promise<void> {
@@ -92,6 +102,10 @@ export interface RedisChatHistoryConfig extends RedisConfig {
 	sessionId: string;
 }
 
+/**
+ * Redis chat history using list operations for atomic appends.
+ * Each message is stored as a separate list element, avoiding race conditions.
+ */
 export class RedisChatHistory extends BaseChatHistory {
 	private readonly redis: RedisConnection;
 	private readonly key: string;
@@ -107,35 +121,36 @@ export class RedisChatHistory extends BaseChatHistory {
 	}
 
 	async getMessages(): Promise<Message[]> {
-		const data = await this.redis.get(this.key);
-		if (!data) return [];
-
-		try {
-			return JSON.parse(data) as Message[];
-		} catch {
-			return [];
-		}
+		const items = await this.redis.lrange(this.key, 0, -1);
+		return items
+			.map((item) => {
+				try {
+					return JSON.parse(item) as Message;
+				} catch {
+					return null;
+				}
+			})
+			.filter((m): m is Message => m !== null);
 	}
 
 	async addMessage(message: Message): Promise<void> {
-		const messages = await this.getMessages();
-		messages.push(message);
-		await this.saveMessages(messages);
+		await this.redis.rpush(this.key, JSON.stringify(message));
+		if (this.ttlSeconds) {
+			await this.redis.expire(this.key, this.ttlSeconds);
+		}
 	}
 
 	async addMessages(messages: Message[]): Promise<void> {
-		const existing = await this.getMessages();
-		existing.push(...messages);
-		await this.saveMessages(existing);
+		if (messages.length === 0) return;
+		const serialized = messages.map((m) => JSON.stringify(m));
+		await this.redis.rpush(this.key, ...serialized);
+		if (this.ttlSeconds) {
+			await this.redis.expire(this.key, this.ttlSeconds);
+		}
 	}
 
 	async clear(): Promise<void> {
 		await this.redis.del(this.key);
-	}
-
-	private async saveMessages(messages: Message[]): Promise<void> {
-		const data = JSON.stringify(messages);
-		await this.redis.set(this.key, data, this.ttlSeconds ? { ex: this.ttlSeconds } : undefined);
 	}
 }
 

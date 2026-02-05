@@ -1,4 +1,7 @@
-import { InMemoryChatHistory } from '../../memory/in-memory-chat-history';
+import {
+	InMemoryChatHistory,
+	resetInMemoryChatHistorySessions,
+} from '../../memory/in-memory-chat-history';
 import type { Message } from '../../types/message';
 
 describe('InMemoryChatHistory', () => {
@@ -8,7 +11,7 @@ describe('InMemoryChatHistory', () => {
 	});
 
 	afterEach(() => {
-		// Clear any sessions between tests
+		resetInMemoryChatHistorySessions();
 	});
 
 	describe('getMessages', () => {

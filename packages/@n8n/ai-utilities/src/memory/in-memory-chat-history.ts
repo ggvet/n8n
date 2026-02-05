@@ -24,6 +24,12 @@ class InMemoryChatHistoryManager {
 		return InMemoryChatHistoryManager.instance;
 	}
 
+	static resetInstance(): void {
+		if (InMemoryChatHistoryManager.instance) {
+			InMemoryChatHistoryManager.instance.sessions.clear();
+		}
+	}
+
 	getSession(sessionId: string): Message[] {
 		this.cleanupStaleSessions();
 
@@ -56,6 +62,11 @@ class InMemoryChatHistoryManager {
 			}
 		}
 	}
+}
+
+/** Reset all in-memory sessions. For testing only. */
+export function resetInMemoryChatHistorySessions(): void {
+	InMemoryChatHistoryManager.resetInstance();
 }
 
 /** In-memory storage with session isolation. Messages are lost on restart. */
