@@ -20,14 +20,14 @@ describe('expression-annotator', () => {
 		});
 
 		it('truncates long string values', () => {
-			const longValue = 'a'.repeat(60);
+			const longValue = 'a'.repeat(300);
 			const expressionValues: Record<string, ExpressionValue[]> = {
 				Node: [{ expression: '={{ $json.data }}', resolvedValue: longValue }],
 			};
 
 			const result = buildExpressionAnnotations(expressionValues);
 
-			expect(result.get('={{ $json.data }}')).toBe('"' + 'a'.repeat(50) + '..."');
+			expect(result.get('={{ $json.data }}')).toBe('"' + 'a'.repeat(250) + '..."');
 		});
 
 		it('handles boolean values', () => {

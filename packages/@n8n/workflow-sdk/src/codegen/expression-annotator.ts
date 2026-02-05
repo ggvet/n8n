@@ -28,7 +28,7 @@ function formatResolvedValue(value: unknown): string {
 		return 'null';
 	}
 	if (typeof value === 'string') {
-		const maxLen = 50;
+		const maxLen = 250;
 		return value.length > maxLen ? `"${value.slice(0, maxLen)}..."` : `"${value}"`;
 	}
 	if (typeof value === 'number' || typeof value === 'boolean') {
