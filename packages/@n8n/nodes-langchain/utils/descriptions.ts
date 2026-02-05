@@ -144,7 +144,9 @@ export const promptTypeOptions: INodeProperties = {
 		},
 	],
 	default: 'auto',
-	builderHint: "Use 'auto' when following a chat trigger, 'define' when custom prompt needed",
+	builderHint: {
+		message: "Use 'auto' when following a chat trigger, 'define' when custom prompt needed",
+	},
 };
 
 export const textInput: INodeProperties = {
@@ -157,8 +159,10 @@ export const textInput: INodeProperties = {
 	typeOptions: {
 		rows: 2,
 	},
-	builderHint:
-		'Use expressions to include dynamic data from previous nodes (e.g., "={{ $json.input }}"). Static text prompts ignore incoming data.',
+	builderHint: {
+		message:
+			'Use expressions to include dynamic data from previous nodes (e.g., "={{ $json.input }}"). Static text prompts ignore incoming data.',
+	},
 };
 
 export const textFromPreviousNode: INodeProperties = {

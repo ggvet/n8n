@@ -217,7 +217,7 @@ describe('extractModeDiscriminator', () => {
 								name: 'Mode A',
 								value: 'modeA',
 								description: 'Description of mode A',
-								builderHint: 'Use mode A when you want to do X',
+								builderHint: { message: 'Use mode A when you want to do X' },
 							},
 							{
 								name: 'Mode B',

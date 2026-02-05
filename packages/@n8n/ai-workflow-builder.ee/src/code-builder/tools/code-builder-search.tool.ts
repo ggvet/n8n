@@ -12,7 +12,7 @@
  */
 
 import { tool } from '@langchain/core/tools';
-import type { IRelatedNode } from 'n8n-workflow';
+import type { IParameterBuilderHint, IRelatedNode } from 'n8n-workflow';
 import { inspect } from 'node:util';
 import { z } from 'zod';
 
@@ -83,7 +83,7 @@ function isTriggerNodeType(type: string): boolean {
 interface DiscriminatorOperationInfo {
 	value: string;
 	description?: string;
-	builderHint?: string;
+	builderHint?: IParameterBuilderHint;
 }
 
 /**
@@ -92,7 +92,7 @@ interface DiscriminatorOperationInfo {
 interface DiscriminatorResourceInfo {
 	value: string;
 	description?: string;
-	builderHint?: string;
+	builderHint?: IParameterBuilderHint;
 	operations: DiscriminatorOperationInfo[];
 }
 

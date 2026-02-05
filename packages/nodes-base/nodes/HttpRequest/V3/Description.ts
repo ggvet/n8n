@@ -274,8 +274,10 @@ export const mainProperties: INodeProperties[] = [
 				specifyHeaders: ['keypair'],
 			},
 		},
-		builderHint:
-			'Set Auth headers by setting genericAuthType to httpHeaderAuth, creating a new credential',
+		builderHint: {
+			message:
+				'Set Auth headers by setting genericAuthType to httpHeaderAuth, creating a new credential',
+		},
 		typeOptions: {
 			multipleValues: true,
 			fixedCollection: {

@@ -17,12 +17,17 @@ import type * as GenerateTypesModule from '../generate-types/generate-types';
 // Type Definitions (Expected interfaces from the implementation)
 // =============================================================================
 
+interface ParameterBuilderHint {
+	message: string;
+	placeholderSupported?: boolean;
+}
+
 interface NestedOption {
 	name: string;
 	value?: string | number | boolean;
 	description?: string;
 	displayName?: string;
-	builderHint?: string;
+	builderHint?: ParameterBuilderHint;
 	values?: NodeProperty[];
 	type?: string;
 	default?: unknown;
@@ -36,7 +41,7 @@ interface NodeProperty {
 	type: string;
 	description?: string;
 	hint?: string;
-	builderHint?: string;
+	builderHint?: ParameterBuilderHint;
 	default?: unknown;
 	required?: boolean;
 	placeholder?: string;
@@ -683,7 +688,9 @@ describe('generate-types', () => {
 								name: 'field',
 								type: 'options',
 								description: 'Select the interval type',
-								builderHint: 'You can add multiple intervals to trigger at different times.',
+								builderHint: {
+									message: 'You can add multiple intervals to trigger at different times.',
+								},
 								options: [
 									{ name: 'Seconds', value: 'seconds' },
 									{ name: 'Minutes', value: 'minutes' },
@@ -711,7 +718,9 @@ describe('generate-types', () => {
 					{
 						name: 'interval',
 						displayName: 'Trigger Interval',
-						builderHint: 'You can add multiple intervals to trigger at different times.',
+						builderHint: {
+							message: 'You can add multiple intervals to trigger at different times.',
+						},
 						values: [
 							{
 								name: 'field',
@@ -1450,8 +1459,10 @@ describe('generate-types', () => {
 				displayName: 'Trigger Interval',
 				type: 'fixedCollection',
 				description: 'Configure when the workflow triggers',
-				builderHint:
-					'You can add multiple intervals to trigger at different times. Use Custom (Cron) for more specific scheduling patterns.',
+				builderHint: {
+					message:
+						'You can add multiple intervals to trigger at different times. Use Custom (Cron) for more specific scheduling patterns.',
+				},
 				default: {},
 			};
 			const result = generateTypes.generatePropertyJSDoc(prop);
@@ -1466,7 +1477,9 @@ describe('generate-types', () => {
 				displayName: 'Custom Code',
 				type: 'string',
 				description: 'Custom code to execute',
-				builderHint: 'See <a href="https://docs.example.com">documentation</a> for examples',
+				builderHint: {
+					message: 'See <a href="https://docs.example.com">documentation</a> for examples',
+				},
 				default: '',
 			};
 			const result = generateTypes.generatePropertyJSDoc(prop);

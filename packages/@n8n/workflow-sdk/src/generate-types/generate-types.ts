@@ -194,13 +194,18 @@ const AI_TYPE_TO_SUBNODE_FIELD: Record<
 // Type Definitions
 // =============================================================================
 
+export interface ParameterBuilderHint {
+	message: string;
+	placeholderSupported?: boolean;
+}
+
 export interface NodeProperty {
 	name: string;
 	displayName: string;
 	type: string;
 	description?: string;
 	hint?: string;
-	builderHint?: string;
+	builderHint?: ParameterBuilderHint;
 	default?: unknown;
 	required?: boolean;
 	options?: Array<{
@@ -208,7 +213,7 @@ export interface NodeProperty {
 		value?: string | number | boolean;
 		description?: string;
 		displayName?: string;
-		builderHint?: string;
+		builderHint?: ParameterBuilderHint;
 		values?: NodeProperty[];
 	}>;
 	displayOptions?: {
@@ -655,6 +660,9 @@ function mapNestedPropertyType(
 
 	switch (prop.type) {
 		case 'string':
+			if (prop.builderHint?.placeholderSupported === false) {
+				return 'string | Expression<string>';
+			}
 			return 'string | Expression<string> | PlaceholderValue';
 		case 'number':
 			return 'number | Expression<number>';
@@ -783,7 +791,7 @@ function generateNestedPropertyJSDoc(
 
 	// Builder hint - guidance for AI/workflow builders
 	if (prop.builderHint) {
-		const safeBuilderHint = prop.builderHint
+		const safeBuilderHint = prop.builderHint.message
 			.replace(/\*\//g, '*\\/')
 			.replace(/</g, '&lt;')
 			.replace(/>/g, '&gt;');
@@ -912,7 +920,7 @@ function generateFixedCollectionType(
 				groupJsDocLines.push(`${INDENT.repeat(2)}/** ${desc}`);
 			}
 			if (group.builderHint) {
-				const safeBuilderHint = group.builderHint
+				const safeBuilderHint = group.builderHint.message
 					.replace(/\*\//g, '*\\/')
 					.replace(/</g, '&lt;')
 					.replace(/>/g, '&gt;');
@@ -1068,6 +1076,9 @@ export function mapPropertyType(
 
 	switch (prop.type) {
 		case 'string':
+			if (prop.builderHint?.placeholderSupported === false) {
+				return 'string | Expression<string>';
+			}
 			return 'string | Expression<string> | PlaceholderValue';
 
 		case 'number':
@@ -1520,7 +1531,7 @@ export function generatePropertyJSDoc(
 
 	// Builder hint - guidance for AI/workflow builders
 	if (prop.builderHint) {
-		const safeBuilderHint = prop.builderHint
+		const safeBuilderHint = prop.builderHint.message
 			.replace(/\*\//g, '*\\/')
 			.replace(/</g, '&lt;')
 			.replace(/>/g, '&gt;');

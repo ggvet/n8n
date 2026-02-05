@@ -3,7 +3,12 @@
  * Used by the search tool to show available discriminators for split type files
  */
 
-import type { INodeProperties, INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
+import type {
+	INodeProperties,
+	INodeTypeDescription,
+	IParameterBuilderHint,
+	NodeConnectionType,
+} from 'n8n-workflow';
 
 /**
  * Represents a single mode option with its metadata
@@ -18,7 +23,7 @@ export interface ModeInfo {
 	/** The description of what this mode does */
 	description?: string;
 	/** Hint for the AI workflow builder on when to use this mode */
-	builderHint?: string;
+	builderHint?: IParameterBuilderHint;
 }
 
 /**
@@ -67,7 +72,7 @@ export function extractModeDiscriminator(
 				value: string;
 				outputConnectionType?: NodeConnectionType;
 				description?: string;
-				builderHint?: string;
+				builderHint?: IParameterBuilderHint;
 			} =>
 				typeof opt === 'object' && opt !== null && 'value' in opt && typeof opt.value === 'string',
 		)

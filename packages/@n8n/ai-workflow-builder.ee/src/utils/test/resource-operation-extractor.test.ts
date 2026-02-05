@@ -647,7 +647,7 @@ describe('resource-operation-extractor', () => {
 							name: 'Message',
 							value: 'message',
 							description: 'Work with email messages',
-							builderHint: 'Use for reading, sending, or managing emails',
+							builderHint: { message: 'Use for reading, sending, or managing emails' },
 						},
 						{
 							name: 'Draft',
@@ -667,7 +667,7 @@ describe('resource-operation-extractor', () => {
 							name: 'Send',
 							value: 'send',
 							description: 'Send an email message',
-							builderHint: 'Use to send composed emails to recipients',
+							builderHint: { message: 'Use to send composed emails to recipients' },
 						},
 						{
 							name: 'Get All',

@@ -2,6 +2,7 @@ import {
 	checkConditions,
 	type INodeProperties,
 	type INodeTypeDescription,
+	type IParameterBuilderHint,
 	type Logger,
 } from 'n8n-workflow';
 
@@ -12,7 +13,7 @@ export interface OperationInfo {
 	value: string;
 	displayName: string;
 	description?: string;
-	builderHint?: string;
+	builderHint?: IParameterBuilderHint;
 }
 
 /**
@@ -22,7 +23,7 @@ export interface ResourceInfo {
 	value: string;
 	displayName: string;
 	description?: string;
-	builderHint?: string;
+	builderHint?: IParameterBuilderHint;
 	operations: OperationInfo[];
 }
 
@@ -152,7 +153,12 @@ function extractOptions(
 	property: INodeProperties,
 	logger?: Logger,
 	options?: ExtractOptions,
-): Array<{ value: string; displayName: string; description?: string; builderHint?: string }> {
+): Array<{
+	value: string;
+	displayName: string;
+	description?: string;
+	builderHint?: IParameterBuilderHint;
+}> {
 	if (!property.options || !Array.isArray(property.options)) {
 		return [];
 	}
@@ -162,7 +168,14 @@ function extractOptions(
 
 	return property.options
 		.filter(
-			(opt): opt is { name: string; value: string; description?: string; builderHint?: string } => {
+			(
+				opt,
+			): opt is {
+				name: string;
+				value: string;
+				description?: string;
+				builderHint?: IParameterBuilderHint;
+			} => {
 				if (typeof opt !== 'object' || opt === null || !('name' in opt) || !('value' in opt)) {
 					return false;
 				}
