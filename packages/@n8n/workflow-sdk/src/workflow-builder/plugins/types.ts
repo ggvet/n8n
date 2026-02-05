@@ -64,6 +64,8 @@ export interface ValidationIssue {
 	readonly message: string;
 	/** Severity level: 'error' for fatal issues, 'warning' for non-fatal */
 	readonly severity: 'error' | 'warning';
+	/** Violation level for evaluation scoring (defaults to 'minor' if not set) */
+	readonly violationLevel?: 'critical' | 'major' | 'minor';
 	/** Name of the node where the issue was found (optional) */
 	readonly nodeName?: string;
 	/** Path to the parameter that caused the issue (optional) */

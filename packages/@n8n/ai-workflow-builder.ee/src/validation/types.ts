@@ -2,7 +2,7 @@ import type { INodeTypeDescription, NodeConnectionType } from 'n8n-workflow';
 
 import type { SimpleWorkflow } from '@/types';
 
-export type ProgrammaticViolationType = 'critical' | 'major' | 'minor' | 'suggestion';
+export type ProgrammaticViolationType = 'critical' | 'major' | 'minor';
 
 export const PROGRAMMATIC_VIOLATION_NAMES = [
 	'tool-node-has-no-parameters',

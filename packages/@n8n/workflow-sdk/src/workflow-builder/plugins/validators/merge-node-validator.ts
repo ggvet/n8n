@@ -78,6 +78,7 @@ export const mergeNodeValidator: ValidatorPlugin = {
 				code: 'MERGE_SINGLE_INPUT',
 				message: `'${mapKey}' has only ${inputCount} input connection(s). Merge nodes require at least 2 inputs.`,
 				severity: 'warning',
+				violationLevel: 'major',
 				nodeName: mapKey,
 			});
 		}

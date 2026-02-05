@@ -43,6 +43,7 @@ export const fromAiValidator: ValidatorPlugin = {
 				code: 'FROM_AI_IN_NON_TOOL',
 				message: `'${node.name}' uses $fromAI() which is only valid in tool nodes connected to an AI agent.`,
 				severity: 'warning',
+				violationLevel: 'major',
 				nodeName: node.name,
 			});
 		}

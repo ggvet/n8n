@@ -21,46 +21,19 @@ function codeToViolationName(code: string): ProgrammaticViolationName {
 }
 
 /**
- * Map validation warning/error codes to violation types
+ * Get violation type from a validation issue.
+ * Uses the violationLevel from the issue if present, otherwise defaults to 'minor'.
  */
-function getViolationType(code: string): 'critical' | 'major' | 'minor' | 'suggestion' {
-	// Errors are critical
-	if (code === 'NO_NODES') {
-		return 'critical';
-	}
-
-	// Major warnings that likely cause issues
-	if (
-		code === 'DISCONNECTED_NODE' ||
-		code === 'MERGE_SINGLE_INPUT' ||
-		code === 'FROM_AI_IN_NON_TOOL'
-	) {
-		return 'major';
-	}
-
-	// Minor warnings about best practices
-	if (
-		code === 'AGENT_STATIC_PROMPT' ||
-		code === 'AGENT_NO_SYSTEM_MESSAGE' ||
-		code === 'HARDCODED_CREDENTIALS' ||
-		code === 'SET_CREDENTIAL_FIELD' ||
-		code === 'TOOL_NO_PARAMETERS'
-	) {
-		return 'minor';
-	}
-
-	// Missing trigger is just a suggestion (workflows can be executed manually)
-	if (code === 'MISSING_TRIGGER') {
-		return 'suggestion';
-	}
-
-	return 'minor';
+function getViolationType(issue: {
+	violationLevel?: 'critical' | 'major' | 'minor';
+}): 'critical' | 'major' | 'minor' {
+	return issue.violationLevel ?? 'minor';
 }
 
 /**
  * Get points deducted for a violation based on its type
  */
-function getPointsDeducted(type: 'critical' | 'major' | 'minor' | 'suggestion'): number {
+function getPointsDeducted(type: 'critical' | 'major' | 'minor'): number {
 	switch (type) {
 		case 'critical':
 			return 25;
@@ -68,8 +41,6 @@ function getPointsDeducted(type: 'critical' | 'major' | 'minor' | 'suggestion'):
 			return 15;
 		case 'minor':
 			return 5;
-		case 'suggestion':
-			return 2;
 	}
 }
 
@@ -103,7 +74,7 @@ export function evaluateGraphValidation(generatedCode: string | undefined): Sing
 
 		// Convert errors to violations
 		for (const error of validation.errors) {
-			const violationType = getViolationType(error.code);
+			const violationType = getViolationType(error);
 			violations.push({
 				name: codeToViolationName(error.code),
 				type: violationType,
@@ -114,7 +85,7 @@ export function evaluateGraphValidation(generatedCode: string | undefined): Sing
 
 		// Convert warnings to violations
 		for (const warning of validation.warnings) {
-			const violationType = getViolationType(warning.code);
+			const violationType = getViolationType(warning);
 			violations.push({
 				name: codeToViolationName(warning.code),
 				type: violationType,

@@ -28,6 +28,7 @@ export const noNodesValidator: ValidatorPlugin = {
 					code: 'NO_NODES',
 					message: 'Workflow has no nodes',
 					severity: 'error',
+					violationLevel: 'critical',
 				},
 			];
 		}

@@ -42,17 +42,21 @@ export class ValidationError {
 	readonly message: string;
 	readonly nodeName?: string;
 	readonly parameterName?: string;
+	/** Violation level for evaluation scoring (defaults to 'minor' if not set) */
+	readonly violationLevel?: 'critical' | 'major' | 'minor';
 
 	constructor(
 		code: ValidationErrorCode,
 		message: string,
 		nodeName?: string,
 		parameterName?: string,
+		violationLevel?: 'critical' | 'major' | 'minor',
 	) {
 		this.code = code;
 		this.message = message;
 		this.nodeName = nodeName;
 		this.parameterName = parameterName;
+		this.violationLevel = violationLevel;
 	}
 }
 
@@ -65,6 +69,8 @@ export class ValidationWarning {
 	readonly nodeName?: string;
 	readonly parameterPath?: string;
 	readonly originalName?: string;
+	/** Violation level for evaluation scoring (defaults to 'minor' if not set) */
+	readonly violationLevel?: 'critical' | 'major' | 'minor';
 
 	constructor(
 		code: ValidationErrorCode,
@@ -72,12 +78,14 @@ export class ValidationWarning {
 		nodeName?: string,
 		parameterPath?: string,
 		originalName?: string,
+		violationLevel?: 'critical' | 'major' | 'minor',
 	) {
 		this.code = code;
 		this.message = message;
 		this.nodeName = nodeName;
 		this.parameterPath = parameterPath;
 		this.originalName = originalName;
+		this.violationLevel = violationLevel;
 	}
 }
 

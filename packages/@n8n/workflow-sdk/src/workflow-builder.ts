@@ -551,7 +551,15 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 			// that extend the built-in set
 			const code = issue.code as ValidationErrorCode;
 			if (issue.severity === 'error') {
-				errors.push(new ValidationErrorClass(code, issue.message, issue.nodeName));
+				errors.push(
+					new ValidationErrorClass(
+						code,
+						issue.message,
+						issue.nodeName,
+						undefined,
+						issue.violationLevel,
+					),
+				);
 			} else {
 				warnings.push(
 					new ValidationWarningClass(
@@ -560,6 +568,7 @@ class WorkflowBuilderImpl implements WorkflowBuilder {
 						issue.nodeName,
 						issue.parameterPath,
 						issue.originalName,
+						issue.violationLevel,
 					),
 				);
 			}
