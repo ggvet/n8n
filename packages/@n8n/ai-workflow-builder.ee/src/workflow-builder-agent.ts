@@ -99,6 +99,8 @@ export interface ChatPayload {
 		expressionValues?: Record<string, ExpressionValue[]>;
 		/** Whether execution schema values were excluded (redacted) */
 		valuesExcluded?: boolean;
+		/** Node names whose output schema was derived from pin data */
+		pinnedNodes?: string[];
 	};
 	featureFlags?: BuilderFeatureFlags;
 	/** Version ID to store in message metadata for restore functionality */

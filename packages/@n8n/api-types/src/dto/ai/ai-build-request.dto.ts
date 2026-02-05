@@ -59,6 +59,7 @@ export class AiBuilderChatRequestDto extends Z.class({
 				})
 				.optional(),
 			valuesExcluded: z.boolean().optional(),
+			pinnedNodes: z.array(z.string()).optional(),
 		}),
 		featureFlags: z
 			.object({

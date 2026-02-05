@@ -54,6 +54,8 @@ export interface ExecutionContextOptions {
 	workflowStatusJSDoc?: string;
 	/** Whether execution schema values were excluded (redacted). When true, adds a comment indicating values are redacted. */
 	valuesExcluded?: boolean;
+	/** Node names whose output schema was derived from pin data */
+	pinnedNodes?: Set<string>;
 }
 
 /**
@@ -73,6 +75,7 @@ interface GenerationContext {
 	expressionAnnotations?: Map<string, string>;
 	workflowStatusJSDoc?: string;
 	valuesExcluded?: boolean;
+	pinnedNodes?: Set<string>;
 }
 
 /**
@@ -420,6 +423,9 @@ function generateNodeConfig(node: SemanticNode, ctx: GenerationContext): string 
 			// Add comment if values are excluded (redacted)
 			if (ctx.valuesExcluded) {
 				parts.push(`${innerIndent}// Output values redacted`);
+			}
+			if (ctx.pinnedNodes?.has(nodeName)) {
+				parts.push(`${innerIndent}// Data is pinned. User must unpin node for real data`);
 			}
 			parts.push(`${innerIndent}output: [${formatValue(outputSample, ctx)}]`);
 		}
@@ -1206,6 +1212,7 @@ export function generateCode(
 		expressionAnnotations: executionContext?.expressionAnnotations,
 		workflowStatusJSDoc: executionContext?.workflowStatusJSDoc,
 		valuesExcluded: executionContext?.valuesExcluded,
+		pinnedNodes: executionContext?.pinnedNodes,
 	};
 
 	// Collect all subnodes from all nodes in the graph (not just variable nodes)

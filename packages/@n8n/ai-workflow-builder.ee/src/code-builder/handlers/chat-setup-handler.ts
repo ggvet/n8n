@@ -135,6 +135,7 @@ export class ChatSetupHandler {
 			expressionValues: payload.workflowContext?.expressionValues,
 			preGeneratedCode: preGeneratedWorkflowCode,
 			valuesExcluded: payload.workflowContext?.valuesExcluded,
+			pinnedNodes: payload.workflowContext?.pinnedNodes,
 		});
 		this.logPromptBuilt(historyContext, textEditorEnabled);
 
@@ -208,6 +209,7 @@ export class ChatSetupHandler {
 			executionData: payload.workflowContext?.executionData,
 			expressionValues: payload.workflowContext?.expressionValues,
 			valuesExcluded: payload.workflowContext?.valuesExcluded,
+			pinnedNodes: payload.workflowContext?.pinnedNodes,
 		});
 
 		this.debugLog('CHAT_SETUP', 'Pre-generated workflow code with execution context', {

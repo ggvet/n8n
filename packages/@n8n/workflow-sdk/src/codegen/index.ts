@@ -46,6 +46,8 @@ export interface GenerateWorkflowCodeOptions {
 	executionData?: IRunExecutionData['resultData'];
 	/** Whether execution schema values were excluded (redacted). When true, adds a comment indicating values are redacted. */
 	valuesExcluded?: boolean;
+	/** Node names whose output schema was derived from pin data rather than real execution output */
+	pinnedNodes?: string[];
 }
 
 // Re-export individual functions for testing and extension
@@ -93,16 +95,23 @@ function isOptionsObject(
  */
 export function generateWorkflowCode(input: WorkflowJSON | GenerateWorkflowCodeOptions): string {
 	// Support both old API (just WorkflowJSON) and new API (options object)
-	const { workflow, executionSchema, expressionValues, executionData, valuesExcluded } =
-		isOptionsObject(input)
-			? input
-			: {
-					workflow: input,
-					executionSchema: undefined,
-					expressionValues: undefined,
-					executionData: undefined,
-					valuesExcluded: undefined,
-				};
+	const {
+		workflow,
+		executionSchema,
+		expressionValues,
+		executionData,
+		valuesExcluded,
+		pinnedNodes,
+	} = isOptionsObject(input)
+		? input
+		: {
+				workflow: input,
+				executionSchema: undefined,
+				expressionValues: undefined,
+				executionData: undefined,
+				valuesExcluded: undefined,
+				pinnedNodes: undefined,
+			};
 
 	// Phase 1: Build semantic graph
 	const graph = buildSemanticGraph(workflow);
@@ -135,5 +144,6 @@ export function generateWorkflowCode(input: WorkflowJSON | GenerateWorkflowCodeO
 		nodeSchemas: nodeSchemas.size > 0 ? nodeSchemas : undefined,
 		workflowStatusJSDoc: workflowStatusJSDoc || undefined,
 		valuesExcluded,
+		pinnedNodes: pinnedNodes ? new Set(pinnedNodes) : undefined,
 	});
 }

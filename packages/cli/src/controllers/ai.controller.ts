@@ -69,6 +69,7 @@ export class AiController {
 						executionSchema: workflowContext.executionSchema,
 						expressionValues: workflowContext.expressionValues,
 						valuesExcluded: workflowContext.valuesExcluded,
+						pinnedNodes: workflowContext.pinnedNodes,
 					},
 					featureFlags,
 					versionId,

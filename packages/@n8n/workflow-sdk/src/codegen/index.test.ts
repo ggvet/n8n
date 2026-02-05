@@ -332,6 +332,113 @@ describe('codegen index', () => {
 				expect(code).toContain("output: [{ id: '' }]");
 			});
 
+			it('adds pinned data comment when node is in pinnedNodes', () => {
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Fetch Users',
+							type: 'n8n-nodes-base.httpRequest',
+							typeVersion: 4.2,
+							position: [0, 0],
+							parameters: { url: 'https://api.example.com/users' },
+						},
+					],
+					connections: {},
+				};
+
+				const executionSchema = [
+					{
+						nodeName: 'Fetch Users',
+						schema: {
+							type: 'object' as const,
+							path: '',
+							value: [
+								{ type: 'string' as const, key: 'id', value: 'usr_123', path: 'id' },
+								{ type: 'string' as const, key: 'name', value: 'John', path: 'name' },
+							],
+						},
+					},
+				];
+
+				const code = generateWorkflowCode({
+					workflow: json,
+					executionSchema,
+					pinnedNodes: ['Fetch Users'],
+				});
+
+				expect(code).toContain('// Data is pinned. User must unpin node for real data');
+			});
+
+			it('does not add pinned data comment when node is not in pinnedNodes', () => {
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Fetch Users',
+							type: 'n8n-nodes-base.httpRequest',
+							typeVersion: 4.2,
+							position: [0, 0],
+							parameters: { url: 'https://api.example.com/users' },
+						},
+					],
+					connections: {},
+				};
+
+				const executionSchema = [
+					{
+						nodeName: 'Fetch Users',
+						schema: {
+							type: 'object' as const,
+							path: '',
+							value: [{ type: 'string' as const, key: 'id', value: 'usr_123', path: 'id' }],
+						},
+					},
+				];
+
+				const code = generateWorkflowCode({
+					workflow: json,
+					executionSchema,
+					pinnedNodes: ['Some Other Node'],
+				});
+
+				expect(code).not.toContain('// Data is pinned. User must unpin node for real data');
+			});
+
+			it('does not add pinned data comment when pinnedNodes is undefined', () => {
+				const json: WorkflowJSON = {
+					name: 'Test',
+					nodes: [
+						{
+							id: '1',
+							name: 'Fetch Users',
+							type: 'n8n-nodes-base.httpRequest',
+							typeVersion: 4.2,
+							position: [0, 0],
+							parameters: { url: 'https://api.example.com/users' },
+						},
+					],
+					connections: {},
+				};
+
+				const executionSchema = [
+					{
+						nodeName: 'Fetch Users',
+						schema: {
+							type: 'object' as const,
+							path: '',
+							value: [{ type: 'string' as const, key: 'id', value: 'usr_123', path: 'id' }],
+						},
+					},
+				];
+
+				const code = generateWorkflowCode({ workflow: json, executionSchema });
+
+				expect(code).not.toContain('// Data is pinned. User must unpin node for real data');
+			});
+
 			it('does not add redaction comment when valuesExcluded is undefined', () => {
 				const json: WorkflowJSON = {
 					name: 'Test',

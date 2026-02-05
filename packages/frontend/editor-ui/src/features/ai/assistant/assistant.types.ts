@@ -34,6 +34,8 @@ export namespace ChatRequest {
 		expressionValues?: Record<string, ExpressionValue[]>;
 		/** Whether execution schema values were excluded (redacted) for privacy */
 		valuesExcluded?: boolean;
+		/** Node names whose output schema was derived from pin data */
+		pinnedNodes?: string[];
 	}
 
 	export interface ExecutionResultData {

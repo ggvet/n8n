@@ -228,7 +228,7 @@ export const useAIAssistantHelpers = () => {
 		}
 		// Get all referenced nodes and their schemas
 		const referencedNodeNames = getReferencedNodes(node);
-		const schemas = getNodesSchemas(referencedNodeNames, options?.trimParameterValues);
+		const { schemas } = getNodesSchemas(referencedNodeNames, options?.trimParameterValues);
 
 		const nodeType = nodeTypesStore.getNodeType(node.type);
 
@@ -294,14 +294,18 @@ export const useAIAssistantHelpers = () => {
 	/**
 	 * Get the schema for the referenced nodes as expected by the AI assistant
 	 * @param nodeNames The names of the nodes to get the schema for
-	 * @returns An array of NodeExecutionSchema objects
+	 * @returns schemas and list of node names whose schema was derived from pin data
 	 */
 	function getNodesSchemas(nodeNames: string[], excludeValues?: boolean) {
 		const schemas: ChatRequest.NodeExecutionSchema[] = [];
+		const pinnedNodeNames: string[] = [];
 		for (const name of nodeNames) {
 			const node = workflowsStore.getNodeByName(name);
 			if (!node) {
 				continue;
+			}
+			if (workflowsStore.pinDataByNodeName(node.name)) {
+				pinnedNodeNames.push(node.name);
 			}
 			const { getSchemaForExecutionData, getInputDataWithPinned } = useDataSchema();
 			const schema = getSchemaForExecutionData(
@@ -314,7 +318,7 @@ export const useAIAssistantHelpers = () => {
 				schema,
 			});
 		}
-		return schemas;
+		return { schemas, pinnedNodeNames };
 	}
 
 	function getCurrentViewDescription(view: VIEWS) {

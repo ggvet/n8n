@@ -640,6 +640,8 @@ export interface BuildCodeBuilderPromptOptions {
 	preGeneratedCode?: string;
 	/** Whether execution schema values were excluded (redacted) */
 	valuesExcluded?: boolean;
+	/** Node names whose output schema was derived from pin data */
+	pinnedNodes?: string[];
 }
 
 /**
@@ -696,6 +698,7 @@ export function buildCodeBuilderPrompt(
 				executionData: options?.executionData,
 				expressionValues: options?.expressionValues,
 				valuesExcluded: options?.valuesExcluded,
+				pinnedNodes: options?.pinnedNodes,
 			});
 
 		// Format as file with line numbers (matches view command output)

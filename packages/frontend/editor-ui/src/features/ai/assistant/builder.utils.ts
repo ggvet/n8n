@@ -73,11 +73,15 @@ export async function createBuilderPayload(
 	if (options.nodesForSchema?.length) {
 		// Always exclude values for privacy (they will be redacted by the code generator)
 		const excludeValues = true;
-		workflowContext.executionSchema = assistantHelpers.getNodesSchemas(
+		const { schemas, pinnedNodeNames } = assistantHelpers.getNodesSchemas(
 			options.nodesForSchema,
 			excludeValues,
 		);
+		workflowContext.executionSchema = schemas;
 		workflowContext.valuesExcluded = excludeValues;
+		if (pinnedNodeNames.length > 0) {
+			workflowContext.pinnedNodes = pinnedNodeNames;
+		}
 	}
 
 	return {
