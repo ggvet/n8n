@@ -7,7 +7,7 @@ import { useUIStore } from '@/app/stores/ui.store';
 
 interface ChatInputRef {
 	focus: () => void;
-	setText: (text: string) => void;
+	appendText: (text: string) => void;
 }
 
 export function useChatInputFocus(
@@ -47,7 +47,7 @@ export function useChatInputFocus(
 		if (!input) return;
 
 		event.preventDefault();
-		input.setText(event.key);
+		input.appendText(event.key);
 		input.focus();
 	};
 

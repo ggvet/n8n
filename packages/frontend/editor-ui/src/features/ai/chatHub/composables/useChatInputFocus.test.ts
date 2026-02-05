@@ -28,10 +28,10 @@ describe('useChatInputFocus', () => {
 	let mockUIStore: { isAnyModalOpen: boolean };
 	let activeElementRef: ReturnType<typeof ref<HTMLElement | null>>;
 	let mockInputRef: ReturnType<
-		typeof ref<{ focus: () => void; setText: (text: string) => void } | null>
+		typeof ref<{ focus: () => void; appendText: (text: string) => void } | null>
 	>;
 	let focusSpy: ReturnType<typeof vi.fn>;
-	let setTextSpy: ReturnType<typeof vi.fn>;
+	let appendTextSpy: ReturnType<typeof vi.fn>;
 
 	function createKeyboardEvent(key: string, options: Partial<KeyboardEvent> = {}): KeyboardEvent {
 		return new KeyboardEvent('keydown', {
@@ -58,10 +58,10 @@ describe('useChatInputFocus', () => {
 		vi.mocked(useActiveElement).mockReturnValue(activeElementRef);
 
 		focusSpy = vi.fn();
-		setTextSpy = vi.fn();
+		appendTextSpy = vi.fn();
 		mockInputRef = ref({
 			focus: focusSpy,
-			setText: setTextSpy,
+			appendText: appendTextSpy,
 		});
 
 		vi.spyOn(canvasUtils, 'shouldIgnoreCanvasShortcut').mockReturnValue(false);
@@ -72,12 +72,12 @@ describe('useChatInputFocus', () => {
 	});
 
 	describe('basic functionality', () => {
-		it('should focus input and set text when printable key is pressed', () => {
+		it('should focus input and append text when printable key is pressed', () => {
 			useChatInputFocus(mockInputRef);
 
 			dispatchKeydown('a');
 
-			expect(setTextSpy).toHaveBeenCalledWith('a');
+			expect(appendTextSpy).toHaveBeenCalledWith('a');
 			expect(focusSpy).toHaveBeenCalled();
 		});
 
@@ -86,7 +86,7 @@ describe('useChatInputFocus', () => {
 
 			dispatchKeydown('A', { shiftKey: true });
 
-			expect(setTextSpy).toHaveBeenCalledWith('A');
+			expect(appendTextSpy).toHaveBeenCalledWith('A');
 			expect(focusSpy).toHaveBeenCalled();
 		});
 
@@ -95,7 +95,7 @@ describe('useChatInputFocus', () => {
 
 			dispatchKeydown('5');
 
-			expect(setTextSpy).toHaveBeenCalledWith('5');
+			expect(appendTextSpy).toHaveBeenCalledWith('5');
 			expect(focusSpy).toHaveBeenCalled();
 		});
 
@@ -104,7 +104,7 @@ describe('useChatInputFocus', () => {
 
 			dispatchKeydown('@');
 
-			expect(setTextSpy).toHaveBeenCalledWith('@');
+			expect(appendTextSpy).toHaveBeenCalledWith('@');
 			expect(focusSpy).toHaveBeenCalled();
 		});
 
@@ -125,7 +125,7 @@ describe('useChatInputFocus', () => {
 			dispatchKeydown('a');
 
 			expect(focusSpy).not.toHaveBeenCalled();
-			expect(setTextSpy).not.toHaveBeenCalled();
+			expect(appendTextSpy).not.toHaveBeenCalled();
 		});
 	});
 
@@ -136,7 +136,7 @@ describe('useChatInputFocus', () => {
 			dispatchKeydown('a', { ctrlKey: true });
 
 			expect(focusSpy).not.toHaveBeenCalled();
-			expect(setTextSpy).not.toHaveBeenCalled();
+			expect(appendTextSpy).not.toHaveBeenCalled();
 		});
 
 		it('should not trigger when Meta/Cmd key is pressed', () => {
@@ -145,7 +145,7 @@ describe('useChatInputFocus', () => {
 			dispatchKeydown('a', { metaKey: true });
 
 			expect(focusSpy).not.toHaveBeenCalled();
-			expect(setTextSpy).not.toHaveBeenCalled();
+			expect(appendTextSpy).not.toHaveBeenCalled();
 		});
 
 		it('should not trigger when Alt key is pressed', () => {
@@ -154,7 +154,7 @@ describe('useChatInputFocus', () => {
 			dispatchKeydown('a', { altKey: true });
 
 			expect(focusSpy).not.toHaveBeenCalled();
-			expect(setTextSpy).not.toHaveBeenCalled();
+			expect(appendTextSpy).not.toHaveBeenCalled();
 		});
 
 		it('should not trigger Ctrl+C (copy shortcut)', () => {
@@ -186,8 +186,19 @@ describe('useChatInputFocus', () => {
 
 			dispatchKeydown('A', { shiftKey: true });
 
-			expect(setTextSpy).toHaveBeenCalledWith('A');
+			expect(appendTextSpy).toHaveBeenCalledWith('A');
 			expect(focusSpy).toHaveBeenCalled();
+		});
+
+		it('should append multiple characters on consecutive keypresses', () => {
+			useChatInputFocus(mockInputRef);
+
+			dispatchKeydown('h');
+			dispatchKeydown('i');
+
+			expect(appendTextSpy).toHaveBeenCalledTimes(2);
+			expect(appendTextSpy).toHaveBeenNthCalledWith(1, 'h');
+			expect(appendTextSpy).toHaveBeenNthCalledWith(2, 'i');
 		});
 	});
 
@@ -351,7 +362,7 @@ describe('useChatInputFocus', () => {
 			await nextTick();
 
 			dispatchKeydown('b');
-			expect(setTextSpy).toHaveBeenCalledWith('b');
+			expect(appendTextSpy).toHaveBeenCalledWith('b');
 			expect(focusSpy).toHaveBeenCalled();
 		});
 
