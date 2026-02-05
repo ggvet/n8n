@@ -7,19 +7,30 @@ import { AIMessage, AIMessageChunk } from '@langchain/core/messages';
 import type { ChatResult } from '@langchain/core/outputs';
 import { ChatGenerationChunk } from '@langchain/core/outputs';
 import type { Runnable } from '@langchain/core/runnables';
+import type { ISupplyDataFunctions } from 'n8n-workflow';
 
 import { fromLcMessage } from '../converters/message';
 import { fromLcTool } from '../converters/tool';
 import type { ChatModel, ChatModelConfig } from '../types/chat-model';
+import { makeN8nLlmFailedAttemptHandler } from '../utils/failed-attempt-handler/n8nLlmFailedAttemptHandler';
+import { N8nLlmTracing } from '../utils/n8n-llm-tracing';
 
 export class LangchainAdapter<
 	CallOptions extends ChatModelConfig = ChatModelConfig,
 > extends BaseChatModel<CallOptions> {
-	constructor(private chatModel: ChatModel) {
-		super({
-			// TODO: Move N8nLlmTracing to ai-utilities
-			// callbacks: [new N8nLlmTracing(this)],
-		});
+	constructor(
+		private chatModel: ChatModel,
+		ctx?: ISupplyDataFunctions,
+	) {
+		const params = {
+			...(ctx
+				? {
+						callbacks: [new N8nLlmTracing(ctx)],
+						onFailedAttempt: makeN8nLlmFailedAttemptHandler(ctx),
+					}
+				: {}),
+		};
+		super(params);
 	}
 
 	_llmType(): string {
