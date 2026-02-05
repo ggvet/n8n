@@ -28,8 +28,14 @@ export function useChatInputFocus(
 		return false;
 	});
 
+	const RESERVED_SHORTCUT_KEYS = ['['];
+
 	const isPrintableKey = (event: KeyboardEvent): boolean => {
 		return event.key.length === 1;
+	};
+
+	const isReservedShortcut = (event: KeyboardEvent): boolean => {
+		return RESERVED_SHORTCUT_KEYS.includes(event.key);
 	};
 
 	const hasModifierKey = (event: KeyboardEvent): boolean => {
@@ -42,6 +48,7 @@ export function useChatInputFocus(
 		if (event.repeat) return;
 		if (hasModifierKey(event)) return;
 		if (!isPrintableKey(event)) return;
+		if (isReservedShortcut(event)) return;
 
 		const input = inputRef.value;
 		if (!input) return;

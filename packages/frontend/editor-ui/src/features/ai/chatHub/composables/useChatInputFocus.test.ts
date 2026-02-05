@@ -439,5 +439,14 @@ describe('useChatInputFocus', () => {
 
 			expect(focusSpy).not.toHaveBeenCalled();
 		});
+
+		it('should not interfere with [ (collapse sidebar shortcut)', () => {
+			useChatInputFocus(mockInputRef);
+
+			dispatchKeydown('[');
+
+			expect(focusSpy).not.toHaveBeenCalled();
+			expect(appendTextSpy).not.toHaveBeenCalled();
+		});
 	});
 });
