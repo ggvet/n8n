@@ -90,10 +90,14 @@ function approve() {
 	display: flex;
 	flex-direction: column;
 	gap: var(--spacing--xs);
-	// border: var(--border);
-	// background-color: var(--color--background--light-3);
 	border-radius: var(--radius--lg);
 	padding: var(--spacing--xs) 0;
+}
+
+.section {
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing--4xs);
 }
 
 .triggerSection {
@@ -126,7 +130,6 @@ function approve() {
 .actions {
 	display: flex;
 	flex-wrap: wrap;
-	// justify-content: flex-end;
 	gap: var(--spacing--2xs);
 	margin-top: var(--spacing--2xs);
 }

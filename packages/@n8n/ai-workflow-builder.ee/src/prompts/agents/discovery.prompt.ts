@@ -52,13 +52,13 @@ When a trigger or node outputs multiple items (e.g., Gmail returns 10 emails), e
 
 const PROCESS = `1. Search for nodes matching the user's request using search_nodes tool
 2. Identify connection-changing parameters from input/output expressions (look for $parameter.X)
-3. Return your final nodesFound array as structured output matching the response schema`;
+3. Call submit_discovery_results with your nodesFound array`;
 
 const PROCESS_WITH_EXAMPLES = `1. Search for nodes matching the user's request using search_nodes tool
 2. Identify connection-changing parameters from input/output expressions (look for $parameter.X)
 3. Use get_documentation to retrieve best practices for relevant workflow techniques—this provides proven patterns that improve workflow quality
 4. Use get_workflow_examples to find real community workflows using mentioned services—these examples show how experienced users structure similar integrations
-5. Return your final nodesFound array as structured output matching the response schema`;
+5. Call submit_discovery_results with your nodesFound array`;
 
 const AI_NODE_SELECTION = `AI node selection guidance:
 

@@ -39,7 +39,11 @@ function formatAnswer(answer: PlanMode.QuestionResponse): string {
 </script>
 
 <template>
-	<div v-if="displayedAnswers.length > 0" :class="$style.container">
+	<div
+		v-if="displayedAnswers.length > 0"
+		:class="$style.container"
+		data-test-id="plan-mode-user-answers"
+	>
 		<div v-for="answer in displayedAnswers" :key="answer.questionId" :class="$style.answerItem">
 			<N8nText :bold="true" size="small" :class="$style.question">
 				{{ answer.question }}

@@ -26,11 +26,7 @@ import {
 	createResponderMetadata,
 	isSubgraphPhase,
 } from './types/coordination';
-import {
-	getLastCompletedPhase,
-	getNextPhaseFromLog,
-	hasErrorInLog,
-} from './utils/coordination-log';
+import { getNextPhaseFromLog, hasErrorInLog } from './utils/coordination-log';
 import { processOperations } from './utils/operations-processor';
 import {
 	determineStateAction,
@@ -94,7 +90,7 @@ export interface MultiAgentSubgraphConfig {
  * Logs in_progress entry at start and completed entry at end for timing metrics.
  */
 function createSubgraphNodeHandler<
-	TSubgraph extends BaseSubgraph<any, Record<string, unknown>, Record<string, unknown>>,
+	TSubgraph extends BaseSubgraph<unknown, Record<string, unknown>, Record<string, unknown>>,
 >(
 	subgraph: TSubgraph,
 	compiledGraph: ReturnType<TSubgraph['create']>,
@@ -315,7 +311,6 @@ export function createMultiAgentWorkflowWithSubgraphs(config: MultiAgentSubgraph
 			})
 			.addNode('route_next_phase', (state) => {
 				const next = getNextPhaseFromLog(state.coordinationLog);
-				const lastCompleted = getLastCompletedPhase(state.coordinationLog);
 
 				if (state.planDecision === 'reject') {
 					return {

@@ -610,9 +610,10 @@ export const useBuilderStore = defineStore(STORES.BUILDER, () => {
 		}
 
 		// If there's a pending plan and user is sending a chat message (not a resumeData action),
-		// automatically treat it as a plan modification request
+		// automatically treat it as a plan modification request.
+		// Avoid mutating the caller's object - reassign to a shallow copy.
 		if (hasPendingPlan.value && options.resumeData === undefined) {
-			options.resumeData = { action: 'modify', feedback: options.text };
+			options = { ...options, resumeData: { action: 'modify', feedback: options.text } };
 		}
 
 		let revertVersion;

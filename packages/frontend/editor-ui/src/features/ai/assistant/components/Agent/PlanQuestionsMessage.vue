@@ -5,7 +5,7 @@
  * Multi-step Q&A wizard for Plan Mode. Renders questions with radio buttons,
  * checkboxes, or text inputs based on question type.
  */
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 import { N8nButton, N8nCheckbox, N8nInput, N8nText } from '@n8n/design-system';
 import { useI18n } from '@n8n/i18n';
@@ -41,9 +41,8 @@ const filteredOptions = computed(() => {
 	return options.filter((opt) => opt.toLowerCase() !== 'other');
 });
 
-// Get or initialize answer for current question
-const currentAnswer = computed(() => {
-	const q = currentQuestion.value;
+// Eagerly initialize answer for the current question when the index changes
+function ensureAnswer(q: PlanMode.PlannerQuestion): PlanMode.QuestionResponse {
 	if (!answers.value.has(q.id)) {
 		answers.value.set(q.id, {
 			questionId: q.id,
@@ -53,9 +52,17 @@ const currentAnswer = computed(() => {
 			skipped: false,
 		});
 	}
-	// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 	return answers.value.get(q.id)!;
-});
+}
+
+// Initialize first question's answer immediately
+ensureAnswer(currentQuestion.value);
+
+// Initialize answer when navigating to a new question
+watch(currentIndex, () => ensureAnswer(currentQuestion.value));
+
+// Get answer for current question (pure computed - no side effects)
+const currentAnswer = computed(() => answers.value.get(currentQuestion.value.id)!);
 
 // Check if current question has a valid answer
 const hasValidAnswer = computed(() => {

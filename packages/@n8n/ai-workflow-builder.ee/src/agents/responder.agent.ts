@@ -1,6 +1,6 @@
 import type { BaseChatModel } from '@langchain/core/language_models/chat_models';
 import type { BaseMessage } from '@langchain/core/messages';
-import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import type { RunnableConfig } from '@langchain/core/runnables';
 import { createAgent, createMiddleware } from 'langchain';
 import { z } from 'zod';
@@ -249,6 +249,10 @@ export async function invokeResponderAgent(
 	// Extract the last message from the result
 	// The agent returns { messages: BaseMessage[], ... } after processing
 	const messages = result.messages;
-	const lastMessage = messages[messages.length - 1];
-	return lastMessage;
+	if (messages.length === 0) {
+		return new AIMessage({
+			content: 'I encountered an issue generating a response. Please try again.',
+		});
+	}
+	return messages[messages.length - 1];
 }

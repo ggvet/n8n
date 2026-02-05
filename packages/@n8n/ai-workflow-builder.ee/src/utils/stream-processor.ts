@@ -216,22 +216,6 @@ function processInterrupt(interruptValue: HITLInterruptValue, id?: string): Stre
 	return { messages: [chunk], ...(id ? { interruptId: id } : {}) };
 }
 
-function stableStringify(value: unknown): string {
-	if (value === undefined) return 'null';
-	if (value === null || typeof value !== 'object') return JSON.stringify(value);
-	if (Array.isArray(value)) {
-		return `[${value.map((entry) => stableStringify(entry)).join(',')}]`;
-	}
-	const record = value as Record<string, unknown>;
-	const keys = Object.keys(record).sort();
-	const props = keys.map((key) => `${JSON.stringify(key)}:${stableStringify(record[key])}`);
-	return `{${props.join(',')}}`;
-}
-
-function getInterruptSignature(payload: { value: HITLInterruptValue; id?: string }): string {
-	return payload.id ? `id:${payload.id}` : stableStringify(payload.value);
-}
-
 // ============================================================================
 // CHUNK PROCESSORS
 // ============================================================================

@@ -12,7 +12,7 @@ import type { IUser, INodeTypeDescription, ITelemetryTrackProperties } from 'n8n
 import { LLMServiceError } from '@/errors';
 import { anthropicClaudeSonnet45 } from '@/llm-config';
 import { SessionManagerService } from '@/session-manager.service';
-import type { ResourceLocatorCallback } from '@/types/callbacks';
+import type { ResourceLocatorCallbackFactory } from '@/types/callbacks';
 import type {
 	HITLInterruptValue,
 	PlanInterruptValue,
@@ -27,8 +27,6 @@ import {
 type OnCreditsUpdated = (userId: string, creditsQuota: number, creditsClaimed: number) => void;
 
 type OnTelemetryEvent = (event: string, properties: ITelemetryTrackProperties) => void;
-
-type ResourceLocatorCallbackFactory = (userId: string) => ResourceLocatorCallback;
 
 @Service()
 export class AiWorkflowBuilderService {

@@ -12,7 +12,6 @@ import type {
 	SubgraphPhase,
 	DiscoveryMetadata,
 	BuilderMetadata,
-	PlannerMetadata,
 	StateManagementMetadata,
 	ResponderMetadata,
 } from '../types/coordination';
@@ -72,22 +71,12 @@ export function getPhaseMetadata(
 ): BuilderMetadata | null;
 export function getPhaseMetadata(
 	log: CoordinationLogEntry[],
-	phase: 'planner',
-): PlannerMetadata | null;
-export function getPhaseMetadata(
-	log: CoordinationLogEntry[],
 	phase: 'state_management',
 ): StateManagementMetadata | null;
 export function getPhaseMetadata(
 	log: CoordinationLogEntry[],
 	phase: SubgraphPhase,
-):
-	| DiscoveryMetadata
-	| BuilderMetadata
-	| PlannerMetadata
-	| StateManagementMetadata
-	| ResponderMetadata
-	| null {
+): DiscoveryMetadata | BuilderMetadata | StateManagementMetadata | ResponderMetadata | null {
 	const entry = getPhaseEntry(log, phase);
 	if (!entry) return null;
 
