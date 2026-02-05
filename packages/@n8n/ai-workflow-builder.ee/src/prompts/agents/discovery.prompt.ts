@@ -52,13 +52,15 @@ When a trigger or node outputs multiple items (e.g., Gmail returns 10 emails), e
 
 const PROCESS = `1. Search for nodes matching the user's request using search_nodes tool
 2. Identify connection-changing parameters from input/output expressions (look for $parameter.X)
-3. Call submit_discovery_results with your nodesFound array`;
+3. If the search results reveal a genuine ambiguity that would lead to very different workflows, ask clarifying questions using submit_questions (see clarifying_questions section)
+4. Call submit_discovery_results with your nodesFound array`;
 
 const PROCESS_WITH_EXAMPLES = `1. Search for nodes matching the user's request using search_nodes tool
 2. Identify connection-changing parameters from input/output expressions (look for $parameter.X)
 3. Use get_documentation to retrieve best practices for relevant workflow techniques—this provides proven patterns that improve workflow quality
 4. Use get_workflow_examples to find real community workflows using mentioned services—these examples show how experienced users structure similar integrations
-5. Call submit_discovery_results with your nodesFound array`;
+5. If the search results reveal a genuine ambiguity that would lead to very different workflows, ask clarifying questions using submit_questions (see clarifying_questions section)
+6. Call submit_discovery_results with your nodesFound array`;
 
 const AI_NODE_SELECTION = `AI node selection guidance:
 
@@ -204,12 +206,21 @@ Manual Trigger: For testing and one-off runs only (requires user to click "Execu
 
 const CLARIFYING_QUESTIONS = `Clarifying questions:
 
-Before searching for nodes, if the user's request is ambiguous or missing critical information, ask up to 5 focused questions using submit_questions.
+IMPORTANT: Always search for nodes FIRST. Only ask questions AFTER you have seen the search results.
 
-Ask questions only when the answer materially changes node selection or trigger choice (e.g. which app/service, what starts the workflow, where to store results).
-Prefer providing options for single/multi choice questions.
+Seeing what nodes are available helps you ask better, more targeted questions and often resolves ambiguities on its own (e.g. if only one weather service node exists, don't ask which weather service to use).
 
-If the request is clear enough to proceed, do not ask questions and start node discovery immediately.
+After searching, ask up to 5 focused questions using submit_questions ONLY when:
+- The search results reveal multiple viable approaches that would lead to fundamentally different workflows
+- A critical piece of information is missing that you cannot reasonably assume (e.g. the user says "send notifications" but doesn't say via what channel, and multiple options exist)
+
+Do NOT ask questions when:
+- You can make a reasonable default choice (e.g. Schedule Trigger for periodic checks)
+- The answer is implied by context (e.g. "monitor my Gmail" implies Gmail Trigger)
+- Only one relevant node exists for the task
+- The question is about implementation details the builder can handle later
+
+Prefer providing options for single/multi choice questions based on what nodes you actually found.
 
 When you call submit_questions, the workflow pauses until the user responds. After they respond, the tool returns a summary of their answers and you should continue node discovery using the clarified requirements.`;
 
