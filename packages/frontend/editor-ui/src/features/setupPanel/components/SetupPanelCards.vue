@@ -17,10 +17,6 @@ const onCredentialSelected = (
 const onCredentialDeselected = (nodeName: string, credentialType: string) => {
 	unsetCredential(nodeName, credentialType);
 };
-
-const onTestNode = (_nodeName: string) => {
-	// TODO: Implement node execution
-};
 </script>
 
 <template>
@@ -47,7 +43,6 @@ const onTestNode = (_nodeName: string) => {
 				:state="state"
 				@credential-selected="onCredentialSelected(state.node.name, $event)"
 				@credential-deselected="onCredentialDeselected(state.node.name, $event)"
-				@test-node="onTestNode(state.node.name)"
 			/>
 			<div v-if="isAllComplete" :class="$style['complete-message']">
 				<N8nText size="medium" color="text-base">
