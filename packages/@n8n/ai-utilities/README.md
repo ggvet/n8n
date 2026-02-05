@@ -336,6 +336,50 @@ const memory = new BufferWindowMemory(history, { windowSize: 10 });
 return supplyMemory(this, memory);
 ```
 
+### Option D: Custom Memory Logic
+
+For custom memory behavior (not just storage), extend `BaseMemory`:
+
+```typescript
+import {
+  BaseMemory,
+  supplyMemory,
+  type Message,
+  type ChatMessageHistory,
+} from '@n8n/ai-node-sdk';
+
+class MyCustomMemory extends BaseMemory {
+  constructor(private _chatHistory: ChatMessageHistory) {
+    super();
+  }
+
+  get chatHistory(): ChatMessageHistory {
+    return this._chatHistory;
+  }
+
+  async loadMessages(): Promise<Message[]> {
+    const messages = await this._chatHistory.getMessages();
+    // Apply your custom logic here...
+    return messages;
+  }
+
+  async saveContext(input: string, output: string): Promise<void> {
+    await this._chatHistory.addMessages([
+      { role: 'human', content: [{ type: 'text', text: input }] },
+      { role: 'ai', content: [{ type: 'text', text: output }] },
+    ]);
+  }
+
+  async clear(): Promise<void> {
+    await this._chatHistory.clear();
+  }
+}
+
+const history = new MyChatMessageHistory(sessionId);
+const memory = new MyCustomMemory(history);
+return supplyMemory(this, memory);
+```
+
 ---
 
 ## Before/After Examples
