@@ -126,17 +126,29 @@ export function useBuilderTodos() {
 	const locale = useI18n();
 
 	/**
+	 * Checks if a node has pinned data.
+	 * Nodes with pinned data don't need to execute, so their validation issues should be ignored.
+	 */
+	function nodeHasPinnedData(nodeName: string): boolean {
+		const pinData = workflowsStore.workflow.pinData;
+		return Boolean(pinData?.[nodeName]?.length);
+	}
+
+	/**
 	 * Base workflow validation issues filtered to only credentials and parameters types.
+	 * Excludes issues from nodes that have pinned data.
 	 */
 	const baseWorkflowIssues = computed(() =>
-		workflowsStore.workflowValidationIssues.filter((issue) =>
-			['credentials', 'parameters'].includes(issue.type),
+		workflowsStore.workflowValidationIssues.filter(
+			(issue) =>
+				['credentials', 'parameters'].includes(issue.type) && !nodeHasPinnedData(issue.node),
 		),
 	);
 
 	/**
 	 * Placeholder issues detected in workflow node parameters.
 	 * These are values with the format <__PLACEHOLDER_VALUE__label__>.
+	 * Excludes issues from nodes that have pinned data.
 	 */
 	const placeholderIssues = computed(() => {
 		const issues: WorkflowValidationIssue[] = [];
@@ -144,6 +156,9 @@ export function useBuilderTodos() {
 
 		for (const node of workflowsStore.workflow.nodes) {
 			if (!node?.parameters) continue;
+
+			// Skip nodes with pinned data - their output is already defined
+			if (nodeHasPinnedData(node.name)) continue;
 
 			const placeholders = findPlaceholderDetails(node.parameters);
 			if (placeholders.length === 0) continue;

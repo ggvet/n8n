@@ -1,10 +1,22 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { setActivePinia, createPinia } from 'pinia';
 import {
 	extractPlaceholderLabels,
 	findPlaceholderDetails,
 	formatPlaceholderPath,
 	isPlaceholderValue,
+	useBuilderTodos,
 } from './useBuilderTodos';
+import { useWorkflowsStore } from '@/app/stores/workflows.store';
+import type { INodeUi } from '@/Interface';
+
+vi.mock('@n8n/i18n', async (importActual) => ({
+	...(await importActual()),
+	useI18n: () => ({
+		baseText: (key: string, options?: { interpolate?: Record<string, string> }) =>
+			options?.interpolate ? `${key}: ${JSON.stringify(options.interpolate)}` : key,
+	}),
+}));
 
 describe('useBuilderTodos', () => {
 	describe('extractPlaceholderLabels', () => {
@@ -296,6 +308,158 @@ describe('useBuilderTodos', () => {
 			expect(isPlaceholderValue({ key: 'value' })).toBe(false);
 			expect(isPlaceholderValue(['array'])).toBe(false);
 			expect(isPlaceholderValue(true)).toBe(false);
+		});
+	});
+
+	describe('workflowTodos composable', () => {
+		const createMockNode = (overrides: Partial<INodeUi> = {}): INodeUi =>
+			({
+				id: 'node-1',
+				name: 'Test Node',
+				type: 'n8n-nodes-base.httpRequest',
+				typeVersion: 1,
+				position: [0, 0],
+				parameters: {},
+				...overrides,
+			}) as INodeUi;
+
+		beforeEach(() => {
+			setActivePinia(createPinia());
+		});
+
+		it('excludes placeholder issues from pinned nodes', () => {
+			const workflowsStore = useWorkflowsStore();
+
+			// Setup a node with placeholder in parameters
+			const nodeWithPlaceholder = createMockNode({
+				name: 'HTTP Request',
+				parameters: {
+					url: '<__PLACEHOLDER_VALUE__Enter URL__>',
+				},
+			});
+
+			// Set the workflow with the node and pin data for it
+			workflowsStore.workflow.nodes = [nodeWithPlaceholder];
+			workflowsStore.workflow.pinData = {
+				'HTTP Request': [{ json: { data: 'pinned result' } }],
+			};
+
+			const { workflowTodos } = useBuilderTodos();
+
+			// Since the node has pinned data, the placeholder issue should be excluded
+			expect(workflowTodos.value).toHaveLength(0);
+		});
+
+		it('includes placeholder issues from non-pinned nodes', () => {
+			const workflowsStore = useWorkflowsStore();
+
+			// Setup a node with placeholder in parameters
+			const nodeWithPlaceholder = createMockNode({
+				name: 'HTTP Request',
+				parameters: {
+					url: '<__PLACEHOLDER_VALUE__Enter URL__>',
+				},
+			});
+
+			// Set the workflow with the node but NO pin data
+			workflowsStore.workflow.nodes = [nodeWithPlaceholder];
+			workflowsStore.workflow.pinData = {};
+
+			const { workflowTodos } = useBuilderTodos();
+
+			// Since the node has no pinned data, the placeholder issue should be included
+			expect(workflowTodos.value).toHaveLength(1);
+			expect(workflowTodos.value[0].node).toBe('HTTP Request');
+		});
+
+		it('excludes validation issues from pinned nodes', () => {
+			const workflowsStore = useWorkflowsStore();
+
+			// Setup a connected node with credential issues
+			const nodeWithIssues = createMockNode({
+				name: 'HTTP Request',
+				issues: {
+					credentials: {
+						httpBasicAuth: ['Credentials not set'],
+					},
+				},
+			});
+
+			// Set the workflow with connections (node must be connected for issues to count)
+			workflowsStore.workflow.nodes = [nodeWithIssues];
+			workflowsStore.workflow.connections = {
+				'HTTP Request': {
+					main: [[{ node: 'Other Node', type: 'main' as const, index: 0 }]],
+				},
+			};
+			workflowsStore.workflow.pinData = {
+				'HTTP Request': [{ json: { data: 'pinned result' } }],
+			};
+
+			const { workflowTodos } = useBuilderTodos();
+
+			// Since the node has pinned data, the credential issue should be excluded
+			expect(workflowTodos.value).toHaveLength(0);
+		});
+
+		it('includes validation issues from non-pinned nodes', () => {
+			const workflowsStore = useWorkflowsStore();
+
+			// Setup a connected node with credential issues
+			const nodeWithIssues = createMockNode({
+				name: 'HTTP Request',
+				issues: {
+					credentials: {
+						httpBasicAuth: ['Credentials not set'],
+					},
+				},
+			});
+
+			// Set the workflow with connections (node must be connected for issues to count)
+			workflowsStore.workflow.nodes = [nodeWithIssues];
+			workflowsStore.workflow.connections = {
+				'HTTP Request': {
+					main: [[{ node: 'Other Node', type: 'main' as const, index: 0 }]],
+				},
+			};
+			workflowsStore.workflow.pinData = {};
+
+			const { workflowTodos } = useBuilderTodos();
+
+			// Since the node has no pinned data, the credential issue should be included
+			expect(workflowTodos.value).toHaveLength(1);
+			expect(workflowTodos.value[0].node).toBe('HTTP Request');
+		});
+
+		it('handles mixed pinned and non-pinned nodes correctly', () => {
+			const workflowsStore = useWorkflowsStore();
+
+			// Setup two nodes: one pinned with issues, one not pinned with issues
+			const pinnedNode = createMockNode({
+				name: 'Pinned Node',
+				parameters: {
+					url: '<__PLACEHOLDER_VALUE__Enter URL__>',
+				},
+			});
+
+			const unpinnedNode = createMockNode({
+				name: 'Unpinned Node',
+				parameters: {
+					apiKey: '<__PLACEHOLDER_VALUE__Enter API Key__>',
+				},
+			});
+
+			workflowsStore.workflow.nodes = [pinnedNode, unpinnedNode];
+			workflowsStore.workflow.pinData = {
+				'Pinned Node': [{ json: { data: 'pinned result' } }],
+				// 'Unpinned Node' has no pinned data
+			};
+
+			const { workflowTodos } = useBuilderTodos();
+
+			// Only the unpinned node's issue should be included
+			expect(workflowTodos.value).toHaveLength(1);
+			expect(workflowTodos.value[0].node).toBe('Unpinned Node');
 		});
 	});
 });
