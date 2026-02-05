@@ -18,6 +18,7 @@ export interface Props {
 	color?: string;
 	workflowId?: string;
 	pruneTimeHours?: number;
+	enableThinkingParse?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -50,6 +51,7 @@ const messageComponent = computed<Component | null>(() => {
 			:color="color"
 			:workflow-id="workflowId"
 			:prune-time-hours="pruneTimeHours"
+			:enable-thinking-parse="enableThinkingParse"
 			@code-replace="emit('codeReplace')"
 			@code-undo="emit('codeUndo')"
 			@feedback="(feedback: RatingFeedback) => emit('feedback', feedback)"

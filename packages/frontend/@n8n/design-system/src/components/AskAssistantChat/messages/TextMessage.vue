@@ -21,6 +21,7 @@ interface Props {
 	isLastMessage?: boolean;
 	color?: string;
 	pruneTimeHours?: number;
+	enableThinkingParse?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -38,8 +39,12 @@ const isClipboardSupported = computed(() => {
 	return navigator.clipboard?.writeText;
 });
 
-// Parse content into segments (text and thinking)
-const parsedContent = computed(() => parseThinkingSegments(props.message.content));
+// Parse content into segments (text and thinking) - only when enabled
+const parsedContent = computed(() =>
+	props.enableThinkingParse
+		? parseThinkingSegments(props.message.content)
+		: [{ type: 'text' as const, content: props.message.content }],
+);
 
 // User message expand/collapse functionality
 const isExpanded = ref(false);

@@ -436,13 +436,14 @@ describe('TextMessage', () => {
 	});
 
 	describe('thinking tag rendering', () => {
-		it('should render collapsible section for messages with thinking tags', () => {
+		it('should render collapsible section for messages with thinking tags when enabled', () => {
 			const wrapper = render(TextMessage, {
 				props: {
 					message: createAssistantMessage({
 						content: 'Hello <thinking>This is my thought process</thinking> World',
 					}),
 					isFirstOfRole: true,
+					enableThinkingParse: true,
 				},
 				global: { stubs, directives },
 			});
@@ -470,6 +471,7 @@ describe('TextMessage', () => {
 						content: 'Just a normal message',
 					}),
 					isFirstOfRole: true,
+					enableThinkingParse: true,
 				},
 				global: { stubs, directives },
 			});
@@ -482,7 +484,7 @@ describe('TextMessage', () => {
 			expect(wrapper.container.textContent).toContain('Just a normal message');
 		});
 
-		it('should hide incomplete thinking tags during streaming', () => {
+		it('should hide incomplete thinking tags during streaming when enabled', () => {
 			const wrapper = render(TextMessage, {
 				props: {
 					message: createAssistantMessage({
@@ -491,6 +493,7 @@ describe('TextMessage', () => {
 					isFirstOfRole: true,
 					streaming: true,
 					isLastMessage: true,
+					enableThinkingParse: true,
 				},
 				global: { stubs, directives },
 			});
@@ -503,7 +506,7 @@ describe('TextMessage', () => {
 			expect(wrapper.container.textContent).not.toContain('Partial thought');
 		});
 
-		it('should render multiple thinking sections correctly', () => {
+		it('should render multiple thinking sections correctly when enabled', () => {
 			const wrapper = render(TextMessage, {
 				props: {
 					message: createAssistantMessage({
@@ -511,6 +514,7 @@ describe('TextMessage', () => {
 							'First <thinking>Thought 1</thinking> Middle <thinking>Thought 2</thinking> Last',
 					}),
 					isFirstOfRole: true,
+					enableThinkingParse: true,
 				},
 				global: { stubs, directives },
 			});
@@ -527,6 +531,29 @@ describe('TextMessage', () => {
 			expect(wrapper.container.textContent).toContain('First');
 			expect(wrapper.container.textContent).toContain('Middle');
 			expect(wrapper.container.textContent).toContain('Last');
+		});
+
+		it('should not parse thinking tags when enableThinkingParse is false', () => {
+			const wrapper = render(TextMessage, {
+				props: {
+					message: createAssistantMessage({
+						content: 'Hello <thinking>This is my thought process</thinking> World',
+					}),
+					isFirstOfRole: true,
+					enableThinkingParse: false,
+				},
+				global: { stubs, directives },
+			});
+
+			// No details element should be rendered when thinking parse is disabled
+			const details = wrapper.container.querySelector('details.n8n-thinking-section');
+			expect(details).toBeFalsy();
+
+			// The content is passed through markdown renderer, so thinking tags
+			// won't be in a collapsible section - they'll be rendered as-is through markdown
+			// The key check is that no thinking-section details element exists
+			expect(wrapper.container.textContent).toContain('Hello');
+			expect(wrapper.container.textContent).toContain('World');
 		});
 	});
 });

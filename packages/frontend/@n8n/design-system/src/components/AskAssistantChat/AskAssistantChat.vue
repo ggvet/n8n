@@ -41,6 +41,7 @@ interface Props {
 	suggestions?: WorkflowSuggestion[];
 	workflowId?: string;
 	pruneTimeHours?: number;
+	enableThinkingParse?: boolean;
 }
 
 const emit = defineEmits<{
@@ -442,6 +443,7 @@ defineExpose({
 									:color="getMessageColor(message)"
 									:workflow-id="workflowId"
 									:prune-time-hours="pruneTimeHours"
+									:enable-thinking-parse="enableThinkingParse"
 									@code-replace="() => emit('codeReplace', i)"
 									@code-undo="() => emit('codeUndo', i)"
 									@feedback="onRateMessage"
