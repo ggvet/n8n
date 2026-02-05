@@ -285,123 +285,13 @@ export class DiscoverySubgraph extends BaseSubgraph<
 		this.agent = systemPrompt.pipe(config.llm.bindTools(allTools));
 		this.plannerAgent = createPlannerAgent({ llm: config.plannerLLM });
 
-		const plannerNode = async (
-			state: typeof DiscoverySubgraphState.State,
-			runnableConfig?: RunnableConfig,
-		) => {
-			if (!this.featureFlags?.planMode || state.mode !== 'plan' || state.planOutput) {
-				return {};
-			}
-
-			const userRequest = state.userRequest || 'Build a workflow';
-			const discoveryContext: DiscoveryContext = {
-				nodesFound: state.nodesFound ?? [],
-				bestPractices: state.bestPractices,
-			};
-
-			const contextParts: string[] = [];
-			contextParts.push('=== USER REQUEST ===');
-			contextParts.push(userRequest);
-
-			if (discoveryContext.nodesFound.length > 0) {
-				contextParts.push('=== DISCOVERY CONTEXT (SUGGESTED NODES) ===');
-				contextParts.push(
-					discoveryContext.nodesFound
-						.map((node) => `- ${node.nodeName} v${node.version}: ${node.reasoning}`)
-						.join('\n'),
-				);
-			}
-
-			if (state.workflowJSON.nodes.length > 0) {
-				contextParts.push('=== EXISTING WORKFLOW SUMMARY ===');
-				contextParts.push(buildWorkflowSummary(state.workflowJSON));
-			}
-
-			if (state.planPrevious) {
-				contextParts.push('=== PREVIOUS PLAN ===');
-				contextParts.push(formatPlanAsText(state.planPrevious));
-			}
-
-			if (state.planFeedback) {
-				contextParts.push('=== USER FEEDBACK ===');
-				contextParts.push(state.planFeedback);
-			}
-
-			const contextMessage = createContextMessage(contextParts);
-			const output = await this.plannerAgent.invoke({ messages: [contextMessage] }, runnableConfig);
-			const parsedPlan = plannerOutputSchema.safeParse(output.structuredResponse);
-			if (!parsedPlan.success) {
-				throw new Error(`Planner produced invalid output: ${parsedPlan.error.message}`);
-			}
-
-			const plan = parsedPlan.data;
-			const decisionValue: unknown = interrupt({
-				type: 'plan',
-				plan,
-			});
-
-			const decision = parsePlanDecision(decisionValue);
-
-			if (decision.action === 'approve') {
-				return {
-					planDecision: 'approve' as const,
-					planOutput: plan,
-					mode: 'build' as const,
-					planFeedback: null,
-					planPrevious: null,
-				};
-			}
-
-			if (decision.action === 'reject') {
-				return {
-					planDecision: 'reject' as const,
-					planOutput: null,
-					planFeedback: null,
-					planPrevious: null,
-				};
-			}
-
-			const feedbackMessageParts: string[] = [];
-			feedbackMessageParts.push('<plan_feedback>');
-			feedbackMessageParts.push(
-				decision.feedback ?? 'User requested changes without additional details.',
-			);
-			feedbackMessageParts.push('</plan_feedback>');
-
-			feedbackMessageParts.push('<previous_plan>');
-			feedbackMessageParts.push(formatPlanAsText(plan));
-			feedbackMessageParts.push('</previous_plan>');
-
-			const feedbackMessage = createContextMessage(feedbackMessageParts);
-
-			return {
-				planDecision: 'modify' as const,
-				planOutput: null,
-				planFeedback: decision.feedback ?? 'User requested changes without additional details.',
-				planPrevious: plan,
-				messages: [feedbackMessage],
-			};
-		};
-
-		const shouldPlan = (state: typeof DiscoverySubgraphState.State): 'planner' | typeof END => {
-			if (!this.featureFlags?.planMode) return END;
-			if (state.mode !== 'plan') return END;
-			return state.planOutput ? END : 'planner';
-		};
-
-		const shouldLoopPlanner = (
-			state: typeof DiscoverySubgraphState.State,
-		): 'discovery_agent' | typeof END => {
-			return state.planDecision === 'modify' ? 'discovery_agent' : END;
-		};
-
 		// Build the subgraph
 		const subgraph = new StateGraph(DiscoverySubgraphState)
 			.addNode('discovery_agent', this.callAgent.bind(this))
 			.addNode('tools', async (state) => await executeSubgraphTools(state, this.toolMap))
 			.addNode('format_output', this.formatOutput.bind(this))
 			.addNode('reprompt', this.repromptForToolCall.bind(this))
-			.addNode('planner', plannerNode)
+			.addNode('planner', this.plannerNode.bind(this))
 			.addEdge(START, 'discovery_agent')
 			// Conditional: tools if has tool calls, format_output if submit called, reprompt if no tool calls
 			.addConditionalEdges('discovery_agent', this.shouldContinue.bind(this), {
@@ -412,8 +302,8 @@ export class DiscoverySubgraph extends BaseSubgraph<
 			})
 			.addEdge('tools', 'discovery_agent') // After tools, go back to agent
 			.addEdge('reprompt', 'discovery_agent') // After reprompt, try agent again
-			.addConditionalEdges('format_output', shouldPlan)
-			.addConditionalEdges('planner', shouldLoopPlanner);
+			.addConditionalEdges('format_output', this.shouldPlan.bind(this))
+			.addConditionalEdges('planner', this.shouldLoopPlanner.bind(this));
 
 		return subgraph.compile();
 	}
@@ -435,6 +325,114 @@ export class DiscoverySubgraph extends BaseSubgraph<
 		})) as AIMessage;
 
 		return { messages: [response] };
+	}
+
+	/**
+	 * Planner node - generates a plan and interrupts for user approval.
+	 * Skips if plan mode is disabled, not in plan mode, or plan already exists.
+	 */
+	private async plannerNode(
+		state: typeof DiscoverySubgraphState.State,
+		runnableConfig?: RunnableConfig,
+	) {
+		if (!this.featureFlags?.planMode || state.mode !== 'plan' || state.planOutput) {
+			return {};
+		}
+
+		const userRequest = state.userRequest || 'Build a workflow';
+		const discoveryContext: DiscoveryContext = {
+			nodesFound: state.nodesFound ?? [],
+			bestPractices: state.bestPractices,
+		};
+
+		const contextParts: string[] = [];
+		contextParts.push('=== USER REQUEST ===');
+		contextParts.push(userRequest);
+
+		if (discoveryContext.nodesFound.length > 0) {
+			contextParts.push('=== DISCOVERY CONTEXT (SUGGESTED NODES) ===');
+			contextParts.push(
+				discoveryContext.nodesFound
+					.map((node) => `- ${node.nodeName} v${node.version}: ${node.reasoning}`)
+					.join('\n'),
+			);
+		}
+
+		if (state.workflowJSON.nodes.length > 0) {
+			contextParts.push('=== EXISTING WORKFLOW SUMMARY ===');
+			contextParts.push(buildWorkflowSummary(state.workflowJSON));
+		}
+
+		if (state.planPrevious) {
+			contextParts.push('=== PREVIOUS PLAN ===');
+			contextParts.push(formatPlanAsText(state.planPrevious));
+		}
+
+		if (state.planFeedback) {
+			contextParts.push('=== USER FEEDBACK ===');
+			contextParts.push(state.planFeedback);
+		}
+
+		const contextMessage = createContextMessage(contextParts);
+		const output = await this.plannerAgent.invoke({ messages: [contextMessage] }, runnableConfig);
+		const parsedPlan = plannerOutputSchema.safeParse(output.structuredResponse);
+		if (!parsedPlan.success) {
+			throw new Error(`Planner produced invalid output: ${parsedPlan.error.message}`);
+		}
+
+		const plan = parsedPlan.data;
+		const decisionValue: unknown = interrupt({ type: 'plan', plan });
+		const decision = parsePlanDecision(decisionValue);
+
+		if (decision.action === 'approve') {
+			return {
+				planDecision: 'approve' as const,
+				planOutput: plan,
+				mode: 'build' as const,
+				planFeedback: null,
+				planPrevious: null,
+			};
+		}
+
+		if (decision.action === 'reject') {
+			return {
+				planDecision: 'reject' as const,
+				planOutput: null,
+				planFeedback: null,
+				planPrevious: null,
+			};
+		}
+
+		// Modify: provide feedback context for re-discovery
+		const feedbackMessageParts: string[] = [];
+		feedbackMessageParts.push('<plan_feedback>');
+		feedbackMessageParts.push(
+			decision.feedback ?? 'User requested changes without additional details.',
+		);
+		feedbackMessageParts.push('</plan_feedback>');
+		feedbackMessageParts.push('<previous_plan>');
+		feedbackMessageParts.push(formatPlanAsText(plan));
+		feedbackMessageParts.push('</previous_plan>');
+
+		return {
+			planDecision: 'modify' as const,
+			planOutput: null,
+			planFeedback: decision.feedback ?? 'User requested changes without additional details.',
+			planPrevious: plan,
+			messages: [createContextMessage(feedbackMessageParts)],
+		};
+	}
+
+	private shouldPlan(state: typeof DiscoverySubgraphState.State): 'planner' | typeof END {
+		if (!this.featureFlags?.planMode) return END;
+		if (state.mode !== 'plan') return END;
+		return state.planOutput ? END : 'planner';
+	}
+
+	private shouldLoopPlanner(
+		state: typeof DiscoverySubgraphState.State,
+	): 'discovery_agent' | typeof END {
+		return state.planDecision === 'modify' ? 'discovery_agent' : END;
 	}
 
 	/**
