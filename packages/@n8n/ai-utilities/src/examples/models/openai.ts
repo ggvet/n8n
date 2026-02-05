@@ -11,8 +11,8 @@ import {
 	type ToolCall,
 	type TokenUsage,
 	type ProviderTool,
-} from '../../src';
-import { parseSSEStream } from '../../src/utils/sse';
+} from 'src';
+import { parseSSEStream } from 'src';
 
 export type OpenAITool =
 	| {

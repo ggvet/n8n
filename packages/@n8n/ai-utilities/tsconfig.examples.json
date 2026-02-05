@@ -1,11 +1,11 @@
 {
-	"extends": ["./tsconfig.json", "@n8n/typescript-config/modern/tsconfig.cjs.json"],
+	"extends": ["./tsconfig.json", "@n8n/typescript-config/tsconfig.build.json"],
 	"compilerOptions": {
-		"outDir": "dist_examples",
-		"module": "commonjs",
-		"declaration": true,
-		"tsBuildInfoFile": "dist_examples/typecheck.tsbuildinfo"
+		"composite": true,
+		"rootDir": "src",
+		"outDir": "dist",
+		"tsBuildInfoFile": "dist/build.tsbuildinfo"
 	},
-	"include": ["examples/**/*.ts", "src/**/*.ts"],
-	"exclude": ["node_modules", "examples/run.ts"]
+	"include": ["src/**/*.ts", "src/examples/**/*.ts"],
+	"exclude": ["src/**/__tests__/**", "src/**/*.test.ts"]
 }

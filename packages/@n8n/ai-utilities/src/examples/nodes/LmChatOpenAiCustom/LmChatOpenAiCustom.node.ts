@@ -20,7 +20,7 @@ export type ModelOptions = {
 
 export class LmChatOpenAiCustom implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Custom OpenAI',
+		displayName: 'OpenAI Custom',
 
 		name: 'lmChatOpenAiCustom',
 		icon: 'fa:robot',

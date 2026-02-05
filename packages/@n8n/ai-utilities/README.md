@@ -19,6 +19,20 @@ pnpm test
 pnpm dev
 ```
 
+## Running examples
+
+```bash
+pnpm build:examples
+```
+
+Update your env file with:
+
+```bash
+"N8N_CUSTOM_EXTENSIONS": "<PATH_TO_N8N>/packages/@n8n/ai-utilities/dist/examples/nodes"
+```
+
+Start n8n and add "OpenAI Simple" or "OpenAI Custom" to workflows
+
 # AI Node SDK Interface Specification
 
 ## Core Pattern
