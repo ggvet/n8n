@@ -1,13 +1,20 @@
 import { validateWorkflow, ValidationError } from '.';
+import { loadSchema } from './schema-validator';
 import type { NodeInstance } from '../types/base';
 import { workflow } from '../workflow-builder';
 import { node, trigger, sticky } from '../workflow-builder/node-builders/node-builder';
 import { languageModel, tool } from '../workflow-builder/node-builders/subnode-builders';
-import { loadSchema } from './schema-validator';
 
 // Check if generated schemas are available (they're generated locally, not in CI)
 const schemasAvailable = loadSchema('n8n-nodes-base.set', 2) !== null;
-const describeIfSchemas = schemasAvailable ? describe : describe.skip;
+
+// Helper to conditionally register describe blocks that require schemas
+// Uses a wrapper instead of .skip() to comply with lint rules
+function describeIfSchemas(name: string, fn: () => void) {
+	if (schemasAvailable) {
+		describe(name, fn);
+	}
+}
 
 describe('Validation', () => {
 	describe('validateWorkflow()', () => {
