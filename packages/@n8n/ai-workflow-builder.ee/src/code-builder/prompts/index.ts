@@ -638,6 +638,8 @@ export interface BuildCodeBuilderPromptOptions {
 	expressionValues?: Record<string, ExpressionValue[]>;
 	/** Pre-generated workflow code (used to ensure text editor and prompt have same content) */
 	preGeneratedCode?: string;
+	/** Whether execution schema values were excluded (redacted) */
+	valuesExcluded?: boolean;
 }
 
 /**
@@ -693,6 +695,7 @@ export function buildCodeBuilderPrompt(
 				executionSchema: options?.executionSchema,
 				executionData: options?.executionData,
 				expressionValues: options?.expressionValues,
+				valuesExcluded: options?.valuesExcluded,
 			});
 
 		// Format as file with line numbers (matches view command output)
