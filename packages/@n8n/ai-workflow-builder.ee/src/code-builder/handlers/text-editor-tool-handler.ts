@@ -10,7 +10,7 @@ import { ToolMessage, HumanMessage } from '@langchain/core/messages';
 import type { WorkflowJSON } from '@n8n/workflow-sdk';
 
 import type { StreamOutput, ToolProgressChunk } from '../../types/streaming';
-import { FIX_AND_FINALIZE_INSTRUCTION } from '../constants';
+import { FIX_AND_FINALIZE_INSTRUCTION, FIX_ISSUES_INSTRUCTION } from '../constants';
 import type { ParseAndValidateResult } from '../types';
 
 /**
@@ -204,7 +204,7 @@ export class TextEditorToolHandler {
 				// Add human message with warning feedback (marked as validation message for filtering)
 				messages.push(
 					new HumanMessage({
-						content: `Validation warnings:\n${warningText}\n\n${errorContext}\n\nUse str_replace to fix these issues.${FIX_AND_FINALIZE_INSTRUCTION}`,
+						content: `Validation warnings:\n${warningText}\n\n${errorContext}\n\n${FIX_ISSUES_INSTRUCTION}${FIX_AND_FINALIZE_INSTRUCTION}`,
 						additional_kwargs: { validationMessage: true },
 					}),
 				);
@@ -233,7 +233,7 @@ export class TextEditorToolHandler {
 			// Add human message with error feedback (marked as validation message for filtering)
 			messages.push(
 				new HumanMessage({
-					content: `Parse error: ${errorMessage}\n\n${errorContext}\n\nUse str_replace to fix these issues.${FIX_AND_FINALIZE_INSTRUCTION}`,
+					content: `Parse error: ${errorMessage}\n\n${errorContext}\n\n${FIX_ISSUES_INSTRUCTION}${FIX_AND_FINALIZE_INSTRUCTION}`,
 					additional_kwargs: { validationMessage: true },
 				}),
 			);

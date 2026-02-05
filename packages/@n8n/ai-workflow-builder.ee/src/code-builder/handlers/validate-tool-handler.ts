@@ -10,7 +10,7 @@ import { ToolMessage } from '@langchain/core/messages';
 import type { WorkflowJSON } from '@n8n/workflow-sdk';
 
 import type { StreamOutput, ToolProgressChunk, WorkflowUpdateChunk } from '../../types/streaming';
-import { FIX_AND_FINALIZE_INSTRUCTION } from '../constants';
+import { FIX_AND_FINALIZE_INSTRUCTION, FIX_ISSUES_INSTRUCTION } from '../constants';
 import type { WarningTracker } from '../state/warning-tracker';
 import type { ParseAndValidateResult } from '../types';
 
@@ -153,7 +153,7 @@ export class ValidateToolHandler {
 					messages.push(
 						new ToolMessage({
 							tool_call_id: toolCallId,
-							content: `Validation warnings:\n${warningText}\n\n${errorContext}\n\nUse str_replace_based_edit_tool to fix these issues.${FIX_AND_FINALIZE_INSTRUCTION}`,
+							content: `Validation warnings:\n${warningText}\n\n${errorContext}\n\n${FIX_ISSUES_INSTRUCTION}${FIX_AND_FINALIZE_INSTRUCTION}`,
 						}),
 					);
 
@@ -208,7 +208,7 @@ export class ValidateToolHandler {
 			messages.push(
 				new ToolMessage({
 					tool_call_id: toolCallId,
-					content: `Parse error: ${errorMessage}\n\n${errorContext}\n\nUse str_replace_based_edit_tool to fix these issues.${FIX_AND_FINALIZE_INSTRUCTION}`,
+					content: `Parse error: ${errorMessage}\n\n${errorContext}\n\n${FIX_ISSUES_INSTRUCTION}${FIX_AND_FINALIZE_INSTRUCTION}`,
 				}),
 			);
 

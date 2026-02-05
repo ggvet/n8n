@@ -12,6 +12,9 @@ export const MAX_AGENT_ITERATIONS = 50;
 /** Maximum validate attempts before giving up in text editor mode */
 export const MAX_VALIDATE_ATTEMPTS = 10;
 
+/** Instruction to fix validation issues using text editor commands */
+export const FIX_ISSUES_INSTRUCTION = 'Use str_replace or insert to fix these issues.';
+
 /** Mandatory instruction appended to validation/parse error messages */
 export const FIX_AND_FINALIZE_INSTRUCTION = `
 
@@ -19,7 +22,7 @@ IMPORTANT: After fixing the issues above, you MUST do ONE of:
 1. Call validate_workflow to verify your fixes are correct, OR
 2. Stop calling tools to trigger auto-finalize
 
-Do NOT continue making edits indefinitely without validating.`;
+Always validate your changes before making additional edits.`;
 
 /** Native Anthropic text editor tool configuration */
 export const TEXT_EDITOR_TOOL = {
