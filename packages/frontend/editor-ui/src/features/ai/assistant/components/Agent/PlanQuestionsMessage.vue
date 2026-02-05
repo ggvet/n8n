@@ -1,170 +1,358 @@
 <script setup lang="ts">
-import { computed, reactive } from 'vue';
+/**
+ * PlanQuestionsMessage.vue
+ *
+ * Multi-step Q&A wizard for Plan Mode. Renders questions with radio buttons,
+ * checkboxes, or text inputs based on question type.
+ */
+import { ref, computed } from 'vue';
 
 import { N8nButton, N8nCheckbox, N8nInput, N8nText } from '@n8n/design-system';
-import { useI18n } from '@n8n/i18n';
 
 import type { PlanMode } from '../../assistant.types';
 
-const props = defineProps<{
-	message: PlanMode.QuestionsMessage;
+interface Props {
+	questions: PlanMode.PlannerQuestion[];
+	introMessage?: string;
 	disabled?: boolean;
-}>();
+}
+
+const props = defineProps<Props>();
 
 const emit = defineEmits<{
 	submit: [answers: PlanMode.QuestionResponse[]];
 }>();
 
-const i18n = useI18n();
+// Current question index (0-based)
+const currentIndex = ref(0);
 
-type DraftAnswer = {
-	selectedOptions: string[];
-	customText: string;
-};
+// Store answers for each question
+const answers = ref<Map<string, PlanMode.QuestionResponse>>(new Map());
 
-const draftByQuestionId = reactive<Record<string, DraftAnswer>>({});
+const currentQuestion = computed(() => props.questions[currentIndex.value]);
+const isFirstQuestion = computed(() => currentIndex.value === 0);
+const isLastQuestion = computed(() => currentIndex.value === props.questions.length - 1);
 
-const questions = computed(() => props.message.data.questions);
-const introMessage = computed(() => props.message.data.introMessage);
+// Filter out "Other" from LLM-provided options since we render our own "Other" option
+const filteredOptions = computed(() => {
+	const options = currentQuestion.value.options ?? [];
+	return options.filter((opt) => opt.toLowerCase() !== 'other');
+});
 
-function getDraft(questionId: string): DraftAnswer {
-	if (!draftByQuestionId[questionId]) {
-		draftByQuestionId[questionId] = { selectedOptions: [], customText: '' };
-	}
-	return draftByQuestionId[questionId];
-}
-
-function setSingleOption(questionId: string, option: string) {
-	getDraft(questionId).selectedOptions = option ? [option] : [];
-}
-
-function toggleMultiOption(questionId: string, option: string, checked: boolean) {
-	const draft = getDraft(questionId);
-	if (checked) {
-		draft.selectedOptions = [...new Set([...draft.selectedOptions, option])];
-		return;
-	}
-	draft.selectedOptions = draft.selectedOptions.filter((o) => o !== option);
-}
-
-const isSubmitDisabled = computed(() => props.disabled);
-
-function onSubmit() {
-	const answers: PlanMode.QuestionResponse[] = questions.value.map((q) => {
-		const draft = getDraft(q.id);
-		const selectedOptions = draft.selectedOptions;
-		const customText = draft.customText.trim() || undefined;
-		const skipped = selectedOptions.length === 0 && !customText;
-
-		return {
+// Get or initialize answer for current question
+const currentAnswer = computed(() => {
+	const q = currentQuestion.value;
+	if (!answers.value.has(q.id)) {
+		answers.value.set(q.id, {
 			questionId: q.id,
 			question: q.question,
-			selectedOptions,
-			customText,
-			skipped,
-		};
-	});
+			selectedOptions: [],
+			customText: '',
+			skipped: false,
+		});
+	}
+	// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+	return answers.value.get(q.id)!;
+});
 
-	emit('submit', answers);
+// Check if current question has a valid answer
+const hasValidAnswer = computed(() => {
+	const answer = currentAnswer.value;
+	if (answer.skipped) return true;
+	if (currentQuestion.value.type === 'text') {
+		return !!answer.customText?.trim();
+	}
+	return answer.selectedOptions.length > 0 || !!answer.customText?.trim();
+});
+
+function onSingleSelect(option: string) {
+	currentAnswer.value.selectedOptions = [option];
+	currentAnswer.value.skipped = false;
+}
+
+function onMultiSelect(option: string, checked: boolean) {
+	const options = currentAnswer.value.selectedOptions;
+	if (checked) {
+		if (!options.includes(option)) {
+			options.push(option);
+		}
+	} else {
+		const idx = options.indexOf(option);
+		if (idx > -1) {
+			options.splice(idx, 1);
+		}
+	}
+	currentAnswer.value.skipped = false;
+}
+
+function onCustomTextChange(text: string) {
+	currentAnswer.value.customText = text;
+	currentAnswer.value.skipped = false;
+}
+
+function submitAnswers() {
+	const allAnswers = props.questions.map((q) => {
+		const answer = answers.value.get(q.id);
+		return (
+			answer ?? {
+				questionId: q.id,
+				question: q.question,
+				selectedOptions: [],
+				customText: '',
+				skipped: true,
+			}
+		);
+	});
+	emit('submit', allAnswers);
+}
+
+function goToPrevious() {
+	if (!isFirstQuestion.value) {
+		currentIndex.value--;
+	}
+}
+
+function goToNext() {
+	if (isLastQuestion.value) {
+		submitAnswers();
+	} else {
+		currentIndex.value++;
+	}
 }
 </script>
 
 <template>
-	<div :class="$style.message" data-test-id="plan-mode-questions-message">
-		<div :class="$style.card">
-			<N8nText size="small" bold>{{
-				i18n.baseText('aiAssistant.builder.planMode.questions.title')
-			}}</N8nText>
-			<N8nText v-if="introMessage" size="small" color="text-base">{{ introMessage }}</N8nText>
+	<div :class="$style.wrapper" data-test-id="plan-mode-questions-message">
+		<!-- Intro message (outside the card) -->
+		<N8nText v-if="introMessage && currentIndex === 0" :class="$style.intro">
+			{{ introMessage }}
+		</N8nText>
 
-			<div v-for="q in questions" :key="q.id" :class="$style.question">
-				<N8nText size="small" bold>{{ q.question }}</N8nText>
+		<div :class="$style.container">
+			<!-- Question -->
+			<div :class="$style.question">
+				<N8nText tag="p" :bold="true" :class="$style.questionText">
+					{{ currentQuestion.question }}
+				</N8nText>
 
-				<div v-if="q.options?.length" :class="$style.options">
-					<template v-if="q.type === 'single'">
-						<N8nCheckbox
-							v-for="opt in q.options"
-							:key="opt"
-							:label="opt"
-							:model-value="getDraft(q.id).selectedOptions.includes(opt)"
+				<!-- Single choice (radio) -->
+				<div v-if="currentQuestion.type === 'single'" :class="$style.options">
+					<label
+						v-for="option in filteredOptions"
+						:key="option"
+						:class="[
+							$style.radioOption,
+							{ [$style.selected]: currentAnswer.selectedOptions.includes(option) },
+						]"
+					>
+						<input
+							type="radio"
+							:name="`question-${currentQuestion.id}`"
+							:checked="currentAnswer.selectedOptions.includes(option)"
 							:disabled="disabled"
-							@update:model-value="(checked: boolean) => setSingleOption(q.id, checked ? opt : '')"
+							:class="$style.radioInput"
+							@change="() => onSingleSelect(option)"
 						/>
-					</template>
-					<template v-else>
-						<N8nCheckbox
-							v-for="opt in q.options"
-							:key="opt"
-							:label="opt"
-							:model-value="getDraft(q.id).selectedOptions.includes(opt)"
-							:disabled="disabled"
-							@update:model-value="(checked: boolean) => toggleMultiOption(q.id, opt, checked)"
-						/>
-					</template>
+						<span :class="$style.optionLabel">{{ option }}</span>
+					</label>
 				</div>
 
-				<N8nInput
-					v-if="q.type === 'text' || q.allowCustom !== false"
-					v-model="getDraft(q.id).customText"
-					:disabled="disabled"
-					:placeholder="i18n.baseText('aiAssistant.builder.planMode.questions.customPlaceholder')"
-					size="small"
-				/>
+				<!-- Multi choice (checkbox) -->
+				<div v-else-if="currentQuestion.type === 'multi'" :class="$style.options">
+					<label v-for="option in filteredOptions" :key="option" :class="$style.checkboxOption">
+						<N8nCheckbox
+							:model-value="currentAnswer.selectedOptions.includes(option)"
+							:disabled="disabled"
+							@update:model-value="(checked: boolean) => onMultiSelect(option, checked)"
+						/>
+						<span :class="$style.optionLabel">{{ option }}</span>
+					</label>
+				</div>
+
+				<!-- Text input -->
+				<div v-else-if="currentQuestion.type === 'text'" :class="$style.textInput">
+					<N8nInput
+						:model-value="currentAnswer.customText"
+						type="textarea"
+						:rows="3"
+						:disabled="disabled"
+						placeholder="Enter your answer..."
+						@update:model-value="onCustomTextChange"
+					/>
+				</div>
+
+				<!-- "Other" option for single/multi - inline with input -->
+				<div
+					v-if="currentQuestion.type !== 'text' && currentQuestion.allowCustom !== false"
+					:class="$style.otherOption"
+				>
+					<N8nCheckbox
+						:model-value="!!currentAnswer.customText?.trim()"
+						:disabled="disabled"
+						@update:model-value="
+							(checked: boolean) => {
+								if (!checked) onCustomTextChange('');
+							}
+						"
+					/>
+					<N8nInput
+						:model-value="currentAnswer.customText"
+						:disabled="disabled"
+						placeholder="Other"
+						size="small"
+						:class="$style.otherInput"
+						@update:model-value="onCustomTextChange"
+					/>
+				</div>
 			</div>
 
-			<div :class="$style.actions">
-				<N8nButton
-					type="primary"
-					size="small"
-					:disabled="isSubmitDisabled"
-					data-test-id="plan-mode-questions-submit"
-					@click="onSubmit"
-				>
-					{{ i18n.baseText('aiAssistant.builder.planMode.questions.submitButton') }}
-				</N8nButton>
+			<!-- Footer: Progress + Buttons -->
+			<div :class="$style.footer">
+				<!-- Progress dots -->
+				<div :class="$style.progress">
+					<div
+						v-for="(_, i) in questions"
+						:key="i"
+						:class="[$style.progressDot, { [$style.active]: i <= currentIndex }]"
+					/>
+				</div>
+
+				<!-- Navigation buttons -->
+				<div :class="$style.navigation">
+					<N8nButton
+						v-if="!isFirstQuestion"
+						type="secondary"
+						size="small"
+						:disabled="disabled"
+						@click="goToPrevious"
+					>
+						Back
+					</N8nButton>
+					<div v-else />
+
+					<N8nButton
+						type="primary"
+						size="small"
+						:disabled="disabled || !hasValidAnswer"
+						data-test-id="plan-mode-questions-next"
+						@click="goToNext"
+					>
+						{{ isLastQuestion ? 'Submit' : 'Next' }}
+					</N8nButton>
+				</div>
 			</div>
 		</div>
 	</div>
 </template>
 
-<style module lang="scss">
-.message {
-	margin-bottom: var(--spacing--sm);
-	font-size: var(--font-size--sm);
-	line-height: var(--line-height--xl);
-}
-
-.card {
+<style lang="scss" module>
+.wrapper {
 	display: flex;
 	flex-direction: column;
 	gap: var(--spacing--xs);
+}
+
+.intro {
+	color: var(--color--text);
+	line-height: var(--line-height--xl);
+}
+
+.container {
 	border: var(--border);
-	background-color: var(--color--background--light-3);
 	border-radius: var(--radius--lg);
-	padding: var(--spacing--xs);
+	padding: var(--spacing--sm);
 }
 
 .question {
-	display: flex;
-	flex-direction: column;
-	gap: var(--spacing--2xs);
-	padding-top: var(--spacing--2xs);
-	border-top: var(--border);
+	margin-bottom: var(--spacing--sm);
+}
 
-	&:first-of-type {
-		border-top: 0;
-		padding-top: 0;
-	}
+.questionText {
+	margin-bottom: var(--spacing--xs);
 }
 
 .options {
-	display: grid;
-	gap: var(--spacing--4xs);
+	display: flex;
+	flex-direction: column;
+	gap: var(--spacing--3xs);
 }
 
-.actions {
+.radioOption,
+.checkboxOption {
 	display: flex;
-	justify-content: flex-end;
+	align-items: center;
+	gap: var(--spacing--2xs);
+	cursor: pointer;
+	padding: var(--spacing--3xs) var(--spacing--2xs);
+	border-radius: var(--radius);
+	transition: background-color 0.15s ease;
+
+	&:hover {
+		background-color: var(--color--foreground--tint-2);
+	}
+
+	&.selected {
+		background-color: var(--color--foreground--tint-2);
+	}
+}
+
+.radioInput {
+	width: 16px;
+	height: 16px;
+	accent-color: var(--color--primary);
+	cursor: pointer;
+	margin: 0;
+}
+
+.optionLabel {
+	color: var(--color--text);
+	font-size: var(--font-size--sm);
+}
+
+.textInput {
 	margin-top: var(--spacing--2xs);
+}
+
+.otherOption {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing--2xs);
+	margin-top: var(--spacing--3xs);
+	padding: var(--spacing--3xs) var(--spacing--2xs);
+}
+
+.otherInput {
+	flex: 1;
+}
+
+.footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding-top: var(--spacing--xs);
+	border-top: var(--border);
+	margin-top: var(--spacing--xs);
+}
+
+.progress {
+	display: flex;
+	gap: var(--spacing--3xs);
+}
+
+.progressDot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background-color: var(--color--foreground--tint-1);
+	transition: background-color 0.2s ease;
+
+	&.active {
+		background-color: var(--color--text);
+	}
+}
+
+.navigation {
+	display: flex;
+	gap: var(--spacing--2xs);
 }
 </style>
