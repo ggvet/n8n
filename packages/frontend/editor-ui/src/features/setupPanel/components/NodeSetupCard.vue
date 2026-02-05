@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from '@n8n/i18n';
-import { N8nButton, N8nIcon, N8nTooltip } from '@n8n/design-system';
+import { N8nButton, N8nIcon, N8nTooltip, N8nText } from '@n8n/design-system';
 
 import NodeIcon from '@/app/components/NodeIcon.vue';
 import CredentialPicker from '@/features/credentials/components/CredentialPicker/CredentialPicker.vue';
@@ -66,7 +66,7 @@ onMounted(() => {
 	>
 		<div :class="$style.header" @click="onHeaderClick">
 			<N8nIcon
-				v-if="state.isComplete"
+				v-if="!expanded && state.isComplete"
 				icon="check"
 				:class="$style['complete-icon']"
 				size="medium"
@@ -122,9 +122,16 @@ onMounted(() => {
 			</div>
 
 			<div :class="$style.footer">
+				<div v-if="state.isComplete" :class="$style['footer-complete-check']">
+					<N8nIcon icon="check" :class="$style['complete-icon']" size="large" />
+					<N8nText size="medium" color="success">
+						{{ i18n.baseText('generic.complete') }}
+					</N8nText>
+				</div>
 				<N8nButton
-					:label="i18n.baseText('generic.test')"
+					:label="i18n.baseText('node.testStep')"
 					:disabled="!state.isComplete"
+					icon="flask-conical"
 					size="small"
 					@click="onTestClick"
 				/>
@@ -207,11 +214,16 @@ onMounted(() => {
 
 .footer {
 	display: flex;
-	justify-content: flex-end;
+	justify-content: space-between;
 }
 
-.card.collapsed,
-.card.completed {
+.footer-complete-check {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing--4xs);
+}
+
+.card.collapsed {
 	.node-name {
 		color: var(--color--text--tint-1);
 	}

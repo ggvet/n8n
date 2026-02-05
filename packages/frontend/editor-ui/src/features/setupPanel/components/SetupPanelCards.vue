@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { useWorkflowSetupState } from '@/features/setupPanel/composables/useWorkflowSetupState';
 import NodeSetupCard from './NodeSetupCard.vue';
+import { N8nIcon, N8nText } from '@n8n/design-system';
+import { useI18n } from '@n8n/i18n';
 
+const i18n = useI18n();
 const { nodeSetupStates, isAllComplete, setCredential, unsetCredential } = useWorkflowSetupState();
 
 const onCredentialSelected = (
@@ -22,19 +25,35 @@ const onTestNode = (_nodeName: string) => {
 
 <template>
 	<div :class="$style.container">
-		<NodeSetupCard
-			v-for="state in nodeSetupStates"
-			:key="state.node.id"
-			:state="state"
-			@credential-selected="onCredentialSelected(state.node.name, $event)"
-			@credential-deselected="onCredentialDeselected(state.node.name, $event)"
-			@test-node="onTestNode(state.node.name)"
-		/>
-		<div v-if="isAllComplete && nodeSetupStates.length > 0" :class="$style.completeMessage">
-			All credentials are configured!
+		<div
+			v-if="nodeSetupStates.length === 0"
+			:class="$style['empty-state']"
+			data-test-id="setup-cards-empty"
+		>
+			<N8nIcon icon="list-checks" :class="$style['empty-icon']" :size="24" color="text-base" />
+			<div :class="$style['empty-text']">
+				<N8nText size="medium" color="text-base" :bold="true">
+					{{ i18n.baseText('setupPanel.empty.heading') }}
+				</N8nText>
+				<N8nText size="medium" color="text-light">
+					{{ i18n.baseText('setupPanel.empty.description') }}
+				</N8nText>
+			</div>
 		</div>
-		<div v-if="nodeSetupStates.length === 0" :class="$style.emptyMessage">
-			No credentials need to be configured.
+		<div v-else data-test-id="setup-cards-list">
+			<NodeSetupCard
+				v-for="state in nodeSetupStates"
+				:key="state.node.id"
+				:state="state"
+				@credential-selected="onCredentialSelected(state.node.name, $event)"
+				@credential-deselected="onCredentialDeselected(state.node.name, $event)"
+				@test-node="onTestNode(state.node.name)"
+			/>
+			<div v-if="isAllComplete" :class="$style['complete-message']">
+				<N8nText size="medium" color="text-base">
+					{{ i18n.baseText('setupPanel.everythingConfigured.message') }}
+				</N8nText>
+			</div>
 		</div>
 	</div>
 </template>
@@ -46,8 +65,23 @@ const onTestNode = (_nodeName: string) => {
 	gap: var(--spacing--sm);
 }
 
-.completeMessage,
-.emptyMessage {
+.empty-state {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	align-items: center;
+	justify-content: center;
+	gap: var(--spacing--2xs);
+}
+
+.empty-text {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+
+.complete-message {
 	text-align: center;
 	color: var(--color--text--tint-1);
 	font-size: var(--font-size--sm);
