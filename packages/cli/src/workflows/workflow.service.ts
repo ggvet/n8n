@@ -1,3 +1,4 @@
+import { UpdateWorkflowHistoryVersionDto } from '@n8n/api-types';
 import { LicenseState, Logger } from '@n8n/backend-common';
 import { GlobalConfig } from '@n8n/config';
 import type {
@@ -5,7 +6,6 @@ import type {
 	WorkflowEntity,
 	ListQueryDb,
 	WorkflowFolderUnionFull,
-	WorkflowHistoryUpdate,
 	WorkflowHistory,
 } from '@n8n/db';
 import {
@@ -677,12 +677,12 @@ export class WorkflowService {
 		);
 
 		if (options?.name !== undefined || options?.description !== undefined) {
-			const updateFields: WorkflowHistoryUpdate = {};
+			const updateFields: UpdateWorkflowHistoryVersionDto = {};
 			if (options.name !== undefined) updateFields.name = options.name;
 			if (options.description !== undefined) updateFields.description = options.description;
 			await this.workflowHistoryService.updateVersion(
-				versionIdToActivate,
 				workflowId,
+				versionIdToActivate,
 				updateFields,
 			);
 		}
@@ -708,13 +708,13 @@ export class WorkflowService {
 	 * Deactivates a workflow by removing it from the active workflow manager and setting activeVersionId to null.
 	 * @param user - The user deactivating the workflow
 	 * @param workflowId - The ID of the workflow to deactivate
-	 * @param publicApi - Whether this is called from the public API (affects event emission)
+	 * @param options - Optional settings including expectedChecksum for conflict detection and publicApi flag
 	 * @returns The deactivated workflow
 	 */
 	async deactivateWorkflow(
 		user: User,
 		workflowId: string,
-		publicApi: boolean = false,
+		options?: { expectedChecksum?: string; publicApi?: boolean },
 	): Promise<WorkflowEntity> {
 		const workflow = await this.workflowFinderService.findWorkflowForUser(workflowId, user, [
 			'workflow:publish',
@@ -732,6 +732,10 @@ export class WorkflowService {
 
 		if (workflow.activeVersionId === null) {
 			return workflow;
+		}
+
+		if (options?.expectedChecksum) {
+			await this._detectConflicts(workflow, options.expectedChecksum);
 		}
 
 		// Remove from active workflow manager
@@ -760,7 +764,7 @@ export class WorkflowService {
 			user,
 			workflowId,
 			workflow,
-			publicApi,
+			publicApi: options?.publicApi ?? false,
 		});
 
 		return workflow;
@@ -814,7 +818,7 @@ export class WorkflowService {
 	async archive(
 		user: User,
 		workflowId: string,
-		skipArchived: boolean = false,
+		options?: { skipArchived?: boolean; expectedChecksum?: string },
 	): Promise<WorkflowEntity | undefined> {
 		const workflow = await this.workflowFinderService.findWorkflowForUser(workflowId, user, [
 			'workflow:delete',
@@ -825,11 +829,15 @@ export class WorkflowService {
 		}
 
 		if (workflow.isArchived) {
-			if (skipArchived) {
+			if (options?.skipArchived) {
 				return workflow;
 			}
 
 			throw new BadRequestError('Workflow is already archived.');
+		}
+
+		if (options?.expectedChecksum) {
+			await this._detectConflicts(workflow, options.expectedChecksum);
 		}
 
 		if (workflow.activeVersionId !== null) {

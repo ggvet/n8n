@@ -229,6 +229,11 @@ describe('GlobalConfig', () => {
 				ttl: 3600000,
 			},
 		},
+		chatHub: {
+			executionContextTtl: 3600,
+			maxBufferedChunks: 1000,
+			streamStateTtl: 300,
+		},
 		queue: {
 			health: {
 				active: false,
@@ -285,6 +290,7 @@ describe('GlobalConfig', () => {
 			deploymentName: '',
 			profilesSampleRate: 0,
 			tracesSampleRate: 0,
+			eventLoopBlockThreshold: 500,
 		},
 		logging: {
 			level: 'info',

@@ -56,6 +56,10 @@ export {
 	type ChatSendMessageResponse,
 	type ChatReconnectResponse,
 	ChatReconnectRequest,
+	type ChatArtifact,
+	type ChatArtifactCreateCommand,
+	type ChatArtifactEditCommand,
+	type ChatMessageContentChunk,
 } from './chat-hub';
 
 export type {
@@ -184,4 +188,10 @@ export type {
 	SecretProviderTypeResponse,
 	SecretCompletionsResponse,
 	TestSecretProviderConnectionResponse,
+	ReloadSecretProviderConnectionResponse,
+} from './schemas/secrets-provider.schema';
+
+export {
+	testSecretProviderConnectionResponseSchema,
+	reloadSecretProviderConnectionResponseSchema,
 } from './schemas/secrets-provider.schema';
