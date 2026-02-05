@@ -12,7 +12,12 @@ import {
 	AI_OPTIONAL_ARRAY_TYPES,
 } from './constants';
 import { generateDefaultNodeName } from './node-type-utils';
-import { escapeString, formatKey } from './string-utils';
+import {
+	escapeString,
+	formatKey,
+	isPlaceholderValue,
+	extractPlaceholderHint,
+} from './string-utils';
 import type { SemanticGraph, SemanticNode, AiConnectionType } from './types';
 
 /**
@@ -77,6 +82,11 @@ export function formatValue(value: unknown, ctx?: FormatValueContext): string {
 	if (value === null) return 'null';
 	if (value === undefined) return 'undefined';
 	if (typeof value === 'string') {
+		// Check for placeholder values first
+		if (isPlaceholderValue(value)) {
+			const hint = extractPlaceholderHint(value);
+			return `placeholder('${escapeString(hint)}')`;
+		}
 		if (value.startsWith('=')) {
 			const inner = value.slice(1);
 			const formatted = `expr('${escapeString(inner)}')`;

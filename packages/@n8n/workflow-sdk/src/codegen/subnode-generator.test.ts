@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
 import type { IDataObject } from 'n8n-workflow';
 
-import { generateSubnodeCall, generateSubnodesConfig } from './subnode-generator';
+import { generateSubnodeCall, generateSubnodesConfig, formatValue } from './subnode-generator';
 import type { SemanticGraph, SemanticNode, AiConnectionType } from './types';
 
 /**
@@ -237,5 +237,60 @@ describe('generateSubnodesConfig', () => {
 		expect(result).toContain('model: model');
 		// Should NOT contain inline languageModel call
 		expect(result).not.toContain('languageModel({');
+	});
+});
+
+describe('formatValue', () => {
+	it('formats placeholder values as placeholder() function calls', () => {
+		const placeholderString = '<__PLACEHOLDER_VALUE__Enter Slack Channel__>';
+
+		const result = formatValue(placeholderString);
+
+		expect(result).toBe("placeholder('Enter Slack Channel')");
+	});
+
+	it('formats placeholder values with special characters in hint', () => {
+		const placeholderString = "<__PLACEHOLDER_VALUE__Enter your API key (e.g., 'sk-xxx')__>";
+
+		const result = formatValue(placeholderString);
+
+		expect(result).toBe("placeholder('Enter your API key (e.g., \\'sk-xxx\\')')");
+	});
+
+	it('formats placeholder values nested in objects', () => {
+		const obj = {
+			channel: '<__PLACEHOLDER_VALUE__Select a channel__>',
+			message: 'Hello',
+		};
+
+		const result = formatValue(obj);
+
+		expect(result).toContain("channel: placeholder('Select a channel')");
+		expect(result).toContain("message: 'Hello'");
+	});
+
+	it('formats placeholder values nested in arrays', () => {
+		const arr = ['<__PLACEHOLDER_VALUE__First item__>', 'regular string'];
+
+		const result = formatValue(arr);
+
+		expect(result).toContain("placeholder('First item')");
+		expect(result).toContain("'regular string'");
+	});
+
+	it('formats expressions as expr() function calls', () => {
+		const expression = '={{ $json.name }}';
+
+		const result = formatValue(expression);
+
+		expect(result).toBe("expr('{{ $json.name }}')");
+	});
+
+	it('formats regular strings as quoted strings', () => {
+		const regularString = 'Hello World';
+
+		const result = formatValue(regularString);
+
+		expect(result).toBe("'Hello World'");
 	});
 });

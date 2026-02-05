@@ -39,3 +39,20 @@ export function formatKey(key: string): string {
 export function escapeRegexChars(str: string): string {
 	return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+/**
+ * Check if a value is a placeholder string
+ * Format: <__PLACEHOLDER_VALUE__hint__>
+ */
+export function isPlaceholderValue(value: unknown): boolean {
+	if (typeof value !== 'string') return false;
+	return value.startsWith('<__PLACEHOLDER_VALUE__') && value.endsWith('__>');
+}
+
+/**
+ * Extract the hint text from a placeholder value string
+ */
+export function extractPlaceholderHint(value: string): string {
+	const match = value.match(/^<__PLACEHOLDER_VALUE__(.*)__>$/);
+	return match ? match[1] : '';
+}

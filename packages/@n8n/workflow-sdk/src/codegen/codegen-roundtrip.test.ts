@@ -952,6 +952,54 @@ return workflow('test-id', 'Test Workflow')
 				'<__PLACEHOLDER_VALUE__Enter Slack Channel__>',
 			);
 		});
+
+		it('should roundtrip JSON with placeholder values through code generation', () => {
+			// Start with JSON containing placeholder value
+			const inputJson: WorkflowJSON = {
+				id: 'test-id',
+				name: 'Test Workflow',
+				nodes: [
+					{
+						id: 'trigger',
+						name: 'Manual Trigger',
+						type: 'n8n-nodes-base.manualTrigger',
+						typeVersion: 1,
+						position: [0, 0] as [number, number],
+						parameters: {},
+					},
+					{
+						id: 'slack',
+						name: 'Slack',
+						type: 'n8n-nodes-base.slack',
+						typeVersion: 2.2,
+						position: [200, 0] as [number, number],
+						parameters: {
+							channel: '<__PLACEHOLDER_VALUE__Enter Slack Channel__>',
+							text: 'Hello',
+						},
+					},
+				],
+				connections: {
+					'Manual Trigger': {
+						main: [[{ node: 'Slack', type: 'main', index: 0 }]],
+					},
+				},
+			};
+
+			// JSON → code
+			const code = generateWorkflowCode(inputJson);
+
+			// Code should contain placeholder() call, not raw string
+			expect(code).toContain("placeholder('Enter Slack Channel')");
+			expect(code).not.toContain('<__PLACEHOLDER_VALUE__');
+
+			// code → JSON (roundtrip)
+			const outputJson = parseWorkflowCode(code);
+			const slackNode = outputJson.nodes.find((n) => n.type === 'n8n-nodes-base.slack');
+			expect((slackNode?.parameters as Record<string, unknown>)?.channel).toBe(
+				'<__PLACEHOLDER_VALUE__Enter Slack Channel__>',
+			);
+		});
 	});
 
 	describe('parses newCredential() in workflow code', () => {
