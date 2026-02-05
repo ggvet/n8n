@@ -46,6 +46,11 @@ export interface CodeWorkflowBuilderConfig {
 	 * If provided, enables multi-turn conversation history.
 	 */
 	checkpointer?: MemorySaver;
+	/**
+	 * Callback when generation completes successfully (not aborted).
+	 * Used for credit deduction and UI updates.
+	 */
+	onGenerationSuccess?: () => Promise<void>;
 }
 
 /**
@@ -61,6 +66,7 @@ export class CodeWorkflowBuilder {
 	private codeBuilderAgent: CodeBuilderAgent;
 	private logger?: Logger;
 	private sessionChatHandler?: SessionChatHandler;
+	private onGenerationSuccess?: () => Promise<void>;
 
 	constructor(config: CodeWorkflowBuilderConfig) {
 		this.codeBuilderAgent = new CodeBuilderAgent({
@@ -73,6 +79,7 @@ export class CodeWorkflowBuilder {
 		});
 
 		this.logger = config.logger;
+		this.onGenerationSuccess = config.onGenerationSuccess;
 
 		// Initialize session handler if checkpointer is provided
 		if (config.checkpointer) {
@@ -80,6 +87,7 @@ export class CodeWorkflowBuilder {
 				checkpointer: config.checkpointer,
 				llm: config.llm,
 				logger: config.logger,
+				onGenerationSuccess: config.onGenerationSuccess,
 			});
 		}
 	}
@@ -106,7 +114,7 @@ export class CodeWorkflowBuilder {
 			hasSessionHandler: !!this.sessionChatHandler,
 		});
 
-		// Use session handler if available, otherwise delegate directly
+		// Use session handler if available (handles onGenerationSuccess internally)
 		if (this.sessionChatHandler) {
 			yield* this.sessionChatHandler.execute({
 				payload,
@@ -115,7 +123,23 @@ export class CodeWorkflowBuilder {
 				agentChat: (p, u, s, h) => this.codeBuilderAgent.chat(p, u, s, h),
 			});
 		} else {
-			yield* this.codeBuilderAgent.chat(payload, userId, abortSignal);
+			// No session handler - track generation success and call callback manually
+			let generationSucceeded = false;
+
+			for await (const chunk of this.codeBuilderAgent.chat(payload, userId, abortSignal)) {
+				// Check if this chunk indicates successful workflow generation
+				if (chunk.messages?.some((msg) => msg.type === 'workflow-updated')) {
+					generationSucceeded = true;
+				}
+				yield chunk;
+			}
+
+			// Call success callback after successful generation (fire-and-forget)
+			if (generationSucceeded && this.onGenerationSuccess) {
+				void Promise.resolve(this.onGenerationSuccess()).catch((error) => {
+					this.logger?.warn('Failed to execute onGenerationSuccess callback', { error });
+				});
+			}
 		}
 	}
 }

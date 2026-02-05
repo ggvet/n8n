@@ -119,7 +119,7 @@ describe('CodeWorkflowBuilder Integration', () => {
 	});
 
 	describe('routing to CodeWorkflowBuilder', () => {
-		it('should route to CodeWorkflowBuilder when codeBuilder is true (default)', async () => {
+		it('should route to CodeWorkflowBuilder when codeBuilder feature flag is true', async () => {
 			const mockStreamOutput: StreamOutput = {
 				messages: [
 					{
@@ -138,7 +138,9 @@ describe('CodeWorkflowBuilder Integration', () => {
 			const payload: ChatPayload = {
 				id: 'test-123',
 				message: 'Create a workflow that sends emails',
-				// codeBuilder defaults to true, so we don't need to set it
+				featureFlags: {
+					codeBuilder: true,
+				},
 			};
 
 			const generator = agent.chat(payload, 'user-123');
@@ -202,6 +204,9 @@ describe('CodeWorkflowBuilder Integration', () => {
 			const payload: ChatPayload = {
 				id: 'test-789',
 				message: 'Build a workflow',
+				featureFlags: {
+					codeBuilder: true,
+				},
 			};
 
 			const generator = agent.chat(payload, 'user-789', controller.signal);
@@ -226,6 +231,9 @@ describe('CodeWorkflowBuilder Integration', () => {
 			const payload: ChatPayload = {
 				id: 'test-types',
 				message: 'Create workflow',
+				featureFlags: {
+					codeBuilder: true,
+				},
 			};
 
 			const generator = agentWithTypesDir.chat(payload, 'user-types');
@@ -277,6 +285,9 @@ describe('CodeWorkflowBuilder Integration', () => {
 			const payload: ChatPayload = {
 				id: 'test-stream',
 				message: 'Create a workflow',
+				featureFlags: {
+					codeBuilder: true,
+				},
 			};
 
 			const generator = agent.chat(payload, 'user-stream');
@@ -355,6 +366,9 @@ describe('CodeWorkflowBuilder Integration', () => {
 				workflowContext: {
 					currentWorkflow,
 				},
+				featureFlags: {
+					codeBuilder: true,
+				},
 			};
 
 			const generator = agent.chat(payload, 'user-context');
@@ -385,6 +399,9 @@ describe('CodeWorkflowBuilder Integration', () => {
 			const payload: ChatPayload = {
 				id: 'test-error',
 				message: 'Create a workflow',
+				featureFlags: {
+					codeBuilder: true,
+				},
 			};
 
 			const generator = agent.chat(payload, 'user-error');

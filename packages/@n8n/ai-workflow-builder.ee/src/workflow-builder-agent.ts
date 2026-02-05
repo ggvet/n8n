@@ -180,6 +180,7 @@ export class WorkflowBuilderAgent {
 				logger: this.logger,
 				generatedTypesDir: this.generatedTypesDir,
 				checkpointer: this.checkpointer,
+				onGenerationSuccess: this.onGenerationSuccess,
 			});
 
 			yield* codeWorkflowBuilder.chat(payload, userId ?? 'unknown', abortSignal);

@@ -74,6 +74,19 @@ describe('CodeWorkflowBuilder', () => {
 			const builder = new CodeWorkflowBuilder(config);
 			expect(builder).toBeInstanceOf(CodeWorkflowBuilder);
 		});
+
+		it('should accept optional onGenerationSuccess callback', () => {
+			const onGenerationSuccess = jest.fn().mockResolvedValue(undefined);
+
+			const config: CodeWorkflowBuilderConfig = {
+				llm: createMockLLM() as unknown as CodeWorkflowBuilderConfig['llm'],
+				nodeTypes: mockNodeTypes as unknown as CodeWorkflowBuilderConfig['nodeTypes'],
+				onGenerationSuccess,
+			};
+
+			const builder = new CodeWorkflowBuilder(config);
+			expect(builder).toBeInstanceOf(CodeWorkflowBuilder);
+		});
 	});
 
 	describe('chat', () => {

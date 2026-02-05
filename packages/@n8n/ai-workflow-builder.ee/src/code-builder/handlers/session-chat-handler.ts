@@ -10,11 +10,6 @@ import type { MemorySaver } from '@langchain/langgraph';
 import type { Logger } from '@n8n/backend-common';
 
 import type { SessionMessagesChunk, StreamChunk, StreamOutput } from '../../types/streaming';
-
-/** Type guard for SessionMessagesChunk */
-function isSessionMessagesChunk(chunk: StreamChunk): chunk is SessionMessagesChunk {
-	return chunk.type === 'session-messages' && 'messages' in chunk;
-}
 import type { ChatPayload } from '../../workflow-builder-agent';
 import type { HistoryContext } from '../prompts';
 import {
@@ -24,6 +19,11 @@ import {
 	generateCodeBuilderThreadId,
 	saveSessionMessages,
 } from '../utils/code-builder-session';
+
+/** Type guard for SessionMessagesChunk */
+function isSessionMessagesChunk(chunk: StreamChunk): chunk is SessionMessagesChunk {
+	return chunk.type === 'session-messages' && 'messages' in chunk;
+}
 
 /**
  * Agent chat function type
@@ -42,6 +42,11 @@ export interface SessionChatHandlerConfig {
 	checkpointer: MemorySaver;
 	llm: BaseChatModel;
 	logger?: Logger;
+	/**
+	 * Callback when generation completes successfully (not aborted).
+	 * Used for credit deduction and UI updates.
+	 */
+	onGenerationSuccess?: () => Promise<void>;
 }
 
 /**
@@ -69,11 +74,13 @@ export class SessionChatHandler {
 	private checkpointer: MemorySaver;
 	private llm: BaseChatModel;
 	private logger?: Logger;
+	private onGenerationSuccess?: () => Promise<void>;
 
 	constructor(config: SessionChatHandlerConfig) {
 		this.checkpointer = config.checkpointer;
 		this.llm = config.llm;
 		this.logger = config.logger;
+		this.onGenerationSuccess = config.onGenerationSuccess;
 	}
 
 	/**
@@ -185,6 +192,13 @@ export class SessionChatHandler {
 				workflowId,
 				userId,
 				messageCount: sessionMessages.length,
+			});
+		}
+
+		// Call success callback after successful generation (fire-and-forget)
+		if (generationSucceeded && this.onGenerationSuccess) {
+			void Promise.resolve(this.onGenerationSuccess()).catch((error) => {
+				this.logger?.warn('Failed to execute onGenerationSuccess callback', { error });
 			});
 		}
 
