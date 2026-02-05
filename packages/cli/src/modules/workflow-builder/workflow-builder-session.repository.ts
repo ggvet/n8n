@@ -2,7 +2,12 @@ import {
 	mapChatMessagesToStoredMessages,
 	mapStoredMessagesToChatMessages,
 } from '@langchain/core/messages';
-import type { ISessionStorage, LangchainMessage, StoredSession } from '@n8n/ai-workflow-builder';
+import {
+	isLangchainMessagesArray,
+	type ISessionStorage,
+	type LangchainMessage,
+	type StoredSession,
+} from '@n8n/ai-workflow-builder';
 import { Service } from '@n8n/di';
 import { DataSource, Repository } from '@n8n/typeorm';
 
@@ -23,8 +28,13 @@ export class WorkflowBuilderSessionRepository
 
 		if (!entity) return null;
 
+		const restoredMessages = mapStoredMessagesToChatMessages(entity.messages);
+		const messages: LangchainMessage[] = isLangchainMessagesArray(restoredMessages)
+			? restoredMessages
+			: [];
+
 		return {
-			messages: mapStoredMessagesToChatMessages(entity.messages) as LangchainMessage[],
+			messages,
 			previousSummary: entity.previousSummary ?? undefined,
 			updatedAt: entity.updatedAt,
 		};

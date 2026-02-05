@@ -13,7 +13,7 @@ export type * from './categorization';
 export type * from './best-practices';
 export type * from './node-guidance';
 export type * from './session-storage';
-export type * from './sessions';
+export * from './sessions';
 
 // exports with enumerations, export types and enums
 export * from './web/templates';

@@ -225,6 +225,7 @@ export class WorkflowBuilderAgent {
 		historicalMessages?: BaseMessage[],
 	): Promise<AsyncIterable<StreamEvent>> {
 		const humanMessage = new HumanMessage({
+			id: payload.id,
 			content: payload.message,
 			additional_kwargs: {
 				...(payload.versionId && { versionId: payload.versionId }),

@@ -263,7 +263,7 @@ export class AiWorkflowBuilderService {
 		// Track telemetry after stream completes (onGenerationSuccess is called by the agent)
 		if (this.onTelemetryEvent && userId) {
 			try {
-				await this.trackBuilderReplyTelemetry(agent, workflowId, userId, payload.id);
+				await this.trackBuilderReplyTelemetry(agent, workflowId, userId, payload.id, threadId);
 			} catch (error) {
 				this.logger?.error('Failed to track builder reply telemetry', { error });
 			}
@@ -275,11 +275,11 @@ export class AiWorkflowBuilderService {
 		workflowId: string | undefined,
 		userId: string,
 		userMessageId: string,
+		threadId: string,
 	): Promise<void> {
 		if (!this.onTelemetryEvent) return;
 
 		const state = await agent.getState(workflowId, userId);
-		const threadId = SessionManagerService.generateThreadId(workflowId, userId);
 
 		// extract the last message that was sent to the user for telemetry
 		const lastAiMessage = state.values.messages.findLast(

@@ -1,4 +1,3 @@
-import type { BaseMessage } from '@langchain/core/messages';
 import { RunnableConfig } from '@langchain/core/runnables';
 import { type Checkpoint, MemorySaver } from '@langchain/langgraph';
 import { Logger } from '@n8n/backend-common';
@@ -129,7 +128,13 @@ export class SessionManagerService {
 	}
 
 	/**
-	 * Clear session from both checkpointer and persistent storage
+	 * Clear session from persistent storage.
+	 *
+	 * Note: The in-memory MemorySaver checkpointer doesn't support deletion of individual
+	 * thread states. However, this is acceptable because:
+	 * 1. When persistent storage is enabled, loadSessionMessages() loads from storage (which is cleared)
+	 * 2. The in-memory state will be overwritten on the next chat interaction
+	 * 3. MemorySaver is only used for within-session state, not cross-session persistence
 	 */
 	async clearSession(threadId: string): Promise<void> {
 		// Clear from persistent storage if available
@@ -137,9 +142,6 @@ export class SessionManagerService {
 			await this.storage.deleteSession(threadId);
 		}
 
-		// Clear from in-memory checkpointer by resetting it
-		// Note: MemorySaver doesn't have a delete method, so we create a fresh one
-		// This is acceptable since sessions are scoped by threadId
 		this.logger?.debug('Session cleared', { threadId });
 	}
 
@@ -222,7 +224,8 @@ export class SessionManagerService {
 
 		try {
 			// Get messages from the appropriate source
-			let messages: BaseMessage[] = [];
+			// Both sources provide LangchainMessage[] (StoredSession.messages or type-guarded rawMessages)
+			let messages: LangchainMessage[] = [];
 			let previousSummary: string | undefined;
 
 			if (this.storage) {
@@ -261,7 +264,7 @@ export class SessionManagerService {
 			}
 
 			// Keep messages before the target message
-			const truncatedMessages = messages.slice(0, msgIndex) as LangchainMessage[];
+			const truncatedMessages = messages.slice(0, msgIndex);
 
 			// Update persistent storage if available
 			if (this.storage) {
