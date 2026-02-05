@@ -59,23 +59,35 @@ describe('ParseValidateHandler', () => {
 			expect(mockBuilder.validate).toHaveBeenCalled();
 		});
 
-		it('should throw on graph validation errors', async () => {
+		it('should collect errors from graph validation as warnings for agent self-correction', async () => {
+			const mockWorkflow = {
+				id: 'test',
+				name: 'Test Workflow',
+				nodes: [],
+				connections: {},
+			};
+
 			const mockBuilder = {
 				regenerateNodeIds: jest.fn(),
 				validate: jest.fn().mockReturnValue({
 					valid: false,
-					errors: [{ code: 'ERR001', message: 'Graph error' }],
+					errors: [{ code: 'ERR001', message: 'Graph error', nodeName: 'TestNode' }],
 					warnings: [],
 				}),
 				generatePinData: jest.fn(),
-				toJSON: jest.fn(),
+				toJSON: jest.fn().mockReturnValue(mockWorkflow),
 			};
 
 			mockParseWorkflowCodeToBuilder.mockReturnValue(mockBuilder);
+			mockValidateWorkflow.mockReturnValue({ valid: true, errors: [], warnings: [] });
 
-			await expect(handler.parseAndValidate('invalid code')).rejects.toThrow(
-				'Graph validation errors',
-			);
+			const result = await handler.parseAndValidate('code');
+
+			// Graph validation errors should be included as warnings for agent self-correction
+			expect(result.warnings).toHaveLength(1);
+			expect(result.warnings[0].code).toBe('ERR001');
+			expect(result.warnings[0].message).toBe('Graph error');
+			expect(result.warnings[0].nodeName).toBe('TestNode');
 		});
 
 		it('should collect warnings from graph validation', async () => {

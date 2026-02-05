@@ -114,24 +114,30 @@ export class ParseValidateHandler {
 				warningCount: graphValidation.warnings.length,
 			});
 
-			// If there are graph validation errors, throw to trigger self-correction
+			// Collect all validation issues (errors and warnings) for agent self-correction
+			const allWarnings: ValidationWarning[] = [];
+
+			// Collect graph validation errors as warnings for agent self-correction
 			if (graphValidation.errors.length > 0) {
-				const errorMessages = graphValidation.errors
-					.map((e: { message: string; code?: string }) => `[${e.code}] ${e.message}`)
-					.join('\n');
 				this.debugLog('PARSE_VALIDATE', 'GRAPH VALIDATION ERRORS', {
 					errors: graphValidation.errors.map((e: { message: string; code?: string }) => ({
 						message: e.message,
 						code: e.code,
 					})),
 				});
-				throw new Error(`Graph validation errors:\n${errorMessages}`);
+				this.logger?.warn('Graph validation errors', {
+					errors: graphValidation.errors.map((e: { message: string }) => e.message),
+				});
+				for (const e of graphValidation.errors) {
+					allWarnings.push({
+						code: e.code,
+						message: e.message,
+						nodeName: e.nodeName,
+					});
+				}
 			}
 
-			// Collect all warnings (graph validation)
-			const allWarnings: ValidationWarning[] = [];
-
-			// Log warnings (but don't fail on them)
+			// Collect graph validation warnings
 			if (graphValidation.warnings.length > 0) {
 				this.debugLog('PARSE_VALIDATE', 'GRAPH VALIDATION WARNINGS', {
 					warnings: graphValidation.warnings.map((w: { message: string; code?: string }) => ({
@@ -142,7 +148,6 @@ export class ParseValidateHandler {
 				this.logger?.info('Graph validation warnings', {
 					warnings: graphValidation.warnings.map((w: { message: string }) => w.message),
 				});
-				// Add to all warnings
 				for (const w of graphValidation.warnings) {
 					allWarnings.push({
 						code: w.code,
