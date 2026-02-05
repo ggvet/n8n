@@ -5,11 +5,12 @@
  * and enable deterministic routing without polluting the messages array.
  */
 
-export type SubgraphPhase = 'discovery' | 'builder' | 'state_management' | 'responder';
+export type SubgraphPhase = 'discovery' | 'builder' | 'planner' | 'state_management' | 'responder';
 
 const SUBGRAPH_PHASES: readonly SubgraphPhase[] = [
 	'discovery',
 	'builder',
+	'planner',
 	'state_management',
 	'responder',
 ];
@@ -47,6 +48,7 @@ export interface CoordinationLogEntry {
 export type CoordinationMetadata =
 	| DiscoveryMetadata
 	| BuilderMetadata
+	| PlannerMetadata
 	| StateManagementMetadata
 	| ResponderMetadata
 	| ErrorMetadata;
@@ -69,6 +71,14 @@ export interface BuilderMetadata {
 	connectionsCreated: number;
 	/** Names of nodes created */
 	nodeNames: string[];
+}
+
+export interface PlannerMetadata {
+	phase: 'planner';
+	/** Plan summary */
+	planSummary: string;
+	/** Number of steps in plan */
+	stepCount: number;
 }
 
 export interface ErrorMetadata {
@@ -109,6 +119,10 @@ export function createDiscoveryMetadata(data: Omit<DiscoveryMetadata, 'phase'>):
 
 export function createBuilderMetadata(data: Omit<BuilderMetadata, 'phase'>): BuilderMetadata {
 	return { phase: 'builder', ...data };
+}
+
+export function createPlannerMetadata(data: Omit<PlannerMetadata, 'phase'>): PlannerMetadata {
+	return { phase: 'planner', ...data };
 }
 
 export function createErrorMetadata(data: Omit<ErrorMetadata, 'phase'>): ErrorMetadata {
