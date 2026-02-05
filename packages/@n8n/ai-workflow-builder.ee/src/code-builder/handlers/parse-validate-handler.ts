@@ -50,6 +50,13 @@ export interface ParseErrorResult {
  * - Text editor auto-finalize (lines 695-765)
  * - Validate tool (lines 1428-1594)
  */
+/** Validation issue from graph or JSON validation */
+interface ValidationIssue {
+	code: string;
+	message: string;
+	nodeName?: string;
+}
+
 export class ParseValidateHandler {
 	private debugLog: DebugLogFn;
 	private logger?: Logger;
@@ -57,6 +64,44 @@ export class ParseValidateHandler {
 	constructor(config: ParseValidateHandlerConfig = {}) {
 		this.debugLog = config.debugLog ?? (() => {});
 		this.logger = config.logger;
+	}
+
+	/**
+	 * Collect validation issues (errors or warnings) into the warnings array.
+	 * Used to normalize all validation feedback for agent self-correction.
+	 */
+	private collectValidationIssues(
+		issues: ValidationIssue[],
+		allWarnings: ValidationWarning[],
+		context: string,
+		logLevel: 'warn' | 'info',
+	): void {
+		if (issues.length === 0) return;
+
+		this.debugLog('PARSE_VALIDATE', `${context.toUpperCase()}`, {
+			[context.toLowerCase()]: issues.map((i) => ({
+				message: i.message,
+				code: i.code,
+			})),
+		});
+
+		if (logLevel === 'warn') {
+			this.logger?.warn(`Graph validation ${context.toLowerCase()}`, {
+				[context.toLowerCase()]: issues.map((i) => i.message),
+			});
+		} else {
+			this.logger?.info(`Graph validation ${context.toLowerCase()}`, {
+				[context.toLowerCase()]: issues.map((i) => i.message),
+			});
+		}
+
+		for (const issue of issues) {
+			allWarnings.push({
+				code: issue.code,
+				message: issue.message,
+				nodeName: issue.nodeName,
+			});
+		}
 	}
 
 	/**
@@ -118,44 +163,20 @@ export class ParseValidateHandler {
 			const allWarnings: ValidationWarning[] = [];
 
 			// Collect graph validation errors as warnings for agent self-correction
-			if (graphValidation.errors.length > 0) {
-				this.debugLog('PARSE_VALIDATE', 'GRAPH VALIDATION ERRORS', {
-					errors: graphValidation.errors.map((e: { message: string; code?: string }) => ({
-						message: e.message,
-						code: e.code,
-					})),
-				});
-				this.logger?.warn('Graph validation errors', {
-					errors: graphValidation.errors.map((e: { message: string }) => e.message),
-				});
-				for (const e of graphValidation.errors) {
-					allWarnings.push({
-						code: e.code,
-						message: e.message,
-						nodeName: e.nodeName,
-					});
-				}
-			}
+			this.collectValidationIssues(
+				graphValidation.errors,
+				allWarnings,
+				'GRAPH VALIDATION ERRORS',
+				'warn',
+			);
 
 			// Collect graph validation warnings
-			if (graphValidation.warnings.length > 0) {
-				this.debugLog('PARSE_VALIDATE', 'GRAPH VALIDATION WARNINGS', {
-					warnings: graphValidation.warnings.map((w: { message: string; code?: string }) => ({
-						message: w.message,
-						code: w.code,
-					})),
-				});
-				this.logger?.info('Graph validation warnings', {
-					warnings: graphValidation.warnings.map((w: { message: string }) => w.message),
-				});
-				for (const w of graphValidation.warnings) {
-					allWarnings.push({
-						code: w.code,
-						message: w.message,
-						nodeName: w.nodeName,
-					});
-				}
-			}
+			this.collectValidationIssues(
+				graphValidation.warnings,
+				allWarnings,
+				'GRAPH VALIDATION WARNINGS',
+				'info',
+			);
 
 			// Generate pin data for new nodes only (nodes not in currentWorkflow)
 			builder.generatePinData({ beforeWorkflow: currentWorkflow });
@@ -206,45 +227,21 @@ export class ParseValidateHandler {
 				warningCount: validationResult.warnings.length,
 			});
 
-			if (validationResult.errors.length > 0) {
-				this.debugLog('PARSE_VALIDATE', 'JSON VALIDATION ERRORS', {
-					errors: validationResult.errors.map((e: { message: string; code?: string }) => ({
-						message: e.message,
-						code: e.code,
-					})),
-				});
-				this.logger?.warn('Workflow validation errors', {
-					errors: validationResult.errors.map((e: { message: string }) => e.message),
-				});
-				// Add JSON validation errors to allWarnings for agent self-correction
-				for (const e of validationResult.errors) {
-					allWarnings.push({
-						code: e.code,
-						message: e.message,
-						nodeName: e.nodeName,
-					});
-				}
-			}
+			// Collect JSON validation errors as warnings for agent self-correction
+			this.collectValidationIssues(
+				validationResult.errors,
+				allWarnings,
+				'JSON VALIDATION ERRORS',
+				'warn',
+			);
 
-			if (validationResult.warnings.length > 0) {
-				this.debugLog('PARSE_VALIDATE', 'JSON VALIDATION WARNINGS', {
-					warnings: validationResult.warnings.map((w: { message: string; code?: string }) => ({
-						message: w.message,
-						code: w.code,
-					})),
-				});
-				this.logger?.info('Workflow validation warnings', {
-					warnings: validationResult.warnings.map((w: { message: string }) => w.message),
-				});
-				// Add JSON validation warnings to allWarnings for agent self-correction
-				for (const w of validationResult.warnings) {
-					allWarnings.push({
-						code: w.code,
-						message: w.message,
-						nodeName: w.nodeName,
-					});
-				}
-			}
+			// Collect JSON validation warnings
+			this.collectValidationIssues(
+				validationResult.warnings,
+				allWarnings,
+				'JSON VALIDATION WARNINGS',
+				'info',
+			);
 
 			// Log full workflow JSON
 			this.debugLog('PARSE_VALIDATE', 'Final workflow JSON', {
