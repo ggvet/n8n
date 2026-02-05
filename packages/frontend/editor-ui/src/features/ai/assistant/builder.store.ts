@@ -719,26 +719,10 @@ export const useBuilderStore = defineStore(STORES.BUILDER, () => {
 		}
 	}
 
-	function formatQuestionResponsesForHistory(answers: PlanMode.QuestionResponse[]): string {
-		const lines = answers
-			.filter((a) => !a.skipped)
-			.map((a) => {
-				const selected = a.selectedOptions.join(', ');
-				const custom = a.customText?.trim();
-				const answerText = selected && custom ? `${selected}, ${custom}` : selected || custom || '';
-				return `- ${a.question}: ${answerText}`;
-			})
-			.filter((line) => line.trim().length > 0);
-
-		return lines.join('\n');
-	}
-
 	async function resumeWithQuestionsAnswers(answers: PlanMode.QuestionResponse[]) {
 		if (!isInterrupted.value) return;
 
-		const text =
-			formatQuestionResponsesForHistory(answers) ||
-			locale.baseText('aiAssistant.builder.planMode.actions.submitAnswers');
+		const text = locale.baseText('aiAssistant.builder.planMode.actions.submitAnswers');
 		await sendChatMessage({
 			text,
 			resumeData: answers,

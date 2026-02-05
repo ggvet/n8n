@@ -188,12 +188,23 @@ export function useBuilderMessages() {
 			const existingPlanIndex = messages.findIndex(
 				(m) => m.type === 'custom' && 'customType' in m && m.customType === 'plan',
 			);
+			const planSignature = JSON.stringify(msg.plan);
+			const hasDuplicatePlan =
+				existingPlanIndex !== -1 &&
+				messages.some(
+					(m) =>
+						m.type === 'custom' &&
+						'customType' in m &&
+						m.customType === 'plan' &&
+						'data' in m &&
+						JSON.stringify(m.data?.plan) === planSignature,
+				);
 			// Only add if no plan message exists, or if there's a user response after the existing one
 			// (meaning this is a new plan after user feedback)
 			const hasUserResponseAfterPlan =
 				existingPlanIndex !== -1 &&
 				messages.slice(existingPlanIndex + 1).some((m) => m.role === 'user');
-			if (existingPlanIndex === -1 || hasUserResponseAfterPlan) {
+			if (!hasDuplicatePlan && (existingPlanIndex === -1 || hasUserResponseAfterPlan)) {
 				messages.push({
 					id: messageId,
 					role: 'assistant',
