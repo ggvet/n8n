@@ -237,7 +237,7 @@ describe('extractModeDiscriminator', () => {
 
 			const modeA = result!.modes.find((m: ModeInfo) => m.value === 'modeA');
 			expect(modeA!.description).toBe('Description of mode A');
-			expect(modeA!.builderHint).toBe('Use mode A when you want to do X');
+			expect(modeA!.builderHint).toEqual({ message: 'Use mode A when you want to do X' });
 
 			const modeB = result!.modes.find((m: ModeInfo) => m.value === 'modeB');
 			expect(modeB!.description).toBe('Description of mode B');

@@ -689,7 +689,9 @@ describe('resource-operation-extractor', () => {
 			// Check resource description and builderHint
 			const messageResource = result?.resources.find((r) => r.value === 'message');
 			expect(messageResource?.description).toBe('Work with email messages');
-			expect(messageResource?.builderHint).toBe('Use for reading, sending, or managing emails');
+			expect(messageResource?.builderHint).toEqual({
+				message: 'Use for reading, sending, or managing emails',
+			});
 
 			const draftResource = result?.resources.find((r) => r.value === 'draft');
 			expect(draftResource?.description).toBe('Work with email drafts');
@@ -698,7 +700,9 @@ describe('resource-operation-extractor', () => {
 			// Check operation description and builderHint
 			const sendOp = messageResource?.operations.find((op) => op.value === 'send');
 			expect(sendOp?.description).toBe('Send an email message');
-			expect(sendOp?.builderHint).toBe('Use to send composed emails to recipients');
+			expect(sendOp?.builderHint).toEqual({
+				message: 'Use to send composed emails to recipients',
+			});
 
 			const getAllOp = messageResource?.operations.find((op) => op.value === 'getAll');
 			expect(getAllOp?.description).toBe('Retrieve all messages');
