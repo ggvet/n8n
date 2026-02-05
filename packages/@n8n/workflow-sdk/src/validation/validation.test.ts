@@ -3,6 +3,11 @@ import type { NodeInstance } from '../types/base';
 import { workflow } from '../workflow-builder';
 import { node, trigger, sticky } from '../workflow-builder/node-builders/node-builder';
 import { languageModel, tool } from '../workflow-builder/node-builders/subnode-builders';
+import { loadSchema } from './schema-validator';
+
+// Check if generated schemas are available (they're generated locally, not in CI)
+const schemasAvailable = loadSchema('n8n-nodes-base.set', 2) !== null;
+const describeIfSchemas = schemasAvailable ? describe : describe.skip;
 
 describe('Validation', () => {
 	describe('validateWorkflow()', () => {
@@ -467,7 +472,7 @@ describe('Validation', () => {
 		});
 	});
 
-	describe('schema validation integration', () => {
+	describeIfSchemas('schema validation integration', () => {
 		it('should validate node parameters against schema by default', () => {
 			const t = trigger({ type: 'n8n-nodes-base.webhookTrigger', version: 1, config: {} });
 			// keepOnlySet should be boolean, not a string
@@ -1881,7 +1886,7 @@ describe('Validation', () => {
 		});
 	});
 
-	describe('Invalid subnode error message enhancement', () => {
+	describeIfSchemas('Invalid subnode error message enhancement', () => {
 		// Mock node types provider that returns builderHint.inputs for OpenAI
 		const mockNodeTypesProviderForOpenAi = {
 			getByNameAndVersion: (type: string, _version?: number) => {

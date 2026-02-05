@@ -4,13 +4,20 @@
  * Tests the schema validation system end-to-end using real generated schemas.
  * Covers discriminated schemas (resource/operation, mode) and non-discriminated schemas
  * with all displayOptions combinations.
+ *
+ * NOTE: These tests require generated schemas at ~/.n8n/generated-types/
+ * They are skipped on CI where schemas are not available.
  */
 
 import { validateNodeConfig, loadSchema } from './schema-validator';
 import { parseWorkflowCode } from '../codegen/parse-workflow-code';
 import { validateWorkflow } from '../validation';
 
-describe('Schema Validation Integration', () => {
+// Check if generated schemas are available (they're generated locally, not in CI)
+const schemasAvailable = loadSchema('n8n-nodes-base.set', 2) !== null;
+
+// Skip entire suite if schemas aren't available
+(schemasAvailable ? describe : describe.skip)('Schema Validation Integration', () => {
 	describe('Resource/Operation Discriminated (MS Teams v2 - task/create)', () => {
 		// Schema: ~/.n8n/generated-types/nodes/n8n-nodes-base/microsoftTeams/v2/resource_task/operation_create.schema.js
 		// Required fields: groupId, planId, bucketId (resourceLocator type), title (no displayOptions)

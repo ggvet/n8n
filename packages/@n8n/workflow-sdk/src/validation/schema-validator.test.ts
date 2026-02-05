@@ -5,6 +5,10 @@ import {
 	getSchemaBasePath,
 } from './schema-validator';
 
+// Check if generated schemas are available (they're generated locally, not in CI)
+const schemasAvailable = loadSchema('n8n-nodes-base.set', 2) !== null;
+const itIfSchemas = schemasAvailable ? it : it.skip;
+
 describe('schema-validator', () => {
 	// Store original path to restore after tests
 	let originalBasePath: string;
@@ -23,26 +27,26 @@ describe('schema-validator', () => {
 			expect(schema).toBeNull();
 		});
 
-		it('loads schema for flat version structure (e.g., set v2)', () => {
+		itIfSchemas('loads schema for flat version structure (e.g., set v2)', () => {
 			// Uses generated schemas at ~/.n8n/generated-types/
 			// SetV2ConfigSchema in nodes/n8n-nodes-base/set/v2.schema.js
 			const schema = loadSchema('n8n-nodes-base.set', 2);
 			expect(schema).not.toBeNull();
 		});
 
-		it('loads schema for version with decimal (e.g., httpRequest v4.2)', () => {
+		itIfSchemas('loads schema for version with decimal (e.g., httpRequest v4.2)', () => {
 			// HttpRequestV42ConfigSchema in nodes/n8n-nodes-base/httpRequest/v42.schema.js
 			const schema = loadSchema('n8n-nodes-base.httpRequest', 4.2);
 			expect(schema).not.toBeNull();
 		});
 
-		it('loads schema for langchain nodes with @n8n prefix', () => {
+		itIfSchemas('loads schema for langchain nodes with @n8n prefix', () => {
 			// LcAgentV1ConfigSchema in nodes/n8n-nodes-langchain/agent/v1.schema.js
 			const schema = loadSchema('@n8n/n8n-nodes-langchain.agent', 1);
 			expect(schema).not.toBeNull();
 		});
 
-		it('caches schema after first load', () => {
+		itIfSchemas('caches schema after first load', () => {
 			// First load
 			const schema1 = loadSchema('n8n-nodes-base.set', 2);
 			// Second load should return same cached instance
@@ -59,7 +63,7 @@ describe('schema-validator', () => {
 			expect(result.errors).toEqual([]);
 		});
 
-		it('returns valid:true for valid config with correct parameter types', () => {
+		itIfSchemas('returns valid:true for valid config with correct parameter types', () => {
 			// Set v2 has keepOnlySet: boolean
 			const result = validateNodeConfig('n8n-nodes-base.set', 2, {
 				parameters: { keepOnlySet: true },
@@ -68,7 +72,7 @@ describe('schema-validator', () => {
 			expect(result.errors).toEqual([]);
 		});
 
-		it('accepts expressions as valid parameter values', () => {
+		itIfSchemas('accepts expressions as valid parameter values', () => {
 			// Expressions like ={{ $json.value }} are always valid
 			const result = validateNodeConfig('n8n-nodes-base.set', 2, {
 				parameters: { keepOnlySet: '={{ $json.flag }}' },
@@ -76,7 +80,7 @@ describe('schema-validator', () => {
 			expect(result.valid).toBe(true);
 		});
 
-		it('returns errors for invalid parameter type', () => {
+		itIfSchemas('returns errors for invalid parameter type', () => {
 			// keepOnlySet should be boolean or expression, not a plain string
 			const result = validateNodeConfig('n8n-nodes-base.set', 2, {
 				parameters: { keepOnlySet: 'not-a-boolean' },
@@ -86,7 +90,7 @@ describe('schema-validator', () => {
 			expect(result.errors[0].path).toContain('keepOnlySet');
 		});
 
-		it('accepts missing discriminator when default matches a valid branch', () => {
+		itIfSchemas('accepts missing discriminator when default matches a valid branch', () => {
 			// Set v3 mode defaults to 'manual', so missing mode is valid
 			// The schema applies the default and validates against the manual branch
 			const result = validateNodeConfig('n8n-nodes-base.set', 3, {
@@ -99,7 +103,7 @@ describe('schema-validator', () => {
 			expect(result.errors).toEqual([]);
 		});
 
-		it('returns clear error when discriminator has wrong value', () => {
+		itIfSchemas('returns clear error when discriminator has wrong value', () => {
 			// Set v3 mode must be 'manual' or 'raw'
 			const result = validateNodeConfig('n8n-nodes-base.set', 3, {
 				parameters: {
@@ -115,7 +119,7 @@ describe('schema-validator', () => {
 			expect(errorMsg).toMatch(/invalid-mode/i);
 		});
 
-		it('validates AI node with valid subnode config', () => {
+		itIfSchemas('validates AI node with valid subnode config', () => {
 			// The schema now models conditional visibility with displayOptions.
 			// For 'conversationalAgent' (default), only certain fields are visible.
 			// We provide only the fields that are visible for this agent type.
@@ -132,7 +136,7 @@ describe('schema-validator', () => {
 			expect(result.valid).toBe(true);
 		});
 
-		it('validates AI node subnode config with array of tools', () => {
+		itIfSchemas('validates AI node subnode config with array of tools', () => {
 			// Use 'conversationalAgent' which only needs the model subnode
 			const result = validateNodeConfig('@n8n/n8n-nodes-langchain.agent', 1, {
 				parameters: {
@@ -149,13 +153,13 @@ describe('schema-validator', () => {
 			expect(result.valid).toBe(true);
 		});
 
-		it('accepts undefined parameters (optional)', () => {
+		itIfSchemas('accepts undefined parameters (optional)', () => {
 			// Config with no parameters should be valid (parameters is optional in schema)
 			const result = validateNodeConfig('n8n-nodes-base.set', 2, {});
 			expect(result.valid).toBe(true);
 		});
 
-		it('accepts empty parameters object', () => {
+		itIfSchemas('accepts empty parameters object', () => {
 			const result = validateNodeConfig('n8n-nodes-base.set', 2, {
 				parameters: {},
 			});
@@ -170,7 +174,7 @@ describe('schema-validator', () => {
 			expect(getSchemaBasePath()).toBe(customPath);
 		});
 
-		it('affects schema loading behavior', () => {
+		itIfSchemas('affects schema loading behavior', () => {
 			// Set to a non-existent path
 			setSchemaBasePath('/nonexistent/path');
 
