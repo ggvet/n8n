@@ -18,7 +18,7 @@ export type ModelOptions = {
 	temperature?: number;
 };
 
-export class LmChatOpenAi implements INodeType {
+export class LmChatOpenAiCustom implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Custom OpenAI',
 

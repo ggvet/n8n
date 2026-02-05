@@ -7,7 +7,7 @@
 	"types": "dist/index.d.ts",
 	"scripts": {
 		"example:run": "tsx examples/run.ts",
-		"clean": "rimraf dist nodes .turbo",
+		"clean": "rimraf dist dist_examples .turbo",
 		"dev": "pnpm run watch",
 		"typecheck": "tsc --noEmit",
 		"copy-tokenizer-json": "node scripts/copy-tokenizer-json.js .",
