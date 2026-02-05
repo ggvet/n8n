@@ -274,6 +274,18 @@ export class ToolDispatchHandler {
 					content: errorMessage,
 				}),
 			);
+
+			// Yield error status to update UI (was missing - tool left in 'running' state)
+			yield {
+				messages: [
+					{
+						type: 'tool',
+						toolName: toolCall.name,
+						status: 'error',
+						error: errorMessage,
+					} as ToolProgressChunk,
+				],
+			};
 			return;
 		}
 
