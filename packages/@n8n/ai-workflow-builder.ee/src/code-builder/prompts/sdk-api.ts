@@ -571,12 +571,12 @@ export type PlaceholderFn = (hint: string) => PlaceholderValue;
 export type NewCredentialFn = (name: string) => CredentialReference;
 
 /**
- * expr(template) - Marks a string as an n8n expression by adding the '=' prefix.
+ * expr('{{template}}')
  *
- * ALWAYS use expr() when a parameter contains {{ }} expression syntax.
+ * ALWAYS use expr() when a parameter contains '{{ }}' expression syntax.
  * This ensures the expression is properly recognized by n8n.
  *
- * @param template - String containing {{ }} expression syntax
+ * @param template - String containing '{{ }}' expression syntax
  *
  * @example
  * // Simple expression
