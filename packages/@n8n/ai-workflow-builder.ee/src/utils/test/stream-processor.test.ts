@@ -721,7 +721,9 @@ describe('stream-processor', () => {
 			expect(result[2].updates).toHaveLength(2); // input and output
 		});
 
-		it('should handle AIMessage with both content and tool_calls', () => {
+		it('should handle AIMessage with both content and tool_calls - only include tool calls', () => {
+			// When an AIMessage has tool_calls, the content is intermediate LLM "thinking" text
+			// that should be skipped. Only the tool calls should be formatted.
 			const aiMessage = new AIMessage('I will add a node for you');
 			aiMessage.tool_calls = [
 				{
@@ -736,13 +738,9 @@ describe('stream-processor', () => {
 
 			const result = formatMessages(messages);
 
-			expect(result).toHaveLength(2);
-			expect(result[0]).toEqual({
-				role: 'assistant',
-				type: 'message',
-				text: 'I will add a node for you',
-			});
-			expect(result[1].type).toBe('tool');
+			// Only tool message, content is skipped
+			expect(result).toHaveLength(1);
+			expect(result[0].type).toBe('tool');
 		});
 
 		it('should handle tool calls without args', () => {

@@ -434,12 +434,14 @@ export function formatMessages(
 		if (msg instanceof HumanMessage) {
 			formattedMessages.push(formatHumanMessage(msg));
 		} else if (msg instanceof AIMessage) {
-			// Add AI message content
-			formattedMessages.push(...processAIMessageContent(msg));
-
-			// Add tool calls if present
+			// If the message has tool_calls, only process the tool calls.
+			// The content in tool-calling messages is intermediate LLM "thinking" text
+			// that shouldn't be shown to the user.
 			if (msg.tool_calls?.length) {
 				formattedMessages.push(...processToolCalls(msg.tool_calls, builderTools));
+			} else {
+				// No tool calls - this is a final response, include the content
+				formattedMessages.push(...processAIMessageContent(msg));
 			}
 		} else if (msg instanceof ToolMessage) {
 			processToolMessage(msg, formattedMessages);

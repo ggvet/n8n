@@ -6,7 +6,7 @@ import { Service } from '@n8n/di';
 import type { INodeTypeDescription } from 'n8n-workflow';
 
 import { getBuilderToolsForDisplay } from '@/tools/builder-tools';
-import type { ISessionStorage, StoredSession } from '@/types/session-storage';
+import { ISessionStorage } from '@/types/session-storage';
 import { isLangchainMessagesArray, LangchainMessage, Session } from '@/types/sessions';
 import { formatMessages } from '@/utils/stream-processor';
 
@@ -86,7 +86,6 @@ export class SessionManagerService {
 			},
 			channel_versions: {},
 			versions_seen: {},
-			pending_sends: [],
 		};
 
 		const metadata = {
@@ -235,88 +234,97 @@ export class SessionManagerService {
 	): Promise<boolean> {
 		const threadId = SessionManagerService.generateThreadId(workflowId, userId);
 
-		// Get messages from the appropriate source
-		let messages: BaseMessage[] = [];
-		let previousSummary: string | undefined;
+		try {
+			// Get messages from the appropriate source
+			let messages: BaseMessage[] = [];
+			let previousSummary: string | undefined;
 
-		if (this.storage) {
-			const stored = await this.storage.getSession(threadId);
-			if (!stored) {
-				this.logger?.debug('No stored session found for truncation', { threadId, messageId });
+			if (this.storage) {
+				const stored = await this.storage.getSession(threadId);
+				if (!stored) {
+					this.logger?.debug('No stored session found for truncation', { threadId, messageId });
+					return false;
+				}
+				messages = stored.messages;
+				previousSummary = stored.previousSummary;
+			} else {
+				const threadConfig: RunnableConfig = {
+					configurable: { thread_id: threadId },
+				};
+
+				const checkpointTuple = await this.checkpointer.getTuple(threadConfig);
+				if (!checkpointTuple?.checkpoint) {
+					this.logger?.debug('No checkpoint found for truncation', { threadId, messageId });
+					return false;
+				}
+
+				const rawMessages = checkpointTuple.checkpoint.channel_values?.messages;
+				if (!isLangchainMessagesArray(rawMessages)) {
+					this.logger?.debug('No valid messages found for truncation', { threadId, messageId });
+					return false;
+				}
+				messages = rawMessages;
+			}
+
+			// Find the index of the message with the target messageId
+			const msgIndex = messages.findIndex((msg) => msg.additional_kwargs?.messageId === messageId);
+
+			if (msgIndex === -1) {
+				this.logger?.debug('Message with messageId not found', { threadId, messageId });
 				return false;
 			}
-			messages = stored.messages;
-			previousSummary = stored.previousSummary;
-		} else {
+
+			// Keep messages before the target message
+			const truncatedMessages = messages.slice(0, msgIndex) as LangchainMessage[];
+
+			// Update persistent storage if available
+			if (this.storage) {
+				await this.storage.saveSession(threadId, {
+					messages: truncatedMessages,
+					previousSummary,
+					updatedAt: new Date(),
+				});
+			}
+
+			// Also update the in-memory checkpointer
 			const threadConfig: RunnableConfig = {
 				configurable: { thread_id: threadId },
 			};
 
 			const checkpointTuple = await this.checkpointer.getTuple(threadConfig);
-			if (!checkpointTuple?.checkpoint) {
-				this.logger?.debug('No checkpoint found for truncation', { threadId, messageId });
-				return false;
+			if (checkpointTuple?.checkpoint) {
+				const updatedCheckpoint: Checkpoint = {
+					...checkpointTuple.checkpoint,
+					channel_values: {
+						...checkpointTuple.checkpoint.channel_values,
+						messages: truncatedMessages,
+					},
+				};
+
+				const metadata = checkpointTuple.metadata ?? {
+					source: 'update' as const,
+					step: -1,
+					parents: {},
+				};
+
+				await this.checkpointer.put(threadConfig, updatedCheckpoint, metadata);
 			}
 
-			const rawMessages = checkpointTuple.checkpoint.channel_values?.messages;
-			if (!isLangchainMessagesArray(rawMessages)) {
-				this.logger?.debug('No valid messages found for truncation', { threadId, messageId });
-				return false;
-			}
-			messages = rawMessages;
-		}
+			this.logger?.debug('Messages truncated successfully', {
+				threadId,
+				messageId,
+				originalCount: messages.length,
+				newCount: truncatedMessages.length,
+			});
 
-		// Find the index of the message with the target messageId
-		const msgIndex = messages.findIndex((msg) => msg.additional_kwargs?.messageId === messageId);
-
-		if (msgIndex === -1) {
-			this.logger?.debug('Message with messageId not found', { threadId, messageId });
+			return true;
+		} catch (error) {
+			this.logger?.error('Failed to truncate messages', {
+				threadId,
+				messageId,
+				error,
+			});
 			return false;
 		}
-
-		// Keep messages before the target message
-		const truncatedMessages = messages.slice(0, msgIndex) as LangchainMessage[];
-
-		// Update persistent storage if available
-		if (this.storage) {
-			await this.storage.saveSession(threadId, {
-				messages: truncatedMessages,
-				previousSummary,
-				updatedAt: new Date(),
-			});
-		}
-
-		// Also update the in-memory checkpointer
-		const threadConfig: RunnableConfig = {
-			configurable: { thread_id: threadId },
-		};
-
-		const checkpointTuple = await this.checkpointer.getTuple(threadConfig);
-		if (checkpointTuple?.checkpoint) {
-			const updatedCheckpoint: Checkpoint = {
-				...checkpointTuple.checkpoint,
-				channel_values: {
-					...checkpointTuple.checkpoint.channel_values,
-					messages: truncatedMessages,
-				},
-			};
-
-			const metadata = checkpointTuple.metadata ?? {
-				source: 'update' as const,
-				step: -1,
-				parents: {},
-			};
-
-			await this.checkpointer.put(threadConfig, updatedCheckpoint, metadata);
-		}
-
-		this.logger?.debug('Messages truncated successfully', {
-			threadId,
-			messageId,
-			originalCount: messages.length,
-			newCount: truncatedMessages.length,
-		});
-
-		return true;
 	}
 }

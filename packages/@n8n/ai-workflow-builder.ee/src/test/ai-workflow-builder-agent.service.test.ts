@@ -206,6 +206,7 @@ describe('AiWorkflowBuilderService', () => {
 		// Create service instance
 		service = new AiWorkflowBuilderService(
 			mockNodeTypeDescriptions,
+			undefined, // sessionStorage
 			mockClient,
 			mockLogger,
 			'test-instance-id',
@@ -219,6 +220,7 @@ describe('AiWorkflowBuilderService', () => {
 		it('should initialize with provided dependencies', () => {
 			const testService = new AiWorkflowBuilderService(
 				mockNodeTypeDescriptions,
+				undefined, // sessionStorage
 				mockClient,
 				mockLogger,
 				'test-instance-id',
@@ -230,6 +232,7 @@ describe('AiWorkflowBuilderService', () => {
 			expect(testService).toBeInstanceOf(AiWorkflowBuilderService);
 			expect(MockedSessionManagerService).toHaveBeenCalledWith(
 				expect.arrayContaining([expect.objectContaining({ name: 'TestNode' })]),
+				undefined, // sessionStorage
 				mockLogger,
 			);
 		});
@@ -238,7 +241,11 @@ describe('AiWorkflowBuilderService', () => {
 			const testService = new AiWorkflowBuilderService(mockNodeTypeDescriptions);
 
 			expect(testService).toBeInstanceOf(AiWorkflowBuilderService);
-			expect(MockedSessionManagerService).toHaveBeenCalledWith(expect.any(Array), undefined);
+			expect(MockedSessionManagerService).toHaveBeenCalledWith(
+				expect.any(Array),
+				undefined,
+				undefined,
+			);
 		});
 
 		it('should filter out ignored types and hidden nodes except the data table', () => {
@@ -246,6 +253,7 @@ describe('AiWorkflowBuilderService', () => {
 
 			new AiWorkflowBuilderService(
 				mockNodeTypeDescriptions,
+				undefined, // sessionStorage
 				mockClient,
 				mockLogger,
 				'test-instance-id',
@@ -271,6 +279,7 @@ describe('AiWorkflowBuilderService', () => {
 
 			new AiWorkflowBuilderService(
 				mockNodeTypeDescriptions,
+				undefined, // sessionStorage
 				mockClient,
 				mockLogger,
 				'test-instance-id',
@@ -358,7 +367,8 @@ describe('AiWorkflowBuilderService', () => {
 		it('should create WorkflowBuilderAgent without tracer when no client', async () => {
 			const serviceWithoutClient = new AiWorkflowBuilderService(
 				mockNodeTypeDescriptions,
-				undefined,
+				undefined, // sessionStorage
+				undefined, // client
 				mockLogger,
 			);
 

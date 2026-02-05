@@ -13,7 +13,7 @@ import { LLMServiceError } from '@/errors';
 import { anthropicClaudeSonnet45 } from '@/llm-config';
 import { SessionManagerService } from '@/session-manager.service';
 import { ResourceLocatorCallbackFactory } from '@/types/callbacks';
-import type { ISessionStorage } from '@/types/session-storage';
+import { ISessionStorage } from '@/types/session-storage';
 import {
 	BuilderFeatureFlags,
 	WorkflowBuilderAgent,
@@ -32,7 +32,7 @@ export class AiWorkflowBuilderService {
 
 	constructor(
 		parsedNodeTypes: INodeTypeDescription[],
-		private readonly sessionStorage?: ISessionStorage,
+		sessionStorage?: ISessionStorage,
 		private readonly client?: AiAssistantClient,
 		private readonly logger?: Logger,
 		private readonly instanceId?: string,
@@ -251,7 +251,7 @@ export class AiWorkflowBuilderService {
 		// Save session to persistent storage after chat completes
 		// Get previousSummary from state if available (set during compaction)
 		const state = await agent.getState(workflowId, userId);
-		const previousSummary = state.values.previousSummary;
+		const previousSummary = state?.values?.previousSummary;
 		await this.sessionManager.saveSessionFromCheckpointer(threadId, previousSummary);
 
 		// Track telemetry after stream completes (onGenerationSuccess is called by the agent)

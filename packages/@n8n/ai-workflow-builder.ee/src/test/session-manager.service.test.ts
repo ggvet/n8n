@@ -50,7 +50,7 @@ describe('SessionManagerService', () => {
 			{ role: 'assistant', content: 'Hi there!' },
 		]);
 
-		service = new SessionManagerService(mockParsedNodeTypes, mockLogger);
+		service = new SessionManagerService(mockParsedNodeTypes, undefined, mockLogger);
 	});
 
 	afterEach(() => {
@@ -344,7 +344,7 @@ describe('SessionManagerService', () => {
 				},
 			];
 
-			const customService = new SessionManagerService(customNodeTypes, mockLogger);
+			const customService = new SessionManagerService(customNodeTypes, undefined, mockLogger);
 			const workflowId = 'test-workflow';
 			const userId = 'test-user';
 			const mockCheckpoint = {

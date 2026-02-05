@@ -458,12 +458,20 @@ export class BuilderSubgraph extends BaseSubgraph<
 			}),
 		};
 
+		// Extract tool-related messages for persistence (skip the first context message).
+		// This allows the frontend to restore UI state (execute button, tool history)
+		// after page refresh by including AIMessages with tool_calls and ToolMessages.
+		const toolMessages = subgraphOutput.messages.slice(1);
+
 		return {
 			workflowJSON,
 			workflowOperations: subgraphOutput.workflowOperations ?? [],
 			coordinationLog: [logEntry],
 			cachedTemplates: subgraphOutput.cachedTemplates,
-			// NO messages - clean separation from user-facing conversation
+			// Include tool messages for persistence to restore frontend state on refresh
+			// We don't want to include other messages as this will include builder output - leave
+			// output to the user up to the responder subgraph
+			messages: toolMessages,
 		};
 	}
 }

@@ -11,7 +11,7 @@ export class CreateWorkflowBuilderSessionTable1770220686000 implements Reversibl
 				column('id').uuid.primary.autoGenerate,
 				column('workflowId').varchar(36).notNull,
 				column('userId').varchar(36).notNull,
-				column('messages').json.notNull.default('[]'),
+				column('messages').json.notNull.default("'[]'"),
 				column('previousSummary').text,
 			)
 			.withUniqueConstraintOn(['workflowId', 'userId'])
