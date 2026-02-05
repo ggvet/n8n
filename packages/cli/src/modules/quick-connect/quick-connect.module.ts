@@ -5,6 +5,7 @@ import { Container } from '@n8n/di';
 @BackendModule({ name: 'quick-connect' })
 export class QuickConnectModule implements ModuleInterface {
 	async init() {
+		await this.registerHandlers();
 		await import('./quick-connect.controller');
 	}
 
@@ -26,5 +27,12 @@ export class QuickConnectModule implements ModuleInterface {
 					: undefined,
 			})),
 		};
+	}
+
+	private async registerHandlers() {
+		const { QuickConnectHandlerRegistry } = await import('./handlers/quick-connect.handler');
+		const { SampleHandler } = await import('./handlers/sample.handler');
+		const registry = Container.get(QuickConnectHandlerRegistry);
+		registry.register(Container.get(SampleHandler));
 	}
 }
