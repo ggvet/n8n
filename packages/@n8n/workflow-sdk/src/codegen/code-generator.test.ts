@@ -2,12 +2,12 @@ import { describe, it, expect, beforeAll } from '@jest/globals';
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { ensureFixtures } from '../__tests__/fixtures-download';
 import { generateCode } from './code-generator';
 import { buildCompositeTree } from './composite-builder';
 import { annotateGraph } from './graph-annotator';
 import { parseWorkflowCode } from './parse-workflow-code';
 import { buildSemanticGraph } from './semantic-graph';
+import { ensureFixtures } from '../__tests__/fixtures-download';
 import type { WorkflowJSON } from '../types/base';
 
 // Helper to generate code from workflow JSON
