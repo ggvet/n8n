@@ -18,8 +18,9 @@ export class CustomDirectoryLoader extends DirectoryLoader {
 	}
 
 	override async loadAll() {
+		const transformedDirectory = this.directory.replace(/\\/g, '/');
 		const nodes = await glob('**/*.node.js', {
-			cwd: this.directory,
+			cwd: transformedDirectory,
 			absolute: true,
 		});
 

@@ -10,6 +10,7 @@ import {
 	type Tool,
 	type ToolCall,
 	type TokenUsage,
+	type ProviderTool,
 } from '../../src';
 import { parseSSEStream } from '../../src/utils/sse';
 
@@ -387,6 +388,8 @@ function parseTokenUsage(
 export interface OpenAIChatModelConfig extends ChatModelConfig {
 	apiKey?: string;
 	baseURL?: string;
+
+	builtInTools?: ProviderTool[];
 }
 
 export class OpenAIChatModel extends BaseChatModel<OpenAIChatModelConfig> {
@@ -403,10 +406,16 @@ export class OpenAIChatModel extends BaseChatModel<OpenAIChatModelConfig> {
 		this.baseURL = config?.baseURL ?? 'https://api.openai.com/v1';
 	}
 
+	private getTools(config?: OpenAIChatModelConfig) {
+		const ownTools = this.tools;
+		const builtInTools = config?.builtInTools ?? [];
+		return [...ownTools, ...builtInTools].map(genericToolToResponsesTool);
+	}
+
 	async generate(messages: Message[], config?: OpenAIChatModelConfig): Promise<GenerateResult> {
 		const merged = this.mergeConfig(config);
 		const { instructions, input } = genericMessagesToResponsesInput(messages);
-		const tools = this.tools.length ? this.tools.map(genericToolToResponsesTool) : undefined;
+		const tools = this.getTools(config);
 		const requestBody: OpenAIResponsesRequest = {
 			model: this.modelId,
 			input,
@@ -470,7 +479,7 @@ export class OpenAIChatModel extends BaseChatModel<OpenAIChatModelConfig> {
 		const merged = this.mergeConfig(config) as OpenAIChatModelConfig;
 		const { instructions, input } = genericMessagesToResponsesInput(messages);
 
-		const tools = this.tools.length ? this.tools.map(genericToolToResponsesTool) : undefined;
+		const tools = this.getTools(config);
 
 		const requestBody: OpenAIResponsesRequest = {
 			model: this.modelId,
