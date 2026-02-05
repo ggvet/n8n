@@ -271,6 +271,32 @@ describe('execution-schema-jsdoc', () => {
 			// No fields, just the header
 		});
 
+		it('formats [null] value as null in example', () => {
+			const schema: Schema = {
+				type: 'object',
+				path: '',
+				value: [{ type: 'string', key: 'data', value: '[null]', path: 'data' }],
+			};
+
+			const result = generateSchemaJSDoc('Node', schema);
+
+			expect(result).toContain('@example null');
+			expect(result).not.toContain('@example "[null]"');
+		});
+
+		it('formats <EMPTY> value as undefined in example', () => {
+			const schema: Schema = {
+				type: 'object',
+				path: '',
+				value: [{ type: 'string', key: 'data', value: '<EMPTY>', path: 'data' }],
+			};
+
+			const result = generateSchemaJSDoc('Node', schema);
+
+			expect(result).toContain('@example undefined');
+			expect(result).not.toContain('@example "<EMPTY>"');
+		});
+
 		it('handles special characters in node names', () => {
 			const schema: Schema = {
 				type: 'object',

@@ -33,10 +33,10 @@ export function buildExpressionAnnotations(
 }
 
 function formatResolvedValue(value: unknown): string {
-	if (value === undefined) {
+	if (value === undefined || value === '<EMPTY>') {
 		return 'undefined';
 	}
-	if (value === null) {
+	if (value === null || value === '[null]') {
 		return 'null';
 	}
 	if (typeof value === 'string') {

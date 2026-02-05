@@ -54,6 +54,26 @@ describe('expression-annotator', () => {
 			expect(result.get('={{ $json.b }}')).toBe('undefined');
 		});
 
+		it('parses "[null]" string as null', () => {
+			const expressionValues: Record<string, ExpressionValue[]> = {
+				Node: [{ expression: '={{ $json.a }}', resolvedValue: '[null]' }],
+			};
+
+			const result = buildExpressionAnnotations(expressionValues);
+
+			expect(result.get('={{ $json.a }}')).toBe('null');
+		});
+
+		it('parses "<EMPTY>" string as undefined', () => {
+			const expressionValues: Record<string, ExpressionValue[]> = {
+				Node: [{ expression: '={{ $json.a }}', resolvedValue: '<EMPTY>' }],
+			};
+
+			const result = buildExpressionAnnotations(expressionValues);
+
+			expect(result.get('={{ $json.a }}')).toBe('undefined');
+		});
+
 		it('shows type hint for arrays', () => {
 			const expressionValues: Record<string, ExpressionValue[]> = {
 				Node: [{ expression: '={{ $json.items }}', resolvedValue: [1, 2, 3] }],

@@ -90,6 +90,8 @@ function schemaTypeToTs(type: string): string {
 }
 
 function formatSampleValue(value: string): string {
+	if (value === '[null]') return 'null';
+	if (value === '<EMPTY>') return 'undefined';
 	const maxLen = 40;
 	const escaped = value.replace(/\n/g, '\\n');
 	return escaped.length > maxLen ? `"${escaped.slice(0, maxLen)}..."` : `"${escaped}"`;
