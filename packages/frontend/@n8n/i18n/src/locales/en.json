@@ -256,7 +256,7 @@
 	"aiAssistant.builder.streamAbortedMessage": "Task aborted",
 	"aiAssistant.builder.executeMessage.description": "Complete these steps before executing your workflow",
 	"aiAssistant.builder.executeMessage.noIssues": "Your workflow is ready to be executed",
-	"aiAssistant.builder.executeMessage.noIssuesWithPinData": "Your workflow is ready to be executed (with pin data). Unpin nodes to execute live.",
+	"aiAssistant.builder.executeMessage.noIssuesWithPinData": "Your workflow is set up with test data (pinned data) for you to execute. Unpin nodes to execute with your own data.",
 	"aiAssistant.builder.executeMessage.validationTooltip": "Complete the steps above before executing",
 	"aiAssistant.builder.executeMessage.execute": "Execute and refine",
 	"aiAssistant.builder.executeMessage.chooseModel": "Choose model",
