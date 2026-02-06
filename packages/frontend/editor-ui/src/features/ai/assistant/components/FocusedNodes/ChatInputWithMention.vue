@@ -1,10 +1,12 @@
 <script lang="ts" setup>
 import { ref, computed, watch, nextTick } from 'vue';
-import { N8nPromptInput, N8nIconButton, N8nIcon } from '@n8n/design-system';
+import { N8nPromptInput, N8nIconButton, N8nIcon, N8nPopover } from '@n8n/design-system';
 import { useI18n } from '@n8n/i18n';
 import { useNodeMention } from '../../composables/useNodeMention';
 import { useFocusedNodesStore } from '../../focusedNodes.store';
+import { useNodeTypesStore } from '@/app/stores/nodeTypes.store';
 import { canvasEventBus } from '@/features/workflows/canvas/canvas.eventBus';
+import NodeIcon from '@/app/components/NodeIcon.vue';
 import NodeMentionDropdown from './NodeMentionDropdown.vue';
 import FocusedNodeChip from './FocusedNodeChip.vue';
 
@@ -41,7 +43,12 @@ const emit = defineEmits<{
 
 const i18n = useI18n();
 const focusedNodesStore = useFocusedNodesStore();
+const nodeTypesStore = useNodeTypesStore();
 const isFeatureEnabled = computed(() => focusedNodesStore.isFeatureEnabled);
+
+function getNodeType(nodeTypeName: string) {
+	return nodeTypesStore.getNodeType(nodeTypeName);
+}
 
 const inputRef = ref<InstanceType<typeof N8nPromptInput> | null>(null);
 const textValue = ref(props.modelValue);
@@ -223,16 +230,41 @@ defineExpose({
 					@click="handleChipClick(node.nodeId)"
 					@remove="handleRemove(node.nodeId)"
 				/>
-				<!-- Bundled confirmed chip (4+ nodes) -->
-				<span v-if="shouldBundleConfirmed" :class="$style.bundledConfirmedChip">
-					<N8nIcon icon="layers" size="small" :class="$style.bundledConfirmedIcon" />
-					<span>{{
-						i18n.baseText('focusedNodes.nodesCount', { interpolate: { count: confirmedCount } })
-					}}</span>
-					<button type="button" :class="$style.removeButton" @click.stop="removeAllConfirmed">
-						<N8nIcon icon="x" size="xsmall" />
-					</button>
-				</span>
+				<!-- Bundled confirmed chip (4+ nodes) with expandable popover -->
+				<N8nPopover v-if="shouldBundleConfirmed" side="top" width="220px">
+					<template #trigger>
+						<span :class="$style.bundledConfirmedChip">
+							<N8nIcon icon="layers" size="small" :class="$style.bundledConfirmedIcon" />
+							<span>{{
+								i18n.baseText('focusedNodes.nodesCount', {
+									interpolate: { count: confirmedCount },
+								})
+							}}</span>
+							<button type="button" :class="$style.removeButton" @click.stop="removeAllConfirmed">
+								<N8nIcon icon="x" size="xsmall" />
+							</button>
+						</span>
+					</template>
+					<template #content>
+						<div :class="$style.expandedNodeList">
+							<div
+								v-for="node in confirmedNodes"
+								:key="node.nodeId"
+								:class="$style.expandedNodeItem"
+							>
+								<NodeIcon :node-type="getNodeType(node.nodeType)" :size="12" />
+								<span :class="$style.expandedNodeName">{{ node.nodeName }}</span>
+								<button
+									type="button"
+									:class="$style.expandedRemoveButton"
+									@click.stop="handleRemove(node.nodeId)"
+								>
+									<N8nIcon icon="x" size="xsmall" />
+								</button>
+							</div>
+						</div>
+					</template>
+				</N8nPopover>
 			</template>
 
 			<!-- Mention button (only when feature enabled) -->
@@ -358,5 +390,50 @@ defineExpose({
 
 .bundledUnconfirmedIcon {
 	color: var(--color--text--tint-1);
+}
+
+.expandedNodeList {
+	padding: var(--spacing--4xs);
+	max-height: 240px;
+	overflow-y: auto;
+}
+
+.expandedNodeItem {
+	display: flex;
+	align-items: center;
+	gap: var(--spacing--2xs);
+	padding: var(--spacing--4xs) var(--spacing--2xs);
+	border-radius: var(--radius);
+	font-size: var(--font-size--2xs);
+	color: var(--color--text);
+
+	&:hover {
+		background-color: var(--color--foreground--tint-2);
+	}
+}
+
+.expandedNodeName {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	line-height: 1;
+}
+
+.expandedRemoveButton {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	min-height: 24px;
+	padding: 0;
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: var(--color--text--tint-2);
+
+	&:hover {
+		color: var(--color--text);
+	}
 }
 </style>
