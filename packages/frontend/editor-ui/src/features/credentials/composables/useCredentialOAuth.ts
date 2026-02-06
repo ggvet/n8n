@@ -15,14 +15,20 @@ export function useCredentialOAuth() {
 	/**
 	 * Get parent types for a credential type (e.g., googleSheetsOAuth2Api extends googleOAuth2Api extends oAuth2Api).
 	 */
-	function getParentTypes(credentialTypeName: string): string[] {
+	function getParentTypes(
+		credentialTypeName: string,
+		visited = new Set<string>(),
+	): string[] {
+		if (visited.has(credentialTypeName)) return [];
+		visited.add(credentialTypeName);
+
 		const type = credentialsStore.getCredentialTypeByName(credentialTypeName);
 		if (type?.extends === undefined) return [];
 
 		const types: string[] = [];
 		for (const typeName of type.extends) {
 			types.push(typeName);
-			types.push(...getParentTypes(typeName));
+			types.push(...getParentTypes(typeName, visited));
 		}
 		return types;
 	}
@@ -127,19 +133,32 @@ export function useCredentialOAuth() {
 
 		return await new Promise((resolve) => {
 			const oauthChannel = new BroadcastChannel('oauth-callback');
+			let settled = false;
+			let pollTimer: ReturnType<typeof setInterval> | undefined;
+
+			function cleanup() {
+				if (pollTimer !== undefined) {
+					clearInterval(pollTimer);
+					pollTimer = undefined;
+				}
+				oauthChannel.close();
+			}
+
+			function settle(result: boolean) {
+				if (settled) return;
+				settled = true;
+				cleanup();
+				resolve(result);
+			}
 
 			// Poll for popup being closed without completing OAuth (user clicked X)
-			const popupPollInterval = setInterval(() => {
+			pollTimer = setInterval(() => {
 				if (oauthPopup?.closed) {
-					clearInterval(popupPollInterval);
-					oauthChannel.close();
-					resolve(false);
+					settle(false);
 				}
 			}, 500);
 
 			oauthChannel.addEventListener('message', (event: MessageEvent) => {
-				clearInterval(popupPollInterval);
-				oauthChannel.close();
 				oauthPopup?.close();
 
 				if (event.data === 'success') {
@@ -147,7 +166,7 @@ export function useCredentialOAuth() {
 						title: i18n.baseText('credentialEdit.credentialEdit.showMessage.accountConnected'),
 						type: 'success',
 					});
-					resolve(true);
+					settle(true);
 				} else {
 					toast.showMessage({
 						title: i18n.baseText(
@@ -155,7 +174,7 @@ export function useCredentialOAuth() {
 						),
 						type: 'error',
 					});
-					resolve(false);
+					settle(false);
 				}
 			});
 		});

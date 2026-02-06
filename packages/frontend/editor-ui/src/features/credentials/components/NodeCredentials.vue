@@ -952,11 +952,6 @@ async function onQuickConnectSignIn(credentialTypeName: string) {
 	flex: 1;
 }
 
-.setupCredentialLink {
-	font-size: var(--font-size--xs);
-	white-space: nowrap;
-}
-
 .edit {
 	display: flex;
 	justify-content: center;
