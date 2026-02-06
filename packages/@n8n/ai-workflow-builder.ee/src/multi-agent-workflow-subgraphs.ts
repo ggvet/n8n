@@ -209,7 +209,7 @@ export function createMultiAgentWorkflowWithSubgraphs(config: MultiAgentSubgraph
 	const compiledDiscovery = discoverySubgraph.create({
 		parsedNodeTypes,
 		llm: stageLLMs.discovery,
-		plannerLLM: stageLLMs.responder,
+		plannerLLM: stageLLMs.planner,
 		logger,
 		featureFlags,
 	});

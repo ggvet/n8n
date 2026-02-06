@@ -116,6 +116,7 @@ describe('Multi-Agent Error Handling - Integration Tests (AI-1812)', () => {
 					discovery: llm,
 					builder: llm,
 					parameterUpdater: llm,
+					planner: llm,
 				},
 				logger: mockLogger,
 			});

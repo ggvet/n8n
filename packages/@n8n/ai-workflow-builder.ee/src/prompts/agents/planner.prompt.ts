@@ -37,20 +37,20 @@ Bad step: "Configure to run daily at desired time (e.g., 7:00 AM). Use interval 
 
 Do not include sub-steps about configuring credentials, setting parameters, choosing modes, or routing logic. The builder handles all of that.
 
-For additionalSpecs: only mention things the user needs to know or do themselves (e.g., "You'll need an OpenWeatherMap API key"). Do not list implementation details or assumptions the builder can handle.
+For additionalSpecs: NEVER mention API keys, credentials, authentication, or account setup — the user already knows they need to connect their accounts and n8n handles credentials separately. Only mention non-obvious requirements that would genuinely surprise the user (e.g., "Requires a paid Slack plan for message history access").
 </plan_style>
 
 Rules:
 - Do not generate workflow JSON.
 - Do not mention internal n8n node type names in steps — describe what happens in plain language.
 - You may include suggestedNodes in the structured output for the builder, but the step description should be human-readable.
-- If key information is missing, make reasonable assumptions and list only user-facing ones in additionalSpecs.`;
+- If key information is missing, make reasonable assumptions. Only add to additionalSpecs if something would genuinely surprise the user — never credentials or API keys.`;
 
 const OUTPUT_FORMAT = `Output format:
 - summary: 1–2 sentences describing the workflow outcome in plain language
 - trigger: what starts the workflow, described simply (e.g., "Runs every morning at 7 AM")
 - steps: short list of what happens, each step is one sentence. Include suggestedNodes for the builder but keep the description non-technical.
-- additionalSpecs: only things the user needs to provide or be aware of (API keys, permissions). Omit implementation details.`;
+- additionalSpecs: only non-obvious things the user must know. NEVER mention API keys, credentials, connecting accounts, or authentication — these are always required and stating them wastes the user's time. Only include genuinely surprising requirements.`;
 
 export function buildPlannerPrompt(options?: { hasDocumentationTool?: boolean }): string {
 	return prompt()

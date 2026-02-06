@@ -49,6 +49,7 @@ export interface StageLLMs {
 	discovery: BaseChatModel;
 	builder: BaseChatModel;
 	parameterUpdater: BaseChatModel;
+	planner: BaseChatModel;
 }
 
 export interface WorkflowBuilderAgentConfig {
