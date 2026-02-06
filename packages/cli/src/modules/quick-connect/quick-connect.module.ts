@@ -12,19 +12,16 @@ export class QuickConnectModule implements ModuleInterface {
 	/**
 	 * Settings exposed to the frontend under `/rest/module-settings`.
 	 *
-	 * The response shape will be `{ options: [{ packageName: string, credentialType: string, text: string, quickConnectType: string, serviceName: string, backendFlowConfig?: { consentText?: string } }]}`.
-	 * Note: backendFlowConfig.secret is intentionally excluded from the response to keep secrets server-side only.
+	 * The response shape will be `{ options: [{ packageName: string, credentialType: string, text: string, quickConnectType: string, serviceName: string, consentText?: string }]}`.
+	 * Note: backendFlowConfig is intentionally excluded from the response to keep it server-side only.
 	 */
 	async settings() {
 		const { QuickConnectConfig } = await import('./quick-connect.config');
 		const { options } = Container.get(QuickConnectConfig);
-		// Strip secret from backendFlowConfig before sending to frontend
+		// Strip backendFlowConfig before sending options to frontend
 		return {
 			options: options.map(({ backendFlowConfig, ...rest }) => ({
 				...rest,
-				backendFlowConfig: backendFlowConfig
-					? { ...backendFlowConfig, secret: undefined }
-					: undefined,
 			})),
 		};
 	}

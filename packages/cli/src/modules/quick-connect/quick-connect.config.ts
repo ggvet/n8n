@@ -2,7 +2,6 @@ import { Config, Env } from '@n8n/config';
 import { z } from 'zod';
 
 const backendFlowConfigSchema = z.object({
-	consentText: z.string().optional(),
 	secret: z.string(),
 });
 
@@ -14,6 +13,7 @@ const quickConnectOptionSchema = z.object({
 	text: z.string(),
 	quickConnectType: z.string(),
 	serviceName: z.string(),
+	consentText: z.string().optional(),
 	backendFlowConfig: backendFlowConfigSchema.optional(),
 });
 

@@ -42,9 +42,9 @@ describe('QuickConnectConfig', () => {
 				text: 'Superagent for everyone',
 				quickConnectType: 'backend',
 				serviceName: 'Superagent',
+				consentText: 'Allow access to your account?',
 				backendFlowConfig: {
 					secret: 'my-secret-key',
-					consentText: 'Allow access to your account?',
 				},
 			},
 		];
@@ -54,7 +54,7 @@ describe('QuickConnectConfig', () => {
 
 		expect(options).toEqual(testConfig);
 		expect(options[0].backendFlowConfig?.secret).toBe('my-secret-key');
-		expect(options[0].backendFlowConfig?.consentText).toBe('Allow access to your account?');
+		expect(options[0].consentText).toBe('Allow access to your account?');
 	});
 
 	it('handles empty JSON array', () => {
@@ -159,9 +159,8 @@ describe('QuickConnectConfig', () => {
 					text: 'Superagent for everyone',
 					quickConnectType: 'backend',
 					serviceName: 'Superagent',
-					backendFlowConfig: {
-						consentText: 'Allow access?',
-					},
+					consentText: 'Allow access?',
+					backendFlowConfig: {},
 				},
 			]),
 		],

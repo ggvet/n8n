@@ -38,9 +38,9 @@ describe('QuickConnectService', () => {
 		text: 'Test Quick connect',
 		quickConnectType: 'backend',
 		serviceName: 'Test Service',
+		consentText: 'Allow access?',
 		backendFlowConfig: {
 			secret: 'test-secret',
-			consentText: 'Allow access?',
 		},
 		...overrides,
 	});
