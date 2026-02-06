@@ -21,6 +21,7 @@ describe('TriggerValidationService', () => {
 	const createKafkaTriggerNode = (
 		name: string,
 		groupId: string,
+		topic: string,
 		options?: { disabled?: boolean },
 	): INode => ({
 		name,
@@ -29,7 +30,7 @@ describe('TriggerValidationService', () => {
 		typeVersion: 1,
 		position: [0, 0],
 		disabled: options?.disabled,
-		parameters: { groupId },
+		parameters: { groupId, topic },
 	});
 
 	const createRegularNode = (name: string): INode => ({
@@ -59,7 +60,7 @@ describe('TriggerValidationService', () => {
 		describe('checkTestRunAllowed', () => {
 			it('should allow test run when workflow is not active', async () => {
 				const workflowData = createWorkflowData('workflow-1', [
-					createKafkaTriggerNode('Kafka Trigger', 'group-1'),
+					createKafkaTriggerNode('Kafka Trigger', 'group-1', 'topic-1'),
 				]);
 
 				mockWorkflowRepository.find.mockResolvedValue([]);
@@ -69,7 +70,7 @@ describe('TriggerValidationService', () => {
 
 			it('should throw SingleTriggerError when workflow is active with Kafka trigger', async () => {
 				const workflowData = createWorkflowData('workflow-1', [
-					createKafkaTriggerNode('Kafka Trigger', 'group-1'),
+					createKafkaTriggerNode('Kafka Trigger', 'group-1', 'topic-1'),
 				]);
 
 				await expect(service.validateManualExecution(workflowData, true)).rejects.toThrow(
@@ -79,7 +80,7 @@ describe('TriggerValidationService', () => {
 
 			it('should allow test run when Kafka trigger is disabled', async () => {
 				const workflowData = createWorkflowData('workflow-1', [
-					createKafkaTriggerNode('Kafka Trigger', 'group-1', { disabled: true }),
+					createKafkaTriggerNode('Kafka Trigger', 'group-1', 'topic-1', { disabled: true }),
 				]);
 
 				mockWorkflowRepository.find.mockResolvedValue([]);
@@ -90,7 +91,7 @@ describe('TriggerValidationService', () => {
 			it('should allow test run when Kafka trigger has pinned data', async () => {
 				const workflowData = createWorkflowData(
 					'workflow-1',
-					[createKafkaTriggerNode('Kafka Trigger', 'group-1')],
+					[createKafkaTriggerNode('Kafka Trigger', 'group-1', 'topic-1')],
 					{ pinData: { 'Kafka Trigger': [{ json: { data: 'pinned' } }] } },
 				);
 
@@ -101,8 +102,8 @@ describe('TriggerValidationService', () => {
 
 			it('should throw SingleTriggerError for specific trigger when triggerToStartFrom is provided', async () => {
 				const workflowData = createWorkflowData('workflow-1', [
-					createKafkaTriggerNode('Kafka Trigger 1', 'group-1'),
-					createKafkaTriggerNode('Kafka Trigger 2', 'group-2'),
+					createKafkaTriggerNode('Kafka Trigger 1', 'group-1', 'topic-1'),
+					createKafkaTriggerNode('Kafka Trigger 2', 'group-2', 'topic-2'),
 				]);
 
 				await expect(
@@ -112,7 +113,7 @@ describe('TriggerValidationService', () => {
 
 			it('should allow test run when triggerToStartFrom is not a restricted trigger', async () => {
 				const workflowData = createWorkflowData('workflow-1', [
-					createKafkaTriggerNode('Kafka Trigger', 'group-1'),
+					createKafkaTriggerNode('Kafka Trigger', 'group-1', 'topic-1'),
 					createRegularNode('Set Node'),
 				]);
 
@@ -133,9 +134,9 @@ describe('TriggerValidationService', () => {
 				expect(mockWorkflowRepository.find).not.toHaveBeenCalled();
 			});
 
-			it('should throw TriggerParameterConflictError when groupId conflicts with active workflow', async () => {
+			it('should throw TriggerParameterConflictError when groupId and topic both conflict with active workflow', async () => {
 				const workflowData = createWorkflowData('workflow-1', [
-					createKafkaTriggerNode('Kafka Trigger', 'shared-group'),
+					createKafkaTriggerNode('Kafka Trigger', 'shared-group', 'shared-topic'),
 				]);
 
 				mockWorkflowRepository.find.mockResolvedValue([
@@ -144,7 +145,7 @@ describe('TriggerValidationService', () => {
 						name: 'Active Workflow',
 						active: true,
 						activeVersion: {
-							nodes: [createKafkaTriggerNode('Other Kafka', 'shared-group')],
+							nodes: [createKafkaTriggerNode('Other Kafka', 'shared-group', 'shared-topic')],
 						},
 					} as any,
 				]);
@@ -154,9 +155,9 @@ describe('TriggerValidationService', () => {
 				);
 			});
 
-			it('should not throw when groupId is different from active workflows', async () => {
+			it('should not throw when only groupId matches but topic is different', async () => {
 				const workflowData = createWorkflowData('workflow-1', [
-					createKafkaTriggerNode('Kafka Trigger', 'group-1'),
+					createKafkaTriggerNode('Kafka Trigger', 'shared-group', 'topic-1'),
 				]);
 
 				mockWorkflowRepository.find.mockResolvedValue([
@@ -165,7 +166,45 @@ describe('TriggerValidationService', () => {
 						name: 'Active Workflow',
 						active: true,
 						activeVersion: {
-							nodes: [createKafkaTriggerNode('Other Kafka', 'group-2')],
+							nodes: [createKafkaTriggerNode('Other Kafka', 'shared-group', 'topic-2')],
+						},
+					} as any,
+				]);
+
+				await expect(service.validateManualExecution(workflowData, false)).resolves.not.toThrow();
+			});
+
+			it('should not throw when only topic matches but groupId is different', async () => {
+				const workflowData = createWorkflowData('workflow-1', [
+					createKafkaTriggerNode('Kafka Trigger', 'group-1', 'shared-topic'),
+				]);
+
+				mockWorkflowRepository.find.mockResolvedValue([
+					{
+						id: 'workflow-2',
+						name: 'Active Workflow',
+						active: true,
+						activeVersion: {
+							nodes: [createKafkaTriggerNode('Other Kafka', 'group-2', 'shared-topic')],
+						},
+					} as any,
+				]);
+
+				await expect(service.validateManualExecution(workflowData, false)).resolves.not.toThrow();
+			});
+
+			it('should not throw when both groupId and topic are different from active workflows', async () => {
+				const workflowData = createWorkflowData('workflow-1', [
+					createKafkaTriggerNode('Kafka Trigger', 'group-1', 'topic-1'),
+				]);
+
+				mockWorkflowRepository.find.mockResolvedValue([
+					{
+						id: 'workflow-2',
+						name: 'Active Workflow',
+						active: true,
+						activeVersion: {
+							nodes: [createKafkaTriggerNode('Other Kafka', 'group-2', 'topic-2')],
 						},
 					} as any,
 				]);
@@ -175,7 +214,7 @@ describe('TriggerValidationService', () => {
 
 			it('should skip checking against the same workflow', async () => {
 				const workflowData = createWorkflowData('workflow-1', [
-					createKafkaTriggerNode('Kafka Trigger', 'group-1'),
+					createKafkaTriggerNode('Kafka Trigger', 'group-1', 'topic-1'),
 				]);
 
 				mockWorkflowRepository.find.mockResolvedValue([
@@ -184,7 +223,7 @@ describe('TriggerValidationService', () => {
 						name: 'Same Workflow',
 						active: true,
 						activeVersion: {
-							nodes: [createKafkaTriggerNode('Kafka Trigger', 'group-1')],
+							nodes: [createKafkaTriggerNode('Kafka Trigger', 'group-1', 'topic-1')],
 						},
 					} as any,
 				]);
@@ -194,7 +233,7 @@ describe('TriggerValidationService', () => {
 
 			it('should skip disabled nodes in active workflows', async () => {
 				const workflowData = createWorkflowData('workflow-1', [
-					createKafkaTriggerNode('Kafka Trigger', 'shared-group'),
+					createKafkaTriggerNode('Kafka Trigger', 'shared-group', 'shared-topic'),
 				]);
 
 				mockWorkflowRepository.find.mockResolvedValue([
@@ -203,7 +242,11 @@ describe('TriggerValidationService', () => {
 						name: 'Active Workflow',
 						active: true,
 						activeVersion: {
-							nodes: [createKafkaTriggerNode('Other Kafka', 'shared-group', { disabled: true })],
+							nodes: [
+								createKafkaTriggerNode('Other Kafka', 'shared-group', 'shared-topic', {
+									disabled: true,
+								}),
+							],
 						},
 					} as any,
 				]);
@@ -213,8 +256,8 @@ describe('TriggerValidationService', () => {
 
 			it('should only check specified trigger when triggerToStartFrom is provided', async () => {
 				const workflowData = createWorkflowData('workflow-1', [
-					createKafkaTriggerNode('Kafka Trigger 1', 'group-1'),
-					createKafkaTriggerNode('Kafka Trigger 2', 'conflicting-group'),
+					createKafkaTriggerNode('Kafka Trigger 1', 'group-1', 'topic-1'),
+					createKafkaTriggerNode('Kafka Trigger 2', 'conflicting-group', 'conflicting-topic'),
 				]);
 
 				mockWorkflowRepository.find.mockResolvedValue([
@@ -223,7 +266,9 @@ describe('TriggerValidationService', () => {
 						name: 'Active Workflow',
 						active: true,
 						activeVersion: {
-							nodes: [createKafkaTriggerNode('Other Kafka', 'conflicting-group')],
+							nodes: [
+								createKafkaTriggerNode('Other Kafka', 'conflicting-group', 'conflicting-topic'),
+							],
 						},
 					} as any,
 				]);
@@ -255,7 +300,7 @@ describe('TriggerValidationService', () => {
 
 		it('should not check conflicts when no other active workflows exist', async () => {
 			const workflow = createWorkflow('workflow-1', {
-				'Kafka Trigger': createKafkaTriggerNode('Kafka Trigger', 'group-1'),
+				'Kafka Trigger': createKafkaTriggerNode('Kafka Trigger', 'group-1', 'topic-1'),
 			});
 
 			mockActiveWorkflows.allActiveWorkflows.mockReturnValue(['workflow-1']);
@@ -265,9 +310,9 @@ describe('TriggerValidationService', () => {
 			expect(mockWorkflowRepository.find).not.toHaveBeenCalled();
 		});
 
-		it('should throw TriggerParameterConflictError when groupId conflicts with active workflow', async () => {
+		it('should throw TriggerParameterConflictError when groupId and topic both conflict with active workflow', async () => {
 			const workflow = createWorkflow('workflow-1', {
-				'Kafka Trigger': createKafkaTriggerNode('Kafka Trigger', 'shared-group'),
+				'Kafka Trigger': createKafkaTriggerNode('Kafka Trigger', 'shared-group', 'shared-topic'),
 			});
 
 			mockActiveWorkflows.allActiveWorkflows.mockReturnValue(['workflow-1', 'workflow-2']);
@@ -276,7 +321,7 @@ describe('TriggerValidationService', () => {
 					id: 'workflow-2',
 					name: 'Active Workflow',
 					activeVersion: {
-						nodes: [createKafkaTriggerNode('Other Kafka', 'shared-group')],
+						nodes: [createKafkaTriggerNode('Other Kafka', 'shared-group', 'shared-topic')],
 					},
 				} as any,
 			]);
@@ -286,9 +331,9 @@ describe('TriggerValidationService', () => {
 			);
 		});
 
-		it('should not throw when groupId is different from active workflows', async () => {
+		it('should not throw when only groupId matches but topic is different', async () => {
 			const workflow = createWorkflow('workflow-1', {
-				'Kafka Trigger': createKafkaTriggerNode('Kafka Trigger', 'group-1'),
+				'Kafka Trigger': createKafkaTriggerNode('Kafka Trigger', 'shared-group', 'topic-1'),
 			});
 
 			mockActiveWorkflows.allActiveWorkflows.mockReturnValue(['workflow-1', 'workflow-2']);
@@ -297,7 +342,26 @@ describe('TriggerValidationService', () => {
 					id: 'workflow-2',
 					name: 'Active Workflow',
 					activeVersion: {
-						nodes: [createKafkaTriggerNode('Other Kafka', 'group-2')],
+						nodes: [createKafkaTriggerNode('Other Kafka', 'shared-group', 'topic-2')],
+					},
+				} as any,
+			]);
+
+			await expect(service.validateWorkflowActivation(workflow)).resolves.not.toThrow();
+		});
+
+		it('should not throw when both groupId and topic are different from active workflows', async () => {
+			const workflow = createWorkflow('workflow-1', {
+				'Kafka Trigger': createKafkaTriggerNode('Kafka Trigger', 'group-1', 'topic-1'),
+			});
+
+			mockActiveWorkflows.allActiveWorkflows.mockReturnValue(['workflow-1', 'workflow-2']);
+			mockWorkflowRepository.find.mockResolvedValue([
+				{
+					id: 'workflow-2',
+					name: 'Active Workflow',
+					activeVersion: {
+						nodes: [createKafkaTriggerNode('Other Kafka', 'group-2', 'topic-2')],
 					},
 				} as any,
 			]);
@@ -307,7 +371,7 @@ describe('TriggerValidationService', () => {
 
 		it('should skip workflows without activeVersion', async () => {
 			const workflow = createWorkflow('workflow-1', {
-				'Kafka Trigger': createKafkaTriggerNode('Kafka Trigger', 'shared-group'),
+				'Kafka Trigger': createKafkaTriggerNode('Kafka Trigger', 'shared-group', 'shared-topic'),
 			});
 
 			mockActiveWorkflows.allActiveWorkflows.mockReturnValue(['workflow-1', 'workflow-2']);
@@ -324,7 +388,7 @@ describe('TriggerValidationService', () => {
 
 		it('should skip disabled nodes in the workflow being activated', async () => {
 			const workflow = createWorkflow('workflow-1', {
-				'Kafka Trigger': createKafkaTriggerNode('Kafka Trigger', 'shared-group', {
+				'Kafka Trigger': createKafkaTriggerNode('Kafka Trigger', 'shared-group', 'shared-topic', {
 					disabled: true,
 				}),
 			});
@@ -338,7 +402,7 @@ describe('TriggerValidationService', () => {
 
 		it('should check multiple active workflows for conflicts', async () => {
 			const workflow = createWorkflow('workflow-1', {
-				'Kafka Trigger': createKafkaTriggerNode('Kafka Trigger', 'group-1'),
+				'Kafka Trigger': createKafkaTriggerNode('Kafka Trigger', 'group-1', 'topic-1'),
 			});
 
 			mockActiveWorkflows.allActiveWorkflows.mockReturnValue([
@@ -351,14 +415,14 @@ describe('TriggerValidationService', () => {
 					id: 'workflow-2',
 					name: 'Active Workflow 2',
 					activeVersion: {
-						nodes: [createKafkaTriggerNode('Kafka 2', 'group-2')],
+						nodes: [createKafkaTriggerNode('Kafka 2', 'group-2', 'topic-2')],
 					},
 				} as any,
 				{
 					id: 'workflow-3',
 					name: 'Active Workflow 3',
 					activeVersion: {
-						nodes: [createKafkaTriggerNode('Kafka 3', 'group-3')],
+						nodes: [createKafkaTriggerNode('Kafka 3', 'group-3', 'topic-3')],
 					},
 				} as any,
 			]);

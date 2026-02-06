@@ -13,11 +13,16 @@ export const TRIGGERS_PREVENT_TEST_WHILE_ACTIVE: Set<string> = new Set([
 	'n8n-nodes-base.kafkaTrigger',
 ]);
 
+type ConflictCondition = {
+	parameter?: string;
+	parametersCombination?: string[];
+};
+
 /**
  * Parameters that must be unique across all active workflows, keyed by trigger type.
  */
-export const TRIGGERS_UNIQUE_PARAMETERS: Record<string, string[]> = {
-	'n8n-nodes-base.kafkaTrigger': ['groupId'],
+export const TRIGGERS_UNIQUE_PARAMETERS: Record<string, ConflictCondition> = {
+	'n8n-nodes-base.kafkaTrigger': { parametersCombination: ['groupId', 'topic'] },
 };
 
 @Service()
@@ -55,9 +60,7 @@ export class TriggerValidationService {
 		const nodes = Object.values(workflow.nodes);
 		const enabledNodes = nodes.filter((n) => !n.disabled);
 
-		const hasUniqueParams = enabledNodes.some(
-			(node) => TRIGGERS_UNIQUE_PARAMETERS[node.type]?.length,
-		);
+		const hasUniqueParams = enabledNodes.some((node) => TRIGGERS_UNIQUE_PARAMETERS[node.type]);
 
 		if (!hasUniqueParams) return;
 
@@ -147,8 +150,7 @@ export class TriggerValidationService {
 		const pinData = workflowData.pinData ?? {};
 
 		let triggersToCheck = workflowData.nodes.filter(
-			(node) =>
-				TRIGGERS_UNIQUE_PARAMETERS[node.type]?.length && !node.disabled && !pinData[node.name],
+			(node) => TRIGGERS_UNIQUE_PARAMETERS[node.type] && !node.disabled && !pinData[node.name],
 		);
 
 		if (triggerToStartFrom) {
@@ -159,55 +161,46 @@ export class TriggerValidationService {
 	}
 
 	/**
-	 * Assert that triggers don't conflict with active workflow nodes.
+	 * Assert that new triggers don't conflict with triggers from an active workflow.
+	 * @param workflowNodes - Nodes from the workflow being validated
+	 * @param activeWorkflowNodes - Nodes from an already active workflow
+	 * @param activeWorkflowName - Name of the active workflow (for error message)
 	 * @throws TriggerParameterConflictError if a conflict is found
 	 */
 	private assertNoConflicts(
-		triggers: INode[],
-		activeNodes: INode[],
+		workflowNodes: INode[],
+		activeWorkflowNodes: INode[],
 		activeWorkflowName: string,
 	): void {
-		const conflictsMap = new Map<string, Map<string, Set<string>>>();
+		for (const node of workflowNodes) {
+			const condition = TRIGGERS_UNIQUE_PARAMETERS[node.type];
+			if (!condition) continue;
 
-		for (const trigger of triggers) {
-			const uniqueParams = TRIGGERS_UNIQUE_PARAMETERS[trigger.type];
-			if (!uniqueParams) continue;
+			for (const activeNode of activeWorkflowNodes) {
+				if (activeNode.disabled) continue;
+				if (activeNode.type !== node.type) continue;
 
-			if (!conflictsMap.has(trigger.type)) {
-				conflictsMap.set(trigger.type, new Map());
-			}
-			const typeMap = conflictsMap.get(trigger.type)!;
+				const paramsToCheck = condition.parameter
+					? [condition.parameter]
+					: (condition.parametersCombination ?? []);
 
-			for (const name of uniqueParams) {
-				const value = trigger.parameters?.[name] as string | undefined;
-				if (value) {
-					if (!typeMap.has(name)) {
-						typeMap.set(name, new Set());
-					}
-					typeMap.get(name)!.add(value);
-				}
-			}
-		}
+				if (!paramsToCheck.length) continue;
 
-		for (const activeNode of activeNodes) {
-			if (activeNode.disabled) continue;
+				const conflict = paramsToCheck.every((paramName) => {
+					const value = node.parameters?.[paramName];
+					const existingValue = activeNode.parameters?.[paramName];
+					if (value === undefined || existingValue === undefined) return false;
+					return value === existingValue;
+				});
 
-			const uniqueParams = TRIGGERS_UNIQUE_PARAMETERS[activeNode.type];
-			if (!uniqueParams) continue;
-
-			const typeMap = conflictsMap.get(activeNode.type);
-			if (!typeMap) continue;
-
-			for (const paramName of uniqueParams) {
-				const activeParamValue = activeNode.parameters?.[paramName] as string | undefined;
-				if (!activeParamValue) continue;
-
-				const newValues = typeMap.get(paramName);
-				if (newValues?.has(activeParamValue)) {
+				if (conflict) {
+					const conflictValues = paramsToCheck
+						.map((name) => `${name}=${String(node.parameters?.[name])}`)
+						.join(', ');
 					throw new TriggerParameterConflictError(
-						activeNode.type,
-						paramName,
-						activeParamValue,
+						node.type,
+						paramsToCheck.join(', '),
+						conflictValues,
 						activeWorkflowName,
 					);
 				}
