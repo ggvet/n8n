@@ -295,15 +295,6 @@ const shouldDisablePublishButton = computed(() => {
 	);
 });
 
-const shouldDisableDropdownButton = computed(() => {
-	return (
-		props.isNewWorkflow ||
-		collaborationReadOnly.value ||
-		(shouldDisablePublishButton.value &&
-			(!isNamedVersionsEnabled.value || !hasUpdatePermission.value))
-	);
-});
-
 const activeVersion = computed(() => workflowsStore.workflow.activeVersion);
 
 const activeVersionName = computed(() => {
@@ -343,15 +334,13 @@ const versionMenuActions = computed<Array<ActionDropdownItem<VERSION_ACTIONS>>>(
 		});
 	}
 
-	if (activeVersion.value && hasPublishPermission.value && !collaborationReadOnly.value) {
-		actions.push({
-			id: VERSION_ACTIONS.UNPUBLISH,
-			label: i18n.baseText('workflows.unpublish'),
-			disabled: false,
-			divided: true,
-			shortcut: { metaKey: true, keys: ['U'] },
-		});
-	}
+	actions.push({
+		id: VERSION_ACTIONS.UNPUBLISH,
+		label: i18n.baseText('workflows.unpublish'),
+		disabled: !activeVersion.value || collaborationReadOnly.value || !hasPublishPermission.value,
+		divided: true,
+		shortcut: { metaKey: true, keys: ['U'] },
+	});
 
 	return actions;
 });
@@ -562,7 +551,6 @@ defineExpose({
 					<template #activator>
 						<N8nIconButton
 							:class="$style.groupButtonRight"
-							:disabled="shouldDisableDropdownButton"
 							type="secondary"
 							icon="chevron-down"
 							data-test-id="version-menu-button"
