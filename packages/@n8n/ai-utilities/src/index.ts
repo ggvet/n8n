@@ -44,7 +44,7 @@ export { getParametersJsonSchema } from './converters/tool';
 export { supplyModel } from './suppliers/supplyModel';
 
 // Memory types
-export type { ChatHistory, ChatMemory, MemoryConfig } from './types/memory';
+export type { ChatHistory, ChatMemory } from './types/memory';
 
 // Memory base classes
 export { BaseChatHistory } from './memory/base-chat-history';

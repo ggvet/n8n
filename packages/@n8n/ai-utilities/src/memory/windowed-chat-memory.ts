@@ -1,9 +1,8 @@
 import { BaseChatMemory } from './base-chat-memory';
-import type { ChatHistory, MemoryConfig } from '../types/memory';
+import type { ChatHistory } from '../types/memory';
 import type { Message } from '../types/message';
 
-export interface WindowedChatMemoryConfig extends MemoryConfig {
-	/** @default 10 */
+export interface WindowedChatMemoryConfig {
 	windowSize?: number;
 }
 

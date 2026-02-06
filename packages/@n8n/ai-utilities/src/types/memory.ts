@@ -7,11 +7,6 @@ export interface ChatHistory {
 	clear(): Promise<void>;
 }
 
-export interface MemoryConfig {
-	windowSize?: number;
-	sessionId?: string;
-}
-
 export interface ChatMemory {
 	loadMessages(): Promise<Message[]>;
 	saveTurn(input: string, output: string): Promise<void>;
