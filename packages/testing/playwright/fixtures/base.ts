@@ -12,7 +12,6 @@ import { setupDefaultInterceptors } from '../config/intercepts';
 import { observabilityFixtures, type ObservabilityTestFixtures } from '../fixtures/observability';
 import { n8nPage } from '../pages/n8nPage';
 import { ApiHelpers } from '../services/api-helper';
-import { ProxyServer } from '../services/proxy-server';
 import { TestError, type TestRequirements } from '../Types';
 import { createLocalServiceHelpers } from '../utils/local-services';
 import { setupTestRequirements } from '../utils/requirements';
@@ -23,7 +22,6 @@ type TestFixtures = {
 	api: ApiHelpers;
 	baseURL: string;
 	setupRequirements: (requirements: TestRequirements) => Promise<void>;
-	proxyServer: ProxyServer;
 	/**
 	 * Type-safe service helpers (mailpit, gitea, observability, etc.).
 	 * Works in both container mode (from n8nContainer) and local mode (from .services.json).
@@ -295,27 +293,6 @@ export const test = base.extend<
 		} else {
 			await use(n8nContainer.services);
 		}
-	},
-
-	proxyServer: async ({ n8nContainer }, use) => {
-		if (!n8nContainer) {
-			throw new TestError(
-				'Testing with Proxy server is not supported when using N8N_BASE_URL environment variable. Remove N8N_BASE_URL to use containerized testing.',
-			);
-		}
-
-		const proxyServerContainer = n8nContainer.containers.find((container) =>
-			container.getName().endsWith('proxyserver'),
-		);
-
-		if (!proxyServerContainer) {
-			throw new TestError('Proxy server container not initialized. Cannot initialize client.');
-		}
-
-		const serverUrl = `http://${proxyServerContainer?.getHost()}:${proxyServerContainer?.getFirstMappedPort()}`;
-		const proxyServer = new ProxyServer(serverUrl);
-
-		await use(proxyServer);
 	},
 });
 

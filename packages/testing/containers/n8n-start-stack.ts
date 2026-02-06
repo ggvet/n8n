@@ -12,6 +12,7 @@ import type { KeycloakResult } from './services/keycloak';
 import type { LocalStackResult } from './services/localstack';
 import type { MailpitResult } from './services/mailpit';
 import type { NgrokResult } from './services/ngrok';
+import type { ProxyResult } from './services/proxy';
 import { services as SERVICE_REGISTRY } from './services/registry';
 import type { TracingResult } from './services/tracing';
 import type { ServiceName } from './services/types';
@@ -323,6 +324,12 @@ async function main() {
 			const kafkaResult = stack.serviceResults.kafka as KafkaResult | undefined;
 			if (kafkaResult) {
 				servicesJson.kafka = { broker: kafkaResult.meta.externalBroker };
+			}
+			const proxyResult = stack.serviceResults.proxy as ProxyResult | undefined;
+			if (proxyResult) {
+				servicesJson.proxy = {
+					url: `http://${proxyResult.container.getHost()}:${proxyResult.container.getMappedPort(1080)}`,
+				};
 			}
 			if (Object.keys(servicesJson).length > 0) {
 				const servicesJsonPath = resolve(__dirname, '../playwright/.services.json');

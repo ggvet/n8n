@@ -1,6 +1,7 @@
 import { KafkaHelper } from 'n8n-containers/services/kafka';
 import { LocalStackHelper } from 'n8n-containers/services/localstack';
 import { MailpitHelper } from 'n8n-containers/services/mailpit';
+import { ProxyServer } from 'n8n-containers/services/proxy';
 import type { ServiceHelpers } from 'n8n-containers/services/types';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -11,6 +12,7 @@ interface LocalServicesConfig {
 	mailpit?: { apiBaseUrl: string; smtpHost: string; smtpPort: number };
 	localstack?: { endpoint: string };
 	kafka?: { broker: string };
+	proxy?: { url: string };
 }
 
 /** Maps .services.json keys to capability names */
@@ -18,6 +20,7 @@ const SERVICE_TO_CAPABILITY: Record<string, Capability> = {
 	mailpit: 'email',
 	localstack: 'external-secrets',
 	kafka: 'kafka',
+	proxy: 'proxy',
 };
 
 const SERVICES_JSON_PATH = resolve(__dirname, '../.services.json');
@@ -70,6 +73,8 @@ export function createLocalServiceHelpers(): ServiceHelpers | null {
 				helper = new LocalStackHelper(config.localstack.endpoint);
 			} else if (prop === 'kafka' && config.kafka) {
 				helper = new KafkaHelper(config.kafka.broker);
+			} else if (prop === 'proxy' && config.proxy) {
+				helper = new ProxyServer(config.proxy.url);
 			}
 
 			if (helper) {
