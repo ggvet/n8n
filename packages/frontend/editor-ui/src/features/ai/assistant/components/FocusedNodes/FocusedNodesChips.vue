@@ -140,7 +140,6 @@ function handleRemoveAllConfirmed() {
 	font-size: var(--font-size--2xs);
 	color: var(--color--text);
 	cursor: pointer;
-	transition: background-color 0.15s ease;
 
 	&:hover {
 		background-color: var(--color--success--tint-2);
@@ -178,7 +177,6 @@ function handleRemoveAllConfirmed() {
 	font-weight: var(--font-weight--regular);
 	color: var(--color--text--tint-1);
 	cursor: pointer;
-	transition: background-color 0.15s ease;
 	white-space: nowrap;
 
 	&:hover {
@@ -198,13 +196,14 @@ function handleRemoveAllConfirmed() {
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	min-width: 24px;
+	min-height: 24px;
 	padding: 0;
 	margin-left: var(--spacing--4xs);
 	background: none;
 	border: none;
 	cursor: pointer;
 	color: var(--color--green-800);
-	transition: color 0.15s ease;
 
 	&:hover {
 		color: var(--color--green-800);

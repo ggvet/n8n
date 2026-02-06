@@ -67,9 +67,6 @@ function handleRemove(event: MouseEvent) {
 	font-size: var(--font-size--2xs);
 	color: var(--color--green-800);
 	cursor: pointer;
-	transition:
-		background-color 0.15s ease,
-		opacity 0.15s ease;
 	white-space: nowrap;
 
 	&:hover {
@@ -95,6 +92,7 @@ function handleRemove(event: MouseEvent) {
 
 .confirmedIcon {
 	color: var(--color--green-800);
+	mix-blend-mode: luminosity;
 
 	:global(svg) {
 		color: var(--color--green-800);
@@ -113,13 +111,14 @@ function handleRemove(event: MouseEvent) {
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	min-width: 24px;
+	min-height: 24px;
 	padding: 0;
 	margin-left: var(--spacing--4xs);
 	background: none;
 	border: none;
 	cursor: pointer;
 	color: var(--color--green-800);
-	transition: color 0.15s ease;
 
 	&:hover {
 		color: var(--color--green-800);
