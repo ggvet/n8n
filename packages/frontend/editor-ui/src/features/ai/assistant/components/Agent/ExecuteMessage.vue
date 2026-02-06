@@ -319,9 +319,8 @@ onBeforeUnmount(() => {
 		<!-- Unpin All Section -->
 		<div v-if="showUnpinSection" :class="$style.unpinSection">
 			<N8nButton
-				:class="$style.unpinAllButton"
 				type="secondary"
-				size="small"
+				size="medium"
 				icon="pin"
 				:label="i18n.baseText('aiAssistant.builder.executeMessage.unpinAll')"
 				@click="onUnpinAll"
@@ -395,25 +394,21 @@ onBeforeUnmount(() => {
 
 .unpinSection {
 	display: flex;
-	flex-direction: column;
+	flex-direction: row;
 	align-items: center;
-	gap: var(--spacing--3xs);
-}
-
-.unpinAllButton {
-	align-self: stretch;
+	gap: var(--spacing--2xs);
 }
 
 .unpinIndividuallyText {
 	font-size: var(--font-size--2xs);
-	color: var(--color--text--tint-2);
+	color: var(--color--text--tint-1);
 	display: inline-flex;
 	align-items: center;
 	gap: var(--spacing--4xs);
 }
 
 .infoIcon {
-	color: var(--color--text--tint-2);
+	color: var(--color--text--tint-1);
 	cursor: help;
 }
 </style>
