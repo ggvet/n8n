@@ -4,6 +4,7 @@ import { N8nPromptInput, N8nIconButton, N8nIcon } from '@n8n/design-system';
 import { useI18n } from '@n8n/i18n';
 import { useNodeMention } from '../../composables/useNodeMention';
 import { useFocusedNodesStore } from '../../focusedNodes.store';
+import { canvasEventBus } from '@/features/workflows/canvas/canvas.eventBus';
 import NodeMentionDropdown from './NodeMentionDropdown.vue';
 import FocusedNodeChip from './FocusedNodeChip.vue';
 
@@ -91,8 +92,15 @@ const individualUnconfirmedNodes = computed(() =>
 );
 
 function handleChipClick(nodeId: string) {
-	const isSelectedOnCanvas = focusedNodesStore.isNodeSelectedOnCanvas(nodeId);
-	focusedNodesStore.toggleNode(nodeId, isSelectedOnCanvas);
+	const node = focusedNodesStore.focusedNodesMap[nodeId];
+	if (node?.state === 'confirmed') {
+		// Pan canvas to the node
+		canvasEventBus.emit('nodes:select', { ids: [nodeId] });
+	} else {
+		// Unconfirmed → confirm
+		const isSelectedOnCanvas = focusedNodesStore.isNodeSelectedOnCanvas(nodeId);
+		focusedNodesStore.toggleNode(nodeId, isSelectedOnCanvas);
+	}
 }
 
 function confirmAllUnconfirmed() {

@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useI18n } from '@n8n/i18n';
 import { N8nIcon } from '@n8n/design-system';
 import { useFocusedNodesStore } from '../../focusedNodes.store';
+import { canvasEventBus } from '@/features/workflows/canvas/canvas.eventBus';
 import FocusedNodeChip from './FocusedNodeChip.vue';
 
 const emit = defineEmits<{
@@ -33,8 +34,15 @@ const individualUnconfirmedNodes = computed(() =>
 );
 
 function handleChipClick(nodeId: string) {
-	const isSelectedOnCanvas = focusedNodesStore.isNodeSelectedOnCanvas(nodeId);
-	focusedNodesStore.toggleNode(nodeId, isSelectedOnCanvas);
+	const node = focusedNodesStore.focusedNodesMap[nodeId];
+	if (node?.state === 'confirmed') {
+		// Pan canvas to the node
+		canvasEventBus.emit('nodes:select', { ids: [nodeId] });
+	} else {
+		// Unconfirmed → confirm
+		const isSelectedOnCanvas = focusedNodesStore.isNodeSelectedOnCanvas(nodeId);
+		focusedNodesStore.toggleNode(nodeId, isSelectedOnCanvas);
+	}
 }
 
 function handleRemove(nodeId: string) {
