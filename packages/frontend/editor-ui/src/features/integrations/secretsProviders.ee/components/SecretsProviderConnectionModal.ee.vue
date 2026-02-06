@@ -40,6 +40,7 @@ const props = withDefaults(
 			providerKey?: string;
 			providerTypes?: SecretProviderTypeResponse[];
 			existingProviderNames?: string[];
+			projectId?: string;
 			onClose?: (saved?: boolean) => void;
 		};
 	}>(),
@@ -64,11 +65,13 @@ const ACTIVE_TAB = ref(props.data?.activeTab ?? 'connection');
 const providerTypes = computed(() => props.data.providerTypes ?? []);
 const providerKey = computed(() => props.data.providerKey ?? '');
 const existingProviderNames = computed(() => props.data.existingProviderNames ?? []);
+const projectId = computed(() => props.data.projectId);
 
 const modal = useConnectionModal({
 	providerTypes,
 	providerKey,
 	existingProviderNames,
+	projectId: projectId.value,
 });
 
 const sidebarItems = computed(() => {
