@@ -104,6 +104,7 @@ const handleSubmit = () => {
 					v-model:description="description"
 					:version-name-test-id="`${modalName}-version-name-input`"
 					:description-test-id="`${modalName}-description-input`"
+					@submit="handleSubmit"
 				/>
 				<div :class="$style.actions">
 					<N8nButton

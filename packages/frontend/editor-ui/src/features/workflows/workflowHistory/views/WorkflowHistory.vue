@@ -46,10 +46,10 @@ const workflowHistoryActionTypes: WorkflowHistoryActionTypes = [
 	'restore',
 	'publish',
 	'unpublish',
+	'name',
 	'clone',
 	'open',
 	'download',
-	'name',
 ];
 const WORKFLOW_HISTORY_ACTIONS = workflowHistoryActionTypes.reduce(
 	(record, key) => ({ ...record, [key.toUpperCase()]: key }),
