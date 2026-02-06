@@ -1,6 +1,7 @@
 import type { CurrentsFixtures, CurrentsWorkerFixtures } from '@currents/playwright';
 import { fixtures as currentsFixtures } from '@currents/playwright';
 import { test as base, expect, request } from '@playwright/test';
+import type { ServiceHelpers } from 'n8n-containers/services/types';
 import type { N8NConfig, N8NStack } from 'n8n-containers/stack';
 import { createN8NStack } from 'n8n-containers/stack';
 
@@ -13,6 +14,7 @@ import { n8nPage } from '../pages/n8nPage';
 import { ApiHelpers } from '../services/api-helper';
 import { ProxyServer } from '../services/proxy-server';
 import { TestError, type TestRequirements } from '../Types';
+import { createLocalServiceHelpers } from '../utils/local-services';
 import { setupTestRequirements } from '../utils/requirements';
 import { getBackendUrl, getFrontendUrl } from '../utils/url-helper';
 
@@ -22,6 +24,11 @@ type TestFixtures = {
 	baseURL: string;
 	setupRequirements: (requirements: TestRequirements) => Promise<void>;
 	proxyServer: ProxyServer;
+	/**
+	 * Type-safe service helpers (mailpit, gitea, observability, etc.).
+	 * Works in both container mode (from n8nContainer) and local mode (from .services.json).
+	 */
+	services: ServiceHelpers;
 	/**
 	 * Direct URLs to each main instance (bypasses load balancer).
 	 * Only available in container mode with multi-main setup.
@@ -280,6 +287,16 @@ export const test = base.extend<
 		await use(setupFunction);
 	},
 
+	// Service helpers — delegates to container stack or .services.json in local mode
+	services: async ({ n8nContainer }, use) => {
+		if (getBackendUrl()) {
+			const local = createLocalServiceHelpers();
+			await use(local ?? ({} as ServiceHelpers));
+		} else {
+			await use(n8nContainer.services);
+		}
+	},
+
 	proxyServer: async ({ n8nContainer }, use) => {
 		if (!n8nContainer) {
 			throw new TestError(
@@ -309,10 +326,10 @@ Fixture Dependency Graph:
 Worker: capability + project.containerConfig → n8nContainer → [backendUrl, frontendUrl, dbSetup]
 Test:   frontendUrl + dbSetup → baseURL → n8n (uses backendUrl for API calls)
         backendUrl → api
+        n8nContainer → services (or .services.json in local mode)
 
-n8nContainer provides unified access to:
-- services: Type-safe helpers (mailpit, gitea, observability, etc.)
-- logs/metrics: Shortcuts for observability queries
-- findContainers/stopContainer: Container operations for chaos testing
-- serviceResults: Raw service results (advanced use)
+services: Type-safe helpers (mailpit, gitea, observability, etc.)
+  - Container mode: delegates to n8nContainer.services
+  - Local mode: reads .services.json written by `pnpm services`
+n8nContainer: Container lifecycle (stop, containers, mainUrls, etc.)
 */

@@ -42,6 +42,8 @@ export const redis: Service<RedisResult> = {
 		const host = external ? result.container.getHost() : HOSTNAME;
 		const port = external ? String(result.container.getMappedPort(6379)) : '6379';
 		return {
+			// In container mode, EXECUTIONS_MODE is set by the stack based on worker count.
+			// In external/local mode, redis implies the user wants queue mode.
 			...(external ? { EXECUTIONS_MODE: 'queue' } : {}),
 			QUEUE_BULL_REDIS_HOST: host,
 			QUEUE_BULL_REDIS_PORT: port,

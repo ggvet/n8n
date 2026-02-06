@@ -6,6 +6,7 @@ import {
 	CONTAINER_ONLY_MODES,
 	LICENSED_TAG,
 } from './fixtures/capabilities';
+import { getLocalCapabilities } from './utils/local-services';
 import { getBackendUrl, getFrontendUrl } from './utils/url-helper';
 
 // Tests that require container environment (won't run against local n8n).
@@ -14,9 +15,21 @@ import { getBackendUrl, getFrontendUrl } from './utils/url-helper';
 // - @mode:X - infrastructure modes (postgres, queue, multi-main)
 // - @licensed - enterprise license features (log streaming, SSO, etc.)
 // - @db:reset - tests needing per-test database reset (requires isolated containers)
-const CONTAINER_ONLY = new RegExp(
-	`@capability:(${CONTAINER_ONLY_CAPABILITIES.join('|')})|@mode:(${CONTAINER_ONLY_MODES.join('|')})|@${LICENSED_TAG}|@db:reset`,
-);
+function buildContainerOnlyRegex(): RegExp {
+	// Check which capabilities have local services available via .services.json
+	const localCaps = getLocalCapabilities();
+	const unavailableCaps = CONTAINER_ONLY_CAPABILITIES.filter((cap) => !localCaps.includes(cap));
+
+	const parts: string[] = [];
+	if (unavailableCaps.length > 0) {
+		parts.push(`@capability:(${unavailableCaps.join('|')})`);
+	}
+	parts.push(`@mode:(${CONTAINER_ONLY_MODES.join('|')})`);
+	parts.push(`@${LICENSED_TAG}`);
+	parts.push('@db:reset');
+
+	return new RegExp(parts.join('|'));
+}
 
 const CONTAINER_CONFIGS: Array<{ name: string; config: N8NConfig }> = [
 	{ name: 'sqlite', config: {} },
@@ -36,7 +49,7 @@ export function getProjects(): Project[] {
 		projects.push({
 			name: 'e2e',
 			testDir: './tests/e2e',
-			grepInvert: CONTAINER_ONLY,
+			grepInvert: buildContainerOnlyRegex(),
 			fullyParallel: true,
 			use: { baseURL: getFrontendUrl() },
 		});
