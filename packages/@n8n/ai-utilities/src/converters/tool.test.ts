@@ -65,10 +65,11 @@ describe('fromLcTool', () => {
 		};
 		const tool = {
 			type: 'function' as const,
-			function: {},
-			name: 'get_weather',
-			description: 'Get weather for a location',
-			parameters,
+			function: {
+				name: 'get_weather',
+				description: 'Get weather for a location',
+				parameters,
+			},
 		};
 
 		const result = fromLcTool(tool);

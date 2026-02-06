@@ -2,11 +2,13 @@ import type { ISupplyDataFunctions } from 'n8n-workflow';
 
 import { supplyModel } from './supplyModel';
 
-const mockChatOpenAIInstance = { __brand: 'ChatOpenAI' };
 const mockLangchainAdapterInstance = { __brand: 'LangchainAdapter' };
 
 jest.mock('@langchain/openai', () => ({
-	ChatOpenAI: jest.fn().mockImplementation(() => mockChatOpenAIInstance),
+	ChatOpenAI: jest.fn().mockImplementation(function (this: any) {
+		// Return a new object each time so metadata can be set independently
+		return { __brand: 'ChatOpenAI', metadata: {} };
+	}),
 }));
 
 jest.mock('../utils/http-proxy-agent', () => ({
@@ -53,7 +55,12 @@ describe('supplyModel', () => {
 
 			const result = supplyModel(mockCtx, openAiModel);
 
-			expect(result).toEqual({ response: mockChatOpenAIInstance });
+			expect(result.response).toEqual(
+				expect.objectContaining({
+					__brand: 'ChatOpenAI',
+					metadata: {},
+				}),
+			);
 			expect(ChatOpenAI).toHaveBeenCalledTimes(1);
 			expect(LangchainAdapter).not.toHaveBeenCalled();
 		});
@@ -83,7 +90,7 @@ describe('supplyModel', () => {
 		});
 
 		it('includes providerTools in metadata when model has providerTools', () => {
-			supplyModel(mockCtx, {
+			const result = supplyModel(mockCtx, {
 				type: 'openai' as const,
 				baseUrl: 'https://api.openai.com',
 				model: 'gpt-4',
@@ -97,8 +104,55 @@ describe('supplyModel', () => {
 					apiKey: 'key',
 				}),
 			);
-			const callArgs = (ChatOpenAI as jest.Mock).mock.calls[0][0];
-			expect(callArgs).toBeDefined();
+
+			// Verify that the returned model has the correct metadata with providerTools
+			// The providerTools should be mapped to metadata.tools format
+			expect((result.response as any).metadata).toEqual({
+				tools: [
+					{
+						type: 'web_search',
+						size: 'medium',
+					},
+				],
+			});
+		});
+
+		it('maps multiple providerTools correctly in metadata', () => {
+			const result = supplyModel(mockCtx, {
+				type: 'openai' as const,
+				baseUrl: 'https://api.openai.com',
+				model: 'gpt-4',
+				apiKey: 'key',
+				providerTools: [
+					{ type: 'provider', name: 'web_search', args: { engine: 'google', limit: 10 } },
+					{ type: 'provider', name: 'code_interpreter', args: { timeout: 30 } },
+				],
+			});
+
+			// Verify that all providerTools are correctly mapped to metadata.tools
+			expect((result.response as any).metadata.tools).toHaveLength(2);
+			expect((result.response as any).metadata.tools[0]).toEqual({
+				type: 'web_search',
+				engine: 'google',
+				limit: 10,
+			});
+			expect((result.response as any).metadata.tools[1]).toEqual({
+				type: 'code_interpreter',
+				timeout: 30,
+			});
+		});
+
+		it('does not set metadata.tools when providerTools is empty', () => {
+			const result = supplyModel(mockCtx, {
+				type: 'openai' as const,
+				baseUrl: 'https://api.openai.com',
+				model: 'gpt-4',
+				apiKey: 'key',
+				providerTools: [],
+			});
+
+			// Empty providerTools should not set metadata.tools
+			expect((result.response as any).metadata).toEqual({});
 		});
 	});
 
