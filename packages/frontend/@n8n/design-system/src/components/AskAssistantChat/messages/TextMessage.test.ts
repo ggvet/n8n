@@ -3,8 +3,6 @@ import { createPinia, setActivePinia } from 'pinia';
 import { nextTick } from 'vue';
 
 import TextMessage from './TextMessage.vue';
-import type * as UseMarkdownModule from './useMarkdown';
-import { parseThinkingSegments } from './useMarkdown';
 import type { ChatUI } from '../../../types/assistant';
 
 // Mock i18n to return keys instead of translated text
@@ -14,16 +12,12 @@ vi.mock('@n8n/design-system/composables/useI18n', () => ({
 	}),
 }));
 
-// Mock useMarkdown but not parseThinkingSegments
-vi.mock('./useMarkdown', async (importOriginal) => {
-	const original = await importOriginal<typeof UseMarkdownModule>();
-	return {
-		...original,
-		useMarkdown: () => ({
-			renderMarkdown: (content: string) => `<p>${content}</p>`,
-		}),
-	};
-});
+// Mock useMarkdown
+vi.mock('./useMarkdown', () => ({
+	useMarkdown: () => ({
+		renderMarkdown: (content: string) => `<p>${content}</p>`,
+	}),
+}));
 
 // Mock vueuse composables for RestoreVersionLink
 vi.mock('@vueuse/core', () => ({
@@ -433,195 +427,5 @@ describe('TextMessage', () => {
 			const assistantText = wrapper.container.querySelector('[class*="assistantText"]');
 			expect(assistantText?.getAttribute('style')).toBeFalsy();
 		});
-	});
-
-	describe('thinking tag rendering', () => {
-		it('should render collapsible section for messages with thinking tags when enabled', () => {
-			const wrapper = render(TextMessage, {
-				props: {
-					message: createAssistantMessage({
-						content: 'Hello <thinking>This is my thought process</thinking> World',
-					}),
-					isFirstOfRole: true,
-					enableThinkingParse: true,
-				},
-				global: { stubs, directives },
-			});
-
-			// Check that details element is rendered
-			const details = wrapper.container.querySelector('details.n8n-thinking-section');
-			expect(details).toBeTruthy();
-
-			// Check summary text contains the i18n key
-			const summary = details?.querySelector('summary');
-			expect(summary?.textContent).toContain('assistantChat.thinking.thinking');
-
-			// Check that the thinking content is rendered inside
-			expect(details?.textContent).toContain('This is my thought process');
-
-			// Check that text before and after is rendered
-			expect(wrapper.container.textContent).toContain('Hello');
-			expect(wrapper.container.textContent).toContain('World');
-		});
-
-		it('should render message without thinking tags normally', () => {
-			const wrapper = render(TextMessage, {
-				props: {
-					message: createAssistantMessage({
-						content: 'Just a normal message',
-					}),
-					isFirstOfRole: true,
-					enableThinkingParse: true,
-				},
-				global: { stubs, directives },
-			});
-
-			// No details element should be rendered
-			const details = wrapper.container.querySelector('details.n8n-thinking-section');
-			expect(details).toBeFalsy();
-
-			// Content should be rendered normally
-			expect(wrapper.container.textContent).toContain('Just a normal message');
-		});
-
-		it('should hide incomplete thinking tags during streaming when enabled', () => {
-			const wrapper = render(TextMessage, {
-				props: {
-					message: createAssistantMessage({
-						content: 'Starting response <thinking>Partial thought...',
-					}),
-					isFirstOfRole: true,
-					streaming: true,
-					isLastMessage: true,
-					enableThinkingParse: true,
-				},
-				global: { stubs, directives },
-			});
-
-			// Text before incomplete tag should be visible
-			expect(wrapper.container.textContent).toContain('Starting response');
-
-			// The incomplete tag and content after should not be visible
-			expect(wrapper.container.textContent).not.toContain('<thinking>');
-			expect(wrapper.container.textContent).not.toContain('Partial thought');
-		});
-
-		it('should render multiple thinking sections correctly when enabled', () => {
-			const wrapper = render(TextMessage, {
-				props: {
-					message: createAssistantMessage({
-						content:
-							'First <thinking>Thought 1</thinking> Middle <thinking>Thought 2</thinking> Last',
-					}),
-					isFirstOfRole: true,
-					enableThinkingParse: true,
-				},
-				global: { stubs, directives },
-			});
-
-			// Should have two details elements
-			const details = wrapper.container.querySelectorAll('details.n8n-thinking-section');
-			expect(details.length).toBe(2);
-
-			// Both thoughts should be present
-			expect(wrapper.container.textContent).toContain('Thought 1');
-			expect(wrapper.container.textContent).toContain('Thought 2');
-
-			// Text between should be present
-			expect(wrapper.container.textContent).toContain('First');
-			expect(wrapper.container.textContent).toContain('Middle');
-			expect(wrapper.container.textContent).toContain('Last');
-		});
-
-		it('should not parse thinking tags when enableThinkingParse is false', () => {
-			const wrapper = render(TextMessage, {
-				props: {
-					message: createAssistantMessage({
-						content: 'Hello <thinking>This is my thought process</thinking> World',
-					}),
-					isFirstOfRole: true,
-					enableThinkingParse: false,
-				},
-				global: { stubs, directives },
-			});
-
-			// No details element should be rendered when thinking parse is disabled
-			const details = wrapper.container.querySelector('details.n8n-thinking-section');
-			expect(details).toBeFalsy();
-
-			// The content is passed through markdown renderer, so thinking tags
-			// won't be in a collapsible section - they'll be rendered as-is through markdown
-			// The key check is that no thinking-section details element exists
-			expect(wrapper.container.textContent).toContain('Hello');
-			expect(wrapper.container.textContent).toContain('World');
-		});
-	});
-});
-
-describe('parseThinkingSegments', () => {
-	it('should return single text segment for content without thinking tags', () => {
-		const result = parseThinkingSegments('Just plain text');
-		expect(result).toEqual([{ type: 'text', content: 'Just plain text' }]);
-	});
-
-	it('should parse complete thinking tag into text and thinking segments', () => {
-		const result = parseThinkingSegments('Before <thinking>The thought</thinking> After');
-		expect(result).toEqual([
-			{ type: 'text', content: 'Before ' },
-			{ type: 'thinking', content: 'The thought' },
-			{ type: 'text', content: ' After' },
-		]);
-	});
-
-	it('should handle multiple thinking tags', () => {
-		const result = parseThinkingSegments('A <thinking>T1</thinking> B <thinking>T2</thinking> C');
-		expect(result).toEqual([
-			{ type: 'text', content: 'A ' },
-			{ type: 'thinking', content: 'T1' },
-			{ type: 'text', content: ' B ' },
-			{ type: 'thinking', content: 'T2' },
-			{ type: 'text', content: ' C' },
-		]);
-	});
-
-	it('should hide incomplete opening tag during streaming', () => {
-		const result = parseThinkingSegments('Visible text <thinking>Incomplete thought...');
-		expect(result).toEqual([{ type: 'text', content: 'Visible text ' }]);
-	});
-
-	it('should trim whitespace from thinking content', () => {
-		const result = parseThinkingSegments('<thinking>  trimmed  </thinking>');
-		expect(result).toEqual([{ type: 'thinking', content: 'trimmed' }]);
-	});
-
-	it('should handle thinking tag at the start', () => {
-		const result = parseThinkingSegments('<thinking>Thought</thinking> After');
-		expect(result).toEqual([
-			{ type: 'thinking', content: 'Thought' },
-			{ type: 'text', content: ' After' },
-		]);
-	});
-
-	it('should handle thinking tag at the end', () => {
-		const result = parseThinkingSegments('Before <thinking>Thought</thinking>');
-		expect(result).toEqual([
-			{ type: 'text', content: 'Before ' },
-			{ type: 'thinking', content: 'Thought' },
-		]);
-	});
-
-	it('should return empty array for empty string', () => {
-		const result = parseThinkingSegments('');
-		expect(result).toEqual([]);
-	});
-
-	it('should handle case-insensitive tags', () => {
-		const result = parseThinkingSegments('<THINKING>Upper</THINKING>');
-		expect(result).toEqual([{ type: 'thinking', content: 'Upper' }]);
-	});
-
-	it('should handle multiline thinking content', () => {
-		const result = parseThinkingSegments('<thinking>Line 1\nLine 2\nLine 3</thinking>');
-		expect(result).toEqual([{ type: 'thinking', content: 'Line 1\nLine 2\nLine 3' }]);
 	});
 });

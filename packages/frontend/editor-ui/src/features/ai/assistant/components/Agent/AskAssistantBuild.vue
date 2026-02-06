@@ -423,7 +423,6 @@ defineExpose({
 			:prune-time-hours="workflowHistoryStore.evaluatedPruneTime"
 			:disabled="isInputDisabled"
 			:disabled-tooltip="disabledTooltip"
-			:enable-thinking-parse="true"
 			@close="emit('close')"
 			@message="onUserMessage"
 			@upgrade-click="() => goToUpgrade('ai-builder-sidebar', 'upgrade-builder')"

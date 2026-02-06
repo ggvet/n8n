@@ -3,48 +3,6 @@ import markdownLink from 'markdown-it-link-attributes';
 
 import { useI18n } from '../../../composables/useI18n';
 
-export interface ContentSegment {
-	type: 'text' | 'thinking';
-	content: string;
-}
-
-/**
- * Parse content to extract thinking tags as segments.
- * - Complete tags: extracted as thinking segments
- * - Incomplete tags (streaming): hidden along with content after
- * - Text before/between tags: extracted as text segments
- */
-export function parseThinkingSegments(content: string): ContentSegment[] {
-	const segments: ContentSegment[] = [];
-	const regex = /<thinking>([\s\S]*?)<\/thinking>/gi;
-	let lastIndex = 0;
-	let match;
-
-	while ((match = regex.exec(content)) !== null) {
-		// Add text before the thinking tag
-		if (match.index > lastIndex) {
-			segments.push({ type: 'text', content: content.slice(lastIndex, match.index) });
-		}
-		// Add thinking content
-		segments.push({ type: 'thinking', content: match[1].trim() });
-		lastIndex = regex.lastIndex;
-	}
-
-	// Handle remaining text (and incomplete thinking tags for streaming)
-	const remaining = content.slice(lastIndex);
-	const incompleteTagIndex = remaining.indexOf('<thinking>');
-	if (incompleteTagIndex !== -1) {
-		// Only include text before incomplete tag
-		if (incompleteTagIndex > 0) {
-			segments.push({ type: 'text', content: remaining.slice(0, incompleteTagIndex) });
-		}
-	} else if (remaining) {
-		segments.push({ type: 'text', content: remaining });
-	}
-
-	return segments;
-}
-
 export function useMarkdown() {
 	const { t } = useI18n();
 

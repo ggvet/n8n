@@ -10,7 +10,7 @@ import { Client as TracingClient } from 'langsmith';
 import type { IUser, INodeTypeDescription, ITelemetryTrackProperties } from 'n8n-workflow';
 
 import { LLMServiceError } from '@/errors';
-import { anthropicClaudeSonnet45 } from '@/llm-config';
+import { anthropicClaudeSonnet45, anthropicClaudeSonnet45Think } from '@/llm-config';
 import { SessionManagerService } from '@/session-manager.service';
 import { ResourceLocatorCallbackFactory } from '@/types/callbacks';
 import {
@@ -76,6 +76,26 @@ export class AiWorkflowBuilderService {
 		});
 	}
 
+	private static async getAnthropicClaudeThinkModel({
+		baseUrl,
+		authHeaders = {},
+		apiKey = '-',
+	}: {
+		baseUrl?: string;
+		authHeaders?: Record<string, string>;
+		apiKey?: string;
+	} = {}): Promise<ChatAnthropic> {
+		return await anthropicClaudeSonnet45Think({
+			baseUrl,
+			apiKey,
+			headers: {
+				...authHeaders,
+				// eslint-disable-next-line @typescript-eslint/naming-convention
+				'anthropic-beta': 'prompt-caching-2024-07-31',
+			},
+		});
+	}
+
 	private async getApiProxyAuthHeaders(user: IUser, userMessageId: string) {
 		assert(this.client);
 
@@ -93,6 +113,7 @@ export class AiWorkflowBuilderService {
 		userMessageId: string,
 	): Promise<{
 		anthropicClaude: ChatAnthropic;
+		anthropicClaudeThink: ChatAnthropic;
 		tracingClient?: TracingClient;
 		// eslint-disable-next-line @typescript-eslint/naming-convention
 		authHeaders?: { Authorization: string };
@@ -105,10 +126,14 @@ export class AiWorkflowBuilderService {
 				// Extract baseUrl from client configuration
 				const baseUrl = this.client.getApiProxyBaseUrl();
 
-				const anthropicClaude = await AiWorkflowBuilderService.getAnthropicClaudeModel({
+				const modelConfig = {
 					baseUrl: baseUrl + '/anthropic',
 					authHeaders,
-				});
+				};
+
+				const anthropicClaude = await AiWorkflowBuilderService.getAnthropicClaudeModel(modelConfig);
+				const anthropicClaudeThink =
+					await AiWorkflowBuilderService.getAnthropicClaudeThinkModel(modelConfig);
 
 				const tracingClient = new TracingClient({
 					apiKey: '-',
@@ -122,15 +147,16 @@ export class AiWorkflowBuilderService {
 					},
 				});
 
-				return { tracingClient, anthropicClaude, authHeaders };
+				return { tracingClient, anthropicClaude, anthropicClaudeThink, authHeaders };
 			}
 
 			// If base URL is not set, use environment variables
-			const anthropicClaude = await AiWorkflowBuilderService.getAnthropicClaudeModel({
-				apiKey: process.env.N8N_AI_ANTHROPIC_KEY ?? '',
-			});
+			const envConfig = { apiKey: process.env.N8N_AI_ANTHROPIC_KEY ?? '' };
+			const anthropicClaude = await AiWorkflowBuilderService.getAnthropicClaudeModel(envConfig);
+			const anthropicClaudeThink =
+				await AiWorkflowBuilderService.getAnthropicClaudeThinkModel(envConfig);
 
-			return { anthropicClaude };
+			return { anthropicClaude, anthropicClaudeThink };
 		} catch (error) {
 			const errorMessage = error instanceof Error ? `: ${error.message}` : '';
 			const llmError = new LLMServiceError(`Failed to connect to LLM Provider${errorMessage}`, {
@@ -177,10 +203,8 @@ export class AiWorkflowBuilderService {
 	}
 
 	private async getAgent(user: IUser, userMessageId: string, featureFlags?: BuilderFeatureFlags) {
-		const { anthropicClaude, tracingClient, authHeaders } = await this.setupModels(
-			user,
-			userMessageId,
-		);
+		const { anthropicClaude, anthropicClaudeThink, tracingClient, authHeaders } =
+			await this.setupModels(user, userMessageId);
 
 		// Create resource locator callback scoped to this user if factory is provided
 		const resourceLocatorCallback = this.resourceLocatorCallbackFactory?.(user.id);
@@ -188,11 +212,12 @@ export class AiWorkflowBuilderService {
 		const agent = new WorkflowBuilderAgent({
 			parsedNodeTypes: this.nodeTypes,
 			// Use the same model for all stages in production
+			// When code builder is enabled, use thinking model for the builder stage
 			stageLLMs: {
 				supervisor: anthropicClaude,
 				responder: anthropicClaude,
 				discovery: anthropicClaude,
-				builder: anthropicClaude,
+				builder: featureFlags?.codeBuilder ? anthropicClaudeThink : anthropicClaude,
 				parameterUpdater: anthropicClaude,
 			},
 			logger: this.logger,

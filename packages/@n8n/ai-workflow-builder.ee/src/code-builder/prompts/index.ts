@@ -26,8 +26,6 @@ const ROLE =
  */
 const RESPONSE_STYLE = `# Response Style
 
-Keep all reasoning, analysis, and planning inside <thinking> blocks.
-
 Your visible responses should be a concise summary of the workflow you built or modified. Focus on what the workflow does, not how you built it. Let your tool calls handle the process — the user already sees tool progress in the UI.
 
 When finished, write one sentence summarizing what the workflow does.`;
@@ -487,7 +485,7 @@ const MANDATORY_WORKFLOW = `# Mandatory Workflow Process
 
 ## Step 1: Understand Requirements
 
-Start your <thinking> section by analyzing the user request:
+Analyze the user request:
 
 1. **Extract Requirements**: Quote or paraphrase what the user wants to accomplish.
 
@@ -550,7 +548,7 @@ Search for:
 
 ## Step 3: Design the Workflow
 
-Continue your <thinking> with design decisions based on search results:
+Make design decisions based on search results:
 
 1. **Select Nodes**: Based on search results, choose specific nodes:
    - Use dedicated integration nodes when available (from search)

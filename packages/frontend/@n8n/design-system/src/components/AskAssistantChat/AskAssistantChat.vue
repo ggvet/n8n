@@ -41,7 +41,6 @@ interface Props {
 	suggestions?: WorkflowSuggestion[];
 	workflowId?: string;
 	pruneTimeHours?: number;
-	enableThinkingParse?: boolean;
 	/** Custom message to show when all tools complete (instead of default "Workflow generated") */
 	thinkingCompletionMessage?: string;
 }
@@ -448,7 +447,6 @@ defineExpose({
 									:color="getMessageColor(message)"
 									:workflow-id="workflowId"
 									:prune-time-hours="pruneTimeHours"
-									:enable-thinking-parse="enableThinkingParse"
 									@code-replace="() => emit('codeReplace', i)"
 									@code-undo="() => emit('codeUndo', i)"
 									@feedback="onRateMessage"

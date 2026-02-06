@@ -10,7 +10,7 @@ import type { IUser, INodeTypeDescription } from 'n8n-workflow';
 
 import { AiWorkflowBuilderService } from '@/ai-workflow-builder-agent.service';
 import { LLMServiceError } from '@/errors';
-import { anthropicClaudeSonnet45 } from '@/llm-config';
+import { anthropicClaudeSonnet45, anthropicClaudeSonnet45Think } from '@/llm-config';
 import { SessionManagerService } from '@/session-manager.service';
 import { formatMessages } from '@/utils/stream-processor';
 import { WorkflowBuilderAgent, type ChatPayload } from '@/workflow-builder-agent';
@@ -41,6 +41,7 @@ jest.mock('@/workflow-builder-agent');
 jest.mock('@/session-manager.service');
 jest.mock('@/llm-config', () => ({
 	anthropicClaudeSonnet45: jest.fn(),
+	anthropicClaudeSonnet45Think: jest.fn(),
 }));
 jest.mock('@/utils/stream-processor', () => ({
 	formatMessages: jest.fn(),
@@ -58,6 +59,9 @@ const MockedSessionManagerService = SessionManagerService as jest.MockedClass<
 
 const anthropicClaudeSonnet45Mock = anthropicClaudeSonnet45 as jest.MockedFunction<
 	typeof anthropicClaudeSonnet45
+>;
+const anthropicClaudeSonnet45ThinkMock = anthropicClaudeSonnet45Think as jest.MockedFunction<
+	typeof anthropicClaudeSonnet45Think
 >;
 const formatMessagesMock = formatMessages as jest.MockedFunction<typeof formatMessages>;
 
@@ -200,6 +204,7 @@ describe('AiWorkflowBuilderService', () => {
 		});
 
 		anthropicClaudeSonnet45Mock.mockResolvedValue(mockChatAnthropic);
+		anthropicClaudeSonnet45ThinkMock.mockResolvedValue(mockChatAnthropic);
 
 		// Mock onCreditsUpdated callback
 		mockOnCreditsUpdated = jest.fn();
