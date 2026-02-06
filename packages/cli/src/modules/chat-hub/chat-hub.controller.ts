@@ -304,13 +304,13 @@ export class ChatHubController {
 	@Get('/agents')
 	@GlobalScope('chatHubAgent:list')
 	async getAgents(req: AuthenticatedRequest) {
-		return await this.chatAgentService.getAgentsByUserId(req.user.id);
+		return await this.chatAgentService.getAgentsByUserIdAsDtos(req.user.id);
 	}
 
 	@Get('/agents/:agentId')
 	@GlobalScope('chatHubAgent:read')
 	async getAgent(req: AuthenticatedRequest, _res: Response, @Param('agentId') agentId: string) {
-		return await this.chatAgentService.getAgentById(agentId, req.user.id);
+		return await this.chatAgentService.getAgentByIdAsDto(agentId, req.user.id);
 	}
 
 	@Post('/agents')

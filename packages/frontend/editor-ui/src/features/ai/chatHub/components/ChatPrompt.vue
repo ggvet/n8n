@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useToast } from '@/app/composables/useToast';
 import { providerDisplayNames } from '@/features/ai/chatHub/constants';
-import type { ChatHubLLMProvider, ChatModelDto } from '@n8n/api-types';
+import type { ChatHubLLMProvider, ChatModelDto, ChatSessionId } from '@n8n/api-types';
 import ChatFile from '@n8n/chat/components/ChatFile.vue';
 import {
 	N8nIconButton,
@@ -12,23 +12,26 @@ import {
 	N8nCallout,
 } from '@n8n/design-system';
 import { useSpeechRecognition } from '@vueuse/core';
-import type { INode } from 'n8n-workflow';
 import { computed, ref, useTemplateRef, watch } from 'vue';
 import ToolsSelector from './ToolsSelector.vue';
 import { isLlmProviderModel, createMimeTypes } from '@/features/ai/chatHub/chat.utils';
 import { useI18n } from '@n8n/i18n';
 import { I18nT } from 'vue-i18n';
 import type { MessagingState } from '@/features/ai/chatHub/chat.types';
+import { useChatStore } from '@/features/ai/chatHub/chat.store';
 
-const { selectedModel, selectedTools, messagingState, showCreditsClaimedCallout } = defineProps<{
+const props = defineProps<{
 	messagingState: MessagingState;
 	isNewSession: boolean;
 	isToolsSelectable: boolean;
 	selectedModel: ChatModelDto | null;
-	selectedTools: INode[] | null;
+	checkedToolIds: string[];
+	sessionId?: ChatSessionId;
 	showCreditsClaimedCallout: boolean;
 	aiCreditsQuota: string;
 }>();
+
+const chatStore = useChatStore();
 
 const emit = defineEmits<{
 	submit: [message: string, attachments: File[]];
@@ -55,33 +58,33 @@ const speechInput = useSpeechRecognition({
 });
 
 const placeholder = computed(() => {
-	if (selectedModel) {
+	if (props.selectedModel) {
 		return i18n.baseText('chatHub.chat.prompt.placeholder.withModel', {
-			interpolate: { model: selectedModel.name ?? 'a model' },
+			interpolate: { model: props.selectedModel.name ?? 'a model' },
 		});
 	}
 	return i18n.baseText('chatHub.chat.prompt.placeholder.selectModel');
 });
 
 const llmProvider = computed<ChatHubLLMProvider | undefined>(() =>
-	isLlmProviderModel(selectedModel?.model) ? selectedModel?.model.provider : undefined,
+	isLlmProviderModel(props.selectedModel?.model) ? props.selectedModel?.model.provider : undefined,
 );
 
 const acceptedMimeTypes = computed(() =>
-	createMimeTypes(selectedModel?.metadata.inputModalities ?? []),
+	createMimeTypes(props.selectedModel?.metadata.inputModalities ?? []),
 );
 
 const canUploadFiles = computed(() => !!acceptedMimeTypes.value);
 
-const showMisisngAgentCallout = computed(() => messagingState === 'missingAgent');
+const showMisisngAgentCallout = computed(() => props.messagingState === 'missingAgent');
 const showMissingCredentialsCallout = computed(
-	() => messagingState === 'missingCredentials' && !!llmProvider.value,
+	() => props.messagingState === 'missingCredentials' && !!llmProvider.value,
 );
 const calloutVisible = computed(() => {
 	return (
 		showMisisngAgentCallout.value ||
 		showMissingCredentialsCallout.value ||
-		showCreditsClaimedCallout
+		props.showCreditsClaimedCallout
 	);
 });
 
@@ -183,6 +186,19 @@ watch(speechInput.error, (event) => {
 		});
 	}
 });
+
+async function handleToolToggle(toolId: string) {
+	if (props.sessionId) {
+		// Existing session: toggle per-session tool
+		await chatStore.toggleSessionTool(props.sessionId, toolId);
+	} else {
+		// New session: toggle global enabled state
+		const tool = chatStore.configuredTools.find((t) => t.definition.id === toolId);
+		if (tool) {
+			await chatStore.toggleToolEnabled(toolId, !tool.enabled);
+		}
+	}
+}
 
 defineExpose({
 	focus: () => inputRef.value?.focus(),
@@ -326,7 +342,7 @@ defineExpose({
 					<div :class="$style.tools">
 						<ToolsSelector
 							:class="$style.toolsButton"
-							:selected="selectedTools ?? []"
+							:checked-tool-ids="checkedToolIds"
 							:disabled="messagingState !== 'idle' || !isToolsSelectable"
 							:disabled-tooltip="
 								isToolsSelectable
@@ -334,6 +350,7 @@ defineExpose({
 									: i18n.baseText('chatHub.tools.selector.disabled.tooltip')
 							"
 							transparent-bg
+							@toggle="handleToolToggle"
 						/>
 					</div>
 					<div :class="$style.actions">

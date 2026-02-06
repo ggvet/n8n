@@ -22,7 +22,6 @@ import { assert } from '@n8n/utils/assert';
 import { createEventBus } from '@n8n/utils/event-bus';
 import { computed, ref, useTemplateRef, watch } from 'vue';
 import type { CredentialsMap } from '../chat.types';
-import type { INode } from 'n8n-workflow';
 import ToolsSelector from './ToolsSelector.vue';
 import { personalAgentDefaultIcon, isLlmProviderModel } from '@/features/ai/chatHub/chat.utils';
 import { useCustomAgent } from '@/features/ai/chatHub/composables/useCustomAgent';
@@ -52,7 +51,7 @@ const selectedModel = ref<ChatHubBaseLLMModel | null>(null);
 const isSaving = ref(false);
 const isDeleting = ref(false);
 const isOpened = ref(false);
-const tools = ref<INode[]>([]);
+const toolIds = ref<string[]>([]);
 const agents = ref<ChatModelsResponse>(emptyChatModelsResponse);
 const isLoadingAgents = ref(false);
 const nameInputRef = useTemplateRef('nameInput');
@@ -105,12 +104,12 @@ modalBus.value.once('opened', () => {
 	isOpened.value = true;
 });
 
-// If the agent doesn't support tools anymore, reset tools
+// If the agent doesn't support tools anymore, reset toolIds
 watch(
 	selectedAgent,
 	(agent) => {
 		if (agent && !agent.metadata.capabilities.functionCalling) {
-			tools.value = [];
+			toolIds.value = [];
 		}
 	},
 	{ immediate: true },
@@ -126,7 +125,7 @@ watch(
 		description.value = agent.description ?? '';
 		systemPrompt.value = agent.systemPrompt;
 		selectedModel.value = { provider: agent.provider, model: agent.model };
-		tools.value = agent.tools || [];
+		toolIds.value = agent.toolIds ?? [];
 
 		if (agent.credentialId) {
 			agentSelectedCredentials.value[agent.provider] = agent.credentialId;
@@ -170,6 +169,14 @@ function onCredentialSelected(provider: ChatHubProvider, credentialId: string | 
 	};
 }
 
+function handleToggleAgentTool(toolId: string) {
+	if (toolIds.value.includes(toolId)) {
+		toolIds.value = toolIds.value.filter((id) => id !== toolId);
+	} else {
+		toolIds.value = [...toolIds.value, toolId];
+	}
+}
+
 function onModelChange(model: ChatHubConversationModel) {
 	assert(isLlmProviderModel(model));
 	selectedModel.value = model;
@@ -189,7 +196,7 @@ async function onSave() {
 			systemPrompt: systemPrompt.value.trim(),
 			...selectedModel.value,
 			credentialId: credentialIdForSelectedModelProvider.value,
-			tools: tools.value,
+			toolIds: toolIds.value,
 			icon: icon.value,
 		};
 
@@ -361,8 +368,8 @@ async function onDelete() {
 										? undefined
 										: i18n.baseText('chatHub.tools.selector.disabled.tooltip')
 								"
-								:selected="tools"
-								@change="tools = $event"
+								:checked-tool-ids="toolIds"
+								@toggle="handleToggleAgentTool"
 							/>
 						</div>
 					</N8nInputLabel>

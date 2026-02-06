@@ -491,7 +491,6 @@ export const useChatStore = defineStore(STORES.CHAT_HUB, () => {
 		message: string,
 		agent: ChatModelDto,
 		credentials: ChatHubSendMessageRequest['credentials'],
-		tools: INode[],
 		files: File[] = [],
 	) {
 		const messageId = uuidv4();
@@ -514,7 +513,6 @@ export const useChatStore = defineStore(STORES.CHAT_HUB, () => {
 			sessionId,
 			retryOfMessageId: null,
 			revisionOfMessageId: null,
-			tools,
 			attachments,
 			agent,
 		};
@@ -532,7 +530,6 @@ export const useChatStore = defineStore(STORES.CHAT_HUB, () => {
 			message,
 			credentials,
 			previousMessageId,
-			tools,
 			attachments,
 			agentName: agent.name,
 			timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -611,7 +608,6 @@ export const useChatStore = defineStore(STORES.CHAT_HUB, () => {
 			agent,
 			retryOfMessageId: null,
 			revisionOfMessageId: editId,
-			tools: [],
 			attachments: [...keptExistingAttachments, ...binaryData],
 		};
 
@@ -662,7 +658,6 @@ export const useChatStore = defineStore(STORES.CHAT_HUB, () => {
 			agent,
 			retryOfMessageId: retryId,
 			revisionOfMessageId: null,
-			tools: [],
 			attachments: [],
 		};
 
@@ -713,14 +708,19 @@ export const useChatStore = defineStore(STORES.CHAT_HUB, () => {
 		}
 	}
 
-	async function updateToolsInSession(sessionId: ChatSessionId, tools: INode[]) {
+	async function toggleSessionTool(sessionId: ChatSessionId, toolId: string) {
 		const session = sessions.value?.byId[sessionId];
 		if (!session) {
 			throw new Error(`Session with ID ${sessionId} not found`);
 		}
 
+		const currentIds = session.toolIds ?? [];
+		const newIds = currentIds.includes(toolId)
+			? currentIds.filter((id) => id !== toolId)
+			: [...currentIds, toolId];
+
 		const updated = await updateConversationApi(rootStore.restApiContext, sessionId, {
-			tools,
+			toolIds: newIds,
 		});
 
 		updateSession(sessionId, updated.session);
@@ -1032,7 +1032,6 @@ export const useChatStore = defineStore(STORES.CHAT_HUB, () => {
 			sessionId,
 			retryOfMessageId: null,
 			revisionOfMessageId: null,
-			tools: session.tools ?? [],
 			attachments: [],
 			agent,
 		};
@@ -1242,7 +1241,7 @@ export const useChatStore = defineStore(STORES.CHAT_HUB, () => {
 		renameSession,
 		updateSessionModel,
 		deleteSession,
-		updateToolsInSession,
+		toggleSessionTool,
 		conversationsBySession,
 
 		/**

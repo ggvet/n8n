@@ -1,37 +1,48 @@
 <script setup lang="ts">
 import NodeIcon from '@/app/components/NodeIcon.vue';
 import { useNodeTypesStore } from '@/app/stores/nodeTypes.store';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, useTemplateRef } from 'vue';
 import { N8nButton, N8nDropdownMenu, N8nIconButton } from '@n8n/design-system';
 import type { DropdownMenuItemProps } from '@n8n/design-system';
 import type { INode, INodeTypeDescription } from 'n8n-workflow';
 import { useI18n } from '@n8n/i18n';
 import { useUIStore } from '@/app/stores/ui.store';
-import { useToast } from '@/app/composables/useToast';
 import { TOOLS_MANAGER_MODAL_KEY } from '@/features/ai/chatHub/constants';
 import { useChatStore } from '@/features/ai/chatHub/chat.store';
 
-const { selected, transparentBg = false } = defineProps<{
-	disabled: boolean;
-	selected: INode[];
-	transparentBg?: boolean;
-	disabledTooltip?: string;
+const props = withDefaults(
+	defineProps<{
+		disabled: boolean;
+		checkedToolIds: string[];
+		transparentBg?: boolean;
+		disabledTooltip?: string;
+	}>(),
+	{
+		transparentBg: false,
+	},
+);
+
+const emit = defineEmits<{
+	toggle: [toolId: string];
 }>();
 
 const nodeTypesStore = useNodeTypesStore();
 const uiStore = useUIStore();
 const chatStore = useChatStore();
-const toast = useToast();
 const i18n = useI18n();
 
+const dropdownRef = useTemplateRef<{ close: () => void }>('dropdownMenu');
 const searchQuery = ref('');
 
-const toolCount = computed(() => selected.length);
+const checkedToolIdsSet = computed(() => new Set(props.checkedToolIds));
+
+const toolCount = computed(() => props.checkedToolIds.length);
 
 const displayToolNodeTypes = computed(() => {
-	return selected
+	return chatStore.configuredTools
+		.filter((t) => checkedToolIdsSet.value.has(t.definition.id))
 		.slice(0, 3)
-		.map((t) => nodeTypesStore.getNodeType(t.type))
+		.map((t) => nodeTypesStore.getNodeType(t.definition.type, t.definition.typeVersion))
 		.filter(Boolean);
 });
 
@@ -43,10 +54,13 @@ const toolsLabel = computed(() => {
 });
 
 function openToolsManager() {
+	dropdownRef.value?.close();
 	uiStore.openModalWithData({
 		name: TOOLS_MANAGER_MODAL_KEY,
 		data: {
-			tools: selected,
+			tools: chatStore.configuredTools
+				.filter((t) => checkedToolIdsSet.value.has(t.definition.id))
+				.map((t) => t.definition),
 			onConfirm: () => {},
 		},
 	});
@@ -72,7 +86,7 @@ const menuItems = computed<ToolMenuItem[]>(() => {
 		.map((tool) => ({
 			id: `tool::${tool.definition.id}`,
 			label: tool.definition.name,
-			checked: tool.enabled,
+			checked: checkedToolIdsSet.value.has(tool.definition.id),
 			data: {
 				nodeType: nodeTypesStore.getNodeType(tool.definition.type, tool.definition.typeVersion),
 				tool: tool.definition,
@@ -80,18 +94,11 @@ const menuItems = computed<ToolMenuItem[]>(() => {
 		}));
 });
 
-async function handleSelect(id: string) {
+function handleSelect(id: string) {
 	const [command, toolId] = id.split('::');
 
 	if (command === 'tool') {
-		const tool = chatStore.configuredTools.find((t) => t.definition.id === toolId);
-		if (tool) {
-			try {
-				await chatStore.toggleToolEnabled(toolId, !tool.enabled);
-			} catch (error) {
-				toast.showError(error, i18n.baseText('chatHub.error.updateToolsFailed'));
-			}
-		}
+		emit('toggle', toolId);
 	}
 }
 
@@ -122,6 +129,7 @@ onMounted(async () => {
 		<!-- When tools are selected, show the dropdown -->
 		<N8nDropdownMenu
 			v-else
+			ref="dropdownMenu"
 			:items="menuItems"
 			placement="bottom-start"
 			extra-popper-class="tools-selector-dropdown"

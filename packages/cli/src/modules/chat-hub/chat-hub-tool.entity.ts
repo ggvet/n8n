@@ -7,6 +7,8 @@ export interface IChatHubTool {
 	createdAt: Date;
 	updatedAt: Date;
 	name: string;
+	type: string;
+	typeVersion: number;
 	ownerId: string;
 	definition: INode;
 	enabled: boolean;
@@ -20,8 +22,20 @@ export class ChatHubTool extends WithTimestamps {
 	/**
 	 * The name of the tool, denormalized from definition for unique constraint.
 	 */
-	@Column({ type: 'varchar', length: 128 })
+	@Column({ type: 'varchar', length: 255 })
 	name: string;
+
+	/**
+	 * The node type of the tool, denormalized from definition.
+	 */
+	@Column({ type: 'varchar', length: 255 })
+	type: string;
+
+	/**
+	 * The node type version of the tool, denormalized from definition.
+	 */
+	@Column({ type: 'int' })
+	typeVersion: number;
 
 	/**
 	 * ID of the user that owns this tool.

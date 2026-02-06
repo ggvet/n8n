@@ -49,7 +49,6 @@ import { useDocumentTitle } from '@/app/composables/useDocumentTitle';
 import { useUIStore } from '@/app/stores/ui.store';
 import { useChatCredentials } from '@/features/ai/chatHub/composables/useChatCredentials';
 import ChatLayout from '@/features/ai/chatHub/components/ChatLayout.vue';
-import type { INode } from 'n8n-workflow';
 import { useFileDrop } from '@/features/ai/chatHub/composables/useFileDrop';
 import {
 	type ChatHubConversationModelWithCachedDisplayName,
@@ -239,18 +238,18 @@ const customAgentId = computed(() =>
 );
 const { customAgent } = useCustomAgent(customAgentId);
 
-const selectedTools = computed<INode[]>(() => {
+const checkedToolIds = computed<string[]>(() => {
 	if (customAgent.value) {
-		return customAgent.value.tools;
+		return customAgent.value.toolIds;
 	}
 
-	if (currentConversation.value?.tools) {
-		return currentConversation.value.tools;
+	if (currentConversation.value?.toolIds) {
+		return currentConversation.value.toolIds;
 	}
 
 	return modelFromQuery.value
 		? []
-		: chatStore.configuredTools.filter((t) => t.enabled).map((t) => t.definition);
+		: chatStore.configuredTools.filter((t) => t.enabled).map((t) => t.definition.id);
 });
 
 const { credentialsByProvider, selectCredential } = useChatCredentials(
@@ -521,7 +520,6 @@ async function onSubmit(message: string, attachments: File[]) {
 		message,
 		selectedModel.value,
 		credentialsForSelectedProvider.value,
-		canSelectTools.value ? selectedTools.value : [],
 		attachments,
 	);
 
@@ -782,7 +780,8 @@ function onFilesDropped(files: File[]) {
 								ref="inputRef"
 								:class="$style.prompt"
 								:selected-model="selectedModel"
-								:selected-tools="selectedTools"
+								:checked-tool-ids="canSelectTools ? checkedToolIds : []"
+								:session-id="isNewSession ? undefined : sessionId"
 								:messaging-state="messagingState"
 								:is-tools-selectable="canSelectTools"
 								:is-new-session="isNewSession"

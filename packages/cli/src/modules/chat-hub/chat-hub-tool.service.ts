@@ -6,6 +6,7 @@ import type {
 import { Logger } from '@n8n/backend-common';
 import { EntityManager, withTransaction, type User } from '@n8n/db';
 import { Service } from '@n8n/di';
+import type { INode } from 'n8n-workflow';
 
 import { NotFoundError } from '@/errors/response-errors/not-found.error';
 
@@ -25,12 +26,44 @@ export class ChatHubToolService {
 		return await this.chatToolRepository.getManyByUserId(userId);
 	}
 
+	async getEnabledTools(userId: string, trx?: EntityManager): Promise<ChatHubTool[]> {
+		return await this.chatToolRepository.getEnabledByUserId(userId, trx);
+	}
+
+	async getToolDefinitionsForSession(sessionId: string, trx?: EntityManager): Promise<INode[]> {
+		const tools = await this.chatToolRepository.getToolsForSession(sessionId, trx);
+		return tools.map((t) => t.definition);
+	}
+
+	async getToolDefinitionsForAgent(agentId: string, trx?: EntityManager): Promise<INode[]> {
+		const tools = await this.chatToolRepository.getToolsForAgent(agentId, trx);
+		return tools.map((t) => t.definition);
+	}
+
+	async getToolIdsForSession(sessionId: string, trx?: EntityManager): Promise<string[]> {
+		return await this.chatToolRepository.getToolIdsForSession(sessionId, trx);
+	}
+
+	async getToolIdsForAgent(agentId: string, trx?: EntityManager): Promise<string[]> {
+		return await this.chatToolRepository.getToolIdsForAgent(agentId, trx);
+	}
+
+	async setSessionTools(sessionId: string, toolIds: string[], trx?: EntityManager): Promise<void> {
+		await this.chatToolRepository.setSessionTools(sessionId, toolIds, trx);
+	}
+
+	async setAgentTools(agentId: string, toolIds: string[], trx?: EntityManager): Promise<void> {
+		await this.chatToolRepository.setAgentTools(agentId, toolIds, trx);
+	}
+
 	async createTool(user: User, data: ChatHubCreateToolRequest): Promise<ChatHubTool> {
 		const definition = data.definition;
 
 		const tool = await this.chatToolRepository.createTool({
 			id: definition.id,
 			name: definition.name,
+			type: definition.type,
+			typeVersion: definition.typeVersion ?? 1,
 			ownerId: user.id,
 			definition,
 			enabled: true,
@@ -57,6 +90,8 @@ export class ChatHubToolService {
 			if (updates.definition !== undefined) {
 				updateData.definition = updates.definition;
 				updateData.name = updates.definition.name;
+				updateData.type = updates.definition.type;
+				updateData.typeVersion = updates.definition.typeVersion ?? 1;
 			}
 			if (updates.enabled !== undefined) {
 				updateData.enabled = updates.enabled;
