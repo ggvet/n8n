@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import NodeIcon from '@/app/components/NodeIcon.vue';
 import { useNodeTypesStore } from '@/app/stores/nodeTypes.store';
-import { computed, onMounted } from 'vue';
-import { type DropdownMenuItemProps, N8nButton, N8nDropdownMenu } from '@n8n/design-system';
+import { computed, onMounted, ref } from 'vue';
+import { N8nButton, N8nDropdownMenu, N8nIcon } from '@n8n/design-system';
+import type { DropdownMenuItemProps } from '@n8n/design-system';
 import type { INode, INodeTypeDescription } from 'n8n-workflow';
 import { useI18n } from '@n8n/i18n';
 import { useUIStore } from '@/app/stores/ui.store';
-import { TOOL_SETTINGS_MODAL_KEY, TOOLS_MANAGER_MODAL_KEY } from '@/features/ai/chatHub/constants';
+import { TOOLS_MANAGER_MODAL_KEY } from '@/features/ai/chatHub/constants';
 
 const { selected, transparentBg = false } = defineProps<{
 	disabled: boolean;
@@ -22,6 +23,8 @@ const emit = defineEmits<{
 const nodeTypesStore = useNodeTypesStore();
 const uiStore = useUIStore();
 const i18n = useI18n();
+
+const searchQuery = ref('');
 
 const toolCount = computed(() => selected.length);
 
@@ -51,93 +54,101 @@ function openToolsManager() {
 	});
 }
 
-const menuItems = computed<Array<DropdownMenuItemProps<string, INodeTypeDescription>>>(() => [
-	...selected.map((sel) => ({
-		id: `selected::${sel.id}`,
-		label: sel.name,
-		checked: true,
-		data: nodeTypesStore.getNodeType(sel.type, sel.typeVersion) ?? undefined,
-		children: [
-			{
-				id: `configure::${sel.id}`,
-				label: i18n.baseText('chatHub.toolsManager.configure'),
-				icon: { type: 'icon' as const, value: 'settings' as const },
+type ToolMenuItem = DropdownMenuItemProps<
+	string,
+	{ nodeType: INodeTypeDescription | null; tool: INode }
+>;
+
+const menuItems = computed<ToolMenuItem[]>(() => {
+	const query = searchQuery.value.toLowerCase();
+
+	const toolItems: ToolMenuItem[] = selected
+		.filter((tool) => {
+			if (!query) return true;
+			const nodeType = nodeTypesStore.getNodeType(tool.type, tool.typeVersion);
+			const nameMatch = tool.name.toLowerCase().includes(query);
+			const typeMatch = nodeType?.displayName.toLowerCase().includes(query);
+			return nameMatch || typeMatch;
+		})
+		.map((tool) => ({
+			id: `tool::${tool.id}`,
+			label: tool.name,
+			checked: true,
+			data: {
+				nodeType: nodeTypesStore.getNodeType(tool.type, tool.typeVersion),
+				tool,
 			},
-			{
-				id: `remove::${sel.id}`,
-				label: i18n.baseText('chatHub.toolsManager.remove'),
-				icon: { type: 'icon' as const, value: 'trash-2' as const },
-			},
-		],
-	})),
-	{
-		id: 'manage',
-		label: i18n.baseText('chatHub.toolsManager.manageTools'),
-		divided: true,
-		icon: { type: 'icon', value: 'settings' },
-	},
-]);
+		}));
+
+	// Only add manage tools if not searching or if it matches search
+	const manageLabel = i18n.baseText('chatHub.toolsManager.manageTools');
+	const showManage = !query || manageLabel.toLowerCase().includes(query);
+
+	if (showManage) {
+		toolItems.push({
+			id: 'manage',
+			label: manageLabel,
+			divided: toolItems.length > 0,
+			icon: { type: 'icon', value: 'settings' },
+			data: { nodeType: null, tool: null as unknown as INode },
+		});
+	}
+
+	return toolItems;
+});
 
 function handleSelect(id: string) {
-	const [command, target] = id.split('::');
-
-	if (command === 'manage') {
+	if (id === 'manage') {
 		openToolsManager();
 		return;
 	}
 
-	const targetNode = selected.find((sel) => sel.id === target);
+	const [command, toolId] = id.split('::');
 
-	if (!targetNode) {
-		return;
-	}
-
-	if (command === 'remove') {
+	if (command === 'tool') {
+		// Toggle the tool - remove it from the list
 		emit(
 			'change',
-			selected.filter((s) => s.id !== targetNode.id),
+			selected.filter((s) => s.id !== toolId),
 		);
 	}
+}
 
-	if (command === 'configure') {
-		const otherToolNames = selected.filter((s) => s.id !== targetNode.id).map((s) => s.name);
-
-		uiStore.openModalWithData({
-			name: TOOL_SETTINGS_MODAL_KEY,
-			data: {
-				node: targetNode,
-				existingToolNames: otherToolNames,
-				onConfirm: (configuredNode: INode) => {
-					emit(
-						'change',
-						selected.map((sel) => (sel.id === targetNode.id ? configuredNode : sel)),
-					);
-				},
-			},
-		});
-	}
+function handleSearch(query: string) {
+	searchQuery.value = query;
 }
 
 onMounted(async () => {
 	await nodeTypesStore.loadNodeTypesIfNotLoaded();
 });
-
-/**
- * TODO
- * - tooltip doesn't work well with dropdown
- * - for personal agent, click to open edit modal as before
- */
 </script>
 
 <template>
-	<!-- <N8nTooltip :content="disabledTooltip" :disabled="!disabledTooltip" placement="top"> -->
 	<div :class="$style.container">
+		<!-- When no tools selected, show just the button that opens the manager -->
+		<N8nButton
+			v-if="toolCount === 0"
+			type="secondary"
+			native-type="button"
+			:class="[$style.toolsButton, { [$style.transparentBg]: transparentBg }]"
+			:disabled="disabled"
+			icon="plus"
+			@click="openToolsManager"
+		>
+			{{ toolsLabel }}
+		</N8nButton>
+
+		<!-- When tools are selected, show the dropdown -->
 		<N8nDropdownMenu
+			v-else
 			:items="menuItems"
 			placement="bottom-start"
-			:disabled="selected.length === 0"
 			extra-popper-class="tools-selector-dropdown"
+			searchable
+			:search-placeholder="i18n.baseText('chatHub.toolsManager.searchPlaceholder')"
+			:empty-text="i18n.baseText('chatHub.toolsManager.noResults')"
 			@select="handleSelect"
+			@search="handleSearch"
 		>
 			<template #trigger>
 				<N8nButton
@@ -145,10 +156,8 @@ onMounted(async () => {
 					native-type="button"
 					:class="[$style.toolsButton, { [$style.transparentBg]: transparentBg }]"
 					:disabled="disabled"
-					:icon="toolCount > 0 ? undefined : 'plus'"
-					@click="selected.length === 0 ? openToolsManager() : undefined"
 				>
-					<span v-if="toolCount" :class="$style.iconStack">
+					<span :class="$style.iconStack">
 						<NodeIcon
 							v-for="(nodeType, i) in displayToolNodeTypes"
 							:key="`${nodeType?.name}-${i}`"
@@ -164,7 +173,8 @@ onMounted(async () => {
 			</template>
 
 			<template #item-leading="{ item }">
-				<NodeIcon v-if="item.data" :node-type="item.data" :size="16" />
+				<NodeIcon v-if="item.data?.nodeType" :node-type="item.data.nodeType" :size="16" />
+				<N8nIcon v-else-if="item.icon?.type === 'icon'" icon="settings" size="medium" />
 			</template>
 		</N8nDropdownMenu>
 	</div>
@@ -210,5 +220,6 @@ onMounted(async () => {
 <style lang="scss">
 .tools-selector-dropdown {
 	z-index: 10000;
+	min-width: 220px;
 }
 </style>
