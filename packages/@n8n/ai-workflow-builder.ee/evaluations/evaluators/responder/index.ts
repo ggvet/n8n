@@ -74,8 +74,6 @@ const DIMENSION_KEYS = [
 	'forbiddenPhrases',
 ] as const;
 
-type DimensionKey = (typeof DIMENSION_KEYS)[number];
-
 const fb = (metric: string, score: number, kind: Feedback['kind'], comment?: string): Feedback => ({
 	evaluator: EVALUATOR_NAME,
 	metric,
@@ -97,7 +95,7 @@ async function runSingleJudge(
 		workflowJSON: ctx.workflowJSON,
 	});
 
-	return runWithOptionalLimiter(async () => {
+	return await runWithOptionalLimiter(async () => {
 		const response = await withTimeout({
 			promise: llm.invoke([new HumanMessage(judgePrompt)], {
 				runName: `responder_judge_${judgeIndex + 1}`,
@@ -119,9 +117,16 @@ function aggregateResults(results: ResponderJudgeResult[], numJudges: number): F
 
 	// Per-dimension averaged metrics
 	for (const key of DIMENSION_KEYS) {
-		const avgScore = results.reduce((sum, r) => sum + r[key as DimensionKey].score, 0) / numJudges;
+		const avgScore =
+			results.reduce((sum, r) => {
+				const dimension = r[key];
+				return sum + (dimension?.score ?? 0);
+			}, 0) / numJudges;
 		const comments = results
-			.map((r, i) => `[Judge ${i + 1}] ${r[key as DimensionKey].comment}`)
+			.map((r, i) => {
+				const dimension = r[key];
+				return `[Judge ${i + 1}] ${dimension?.comment ?? 'No comment'}`;
+			})
 			.join(' | ');
 		feedback.push(fb(key, avgScore, 'metric', comments));
 	}
@@ -182,7 +187,7 @@ export function createResponderEvaluator(
 			}
 
 			const results = await Promise.all(
-				Array.from({ length: numJudges }, (_, i) => runSingleJudge(llm, ctx, i)),
+				Array.from({ length: numJudges }, async (_, i) => await runSingleJudge(llm, ctx, i)),
 			);
 
 			return aggregateResults(results, numJudges);

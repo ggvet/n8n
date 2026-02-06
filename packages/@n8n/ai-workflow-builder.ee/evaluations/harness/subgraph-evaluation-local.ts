@@ -75,10 +75,24 @@ function extractPromptFromInputs(inputs: Record<string, unknown>): string {
 	throw new Error('No prompt found in inputs');
 }
 
-function extractResponderEvals(inputs: Record<string, unknown>): ResponderEvalCriteria | undefined {
+function extractResponderEvals(
+	inputs: Record<string, unknown>,
+	logger?: EvalLogger,
+	index?: number,
+): ResponderEvalCriteria | undefined {
 	const raw = inputs.responderEvals;
-	if (!isRecord(raw)) return undefined;
-	if (typeof raw.type !== 'string' || typeof raw.criteria !== 'string') return undefined;
+	if (!isRecord(raw)) {
+		logger?.verbose(
+			`[${index ?? '?'}] Example missing responderEvals field - evaluator will report an error`,
+		);
+		return undefined;
+	}
+	if (typeof raw.type !== 'string' || typeof raw.criteria !== 'string') {
+		logger?.verbose(
+			`[${index ?? '?'}] Example has invalid responderEvals (missing type or criteria) - evaluator will report an error`,
+		);
+		return undefined;
+	}
 	return { type: raw.type, criteria: raw.criteria } as ResponderEvalCriteria;
 }
 
@@ -201,7 +215,7 @@ export async function runLocalSubgraphEvaluation(
 						if (subgraph === 'responder' && subgraphResult.response) {
 							context.responderOutput = subgraphResult.response;
 							context.workflowJSON = state.workflowJSON;
-							const evalCriteria = extractResponderEvals(inputs);
+							const evalCriteria = extractResponderEvals(inputs, logger, index);
 							if (evalCriteria) {
 								context.responderEvals = evalCriteria;
 							}

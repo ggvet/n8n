@@ -101,6 +101,11 @@ export function writeBackToDatasetFile(filePath: string, updates: DatasetWriteBa
 	const dataset = jsonParse<unknown[]>(content);
 
 	for (const update of updates) {
+		if (update.index < 0 || update.index >= dataset.length) {
+			throw new Error(
+				`Write-back index ${update.index} is out of bounds (dataset has ${dataset.length} examples)`,
+			);
+		}
 		const example = dataset[update.index] as Record<string, unknown>;
 		example.messages = update.messages;
 		example.coordinationLog = update.coordinationLog;

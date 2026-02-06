@@ -100,10 +100,24 @@ function extractPromptFromInputs(inputs: Record<string, unknown>): string {
 	throw new Error('No prompt found in inputs');
 }
 
-function extractResponderEvals(inputs: Record<string, unknown>): ResponderEvalCriteria | undefined {
+function extractResponderEvals(
+	inputs: Record<string, unknown>,
+	logger?: EvalLogger,
+	index?: number,
+): ResponderEvalCriteria | undefined {
 	const raw = inputs.responderEvals;
-	if (!isRecord(raw)) return undefined;
-	if (typeof raw.type !== 'string' || typeof raw.criteria !== 'string') return undefined;
+	if (!isRecord(raw)) {
+		logger?.verbose(
+			`[${index ?? '?'}] Example missing responderEvals field - evaluator will report an error`,
+		);
+		return undefined;
+	}
+	if (typeof raw.type !== 'string' || typeof raw.criteria !== 'string') {
+		logger?.verbose(
+			`[${index ?? '?'}] Example has invalid responderEvals (missing type or criteria) - evaluator will report an error`,
+		);
+		return undefined;
+	}
 	return { type: raw.type, criteria: raw.criteria } as ResponderEvalCriteria;
 }
 
@@ -190,25 +204,26 @@ export async function runSubgraphEvaluation(config: SubgraphEvaluationConfig): P
 		},
 	);
 
-	// Pre-load examples if write-back is needed (to get example IDs)
-	const exampleIdMap = new Map<string, string>(); // prompt -> exampleId
+	// Pre-load example IDs if write-back is needed
+	// Store as array to match by index position (avoids prompt collision issues)
+	const exampleIds: string[] = [];
 
 	if (writeBack) {
-		logger.verbose('Pre-loading examples for write-back tracking...');
+		logger.verbose('Pre-loading example IDs for write-back tracking...');
 		const dataset = await lsClient.readDataset({ datasetName });
 		const examples = lsClient.listExamples({ datasetId: dataset.id });
 		for await (const example of examples) {
-			const prompt = extractPromptFromInputs(example.inputs);
-			exampleIdMap.set(prompt, example.id);
+			exampleIds.push(example.id);
 		}
-		logger.verbose(`Loaded ${exampleIdMap.size} example IDs for write-back`);
+		logger.verbose(`Loaded ${exampleIds.length} example IDs for write-back`);
 	}
 
 	const target = async (inputs: Record<string, unknown>): Promise<SubgraphTargetOutput> => {
 		targetCallCount++;
 		const index = targetCallCount;
 		const prompt = extractPromptFromInputs(inputs);
-		const exampleId = exampleIdMap.get(prompt);
+		// Use index-1 since targetCallCount is 1-based
+		const exampleId = exampleIds[index - 1];
 		const startTime = Date.now();
 
 		try {
@@ -267,7 +282,7 @@ export async function runSubgraphEvaluation(config: SubgraphEvaluationConfig): P
 			if (subgraph === 'responder' && subgraphResult.response) {
 				context.responderOutput = subgraphResult.response;
 				context.workflowJSON = state.workflowJSON;
-				const evalCriteria = extractResponderEvals(inputs);
+				const evalCriteria = extractResponderEvals(inputs, logger, index);
 				if (evalCriteria) {
 					context.responderEvals = evalCriteria;
 				}
