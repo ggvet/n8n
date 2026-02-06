@@ -81,7 +81,6 @@ export class DynamicNodeParametersController {
 			currentNodeParameters,
 			nodeTypeAndVersion,
 			projectId,
-			workflowId,
 		} = payload;
 
 		const additionalData = await getBase({
@@ -100,7 +99,6 @@ export class DynamicNodeParametersController {
 			credentials,
 			filter,
 			paginationToken,
-			workflowId,
 		);
 	}
 
