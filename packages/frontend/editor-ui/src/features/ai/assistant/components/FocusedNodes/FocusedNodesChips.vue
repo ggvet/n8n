@@ -17,7 +17,7 @@ const isFeatureEnabled = computed(() => focusedNodesStore.isFeatureEnabled);
 const hasVisibleNodes = computed(() => focusedNodesStore.hasVisibleNodes);
 const shouldCollapse = computed(() => focusedNodesStore.shouldCollapseChips);
 const confirmedCount = computed(() => focusedNodesStore.confirmedNodes.length);
-const unconfirmedCount = computed(() => focusedNodesStore.unconfirmedNodes.length);
+const unconfirmedCount = computed(() => focusedNodesStore.filteredUnconfirmedNodes.length);
 
 // Show bundled chip when 4+ nodes, individual chips for 1-3
 const shouldBundleConfirmed = computed(() => confirmedCount.value >= 4);
@@ -29,7 +29,7 @@ const individualConfirmedNodes = computed(() =>
 );
 const individualUnconfirmedNodes = computed(() =>
 	unconfirmedCount.value >= 1 && unconfirmedCount.value <= 3
-		? focusedNodesStore.unconfirmedNodes
+		? focusedNodesStore.filteredUnconfirmedNodes
 		: [],
 );
 

@@ -75,7 +75,7 @@ const {
 
 const confirmedNodeIds = computed(() => focusedNodesStore.confirmedNodeIds);
 const confirmedNodes = computed(() => focusedNodesStore.confirmedNodes);
-const unconfirmedNodes = computed(() => focusedNodesStore.unconfirmedNodes);
+const unconfirmedNodes = computed(() => focusedNodesStore.filteredUnconfirmedNodes);
 const hasConfirmedNodes = computed(() => confirmedNodes.value.length > 0);
 const hasUnconfirmedNodes = computed(() => unconfirmedNodes.value.length > 0);
 const confirmedCount = computed(() => confirmedNodes.value.length);

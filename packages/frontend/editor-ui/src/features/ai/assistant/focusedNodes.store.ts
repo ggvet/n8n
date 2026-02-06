@@ -38,7 +38,20 @@ export const useFocusedNodesStore = defineStore(STORES.FOCUSED_NODES, () => {
 		Object.values(focusedNodesMap.value).filter((node) => node.state === 'unconfirmed'),
 	);
 
-	const allVisibleNodes = computed(() => [...confirmedNodes.value, ...unconfirmedNodes.value]);
+	// Hide unconfirmed pills when all workflow nodes are selected (adds no value over default context)
+	const filteredUnconfirmedNodes = computed(() => {
+		const totalWorkflowNodes = workflowsStore.allNodes.length;
+		const availableNodes = totalWorkflowNodes - confirmedNodes.value.length;
+		if (availableNodes > 0 && unconfirmedNodes.value.length >= availableNodes) {
+			return [];
+		}
+		return unconfirmedNodes.value;
+	});
+
+	const allVisibleNodes = computed(() => [
+		...confirmedNodes.value,
+		...filteredUnconfirmedNodes.value,
+	]);
 
 	const shouldCollapseChips = computed(() => confirmedNodes.value.length >= COLLAPSE_THRESHOLD);
 
@@ -47,7 +60,7 @@ export const useFocusedNodesStore = defineStore(STORES.FOCUSED_NODES, () => {
 	const hasVisibleNodes = computed(() => allVisibleNodes.value.length > 0);
 
 	const tooManyUnconfirmed = computed(
-		() => unconfirmedNodes.value.length > MAX_UNCONFIRMED_DISPLAY,
+		() => filteredUnconfirmedNodes.value.length > MAX_UNCONFIRMED_DISPLAY,
 	);
 
 	function isNodeSelectedOnCanvas(nodeId: string): boolean {
@@ -423,6 +436,7 @@ export const useFocusedNodesStore = defineStore(STORES.FOCUSED_NODES, () => {
 		isFeatureEnabled,
 		confirmedNodes,
 		unconfirmedNodes,
+		filteredUnconfirmedNodes,
 		allVisibleNodes,
 		shouldCollapseChips,
 		confirmedNodeIds,
