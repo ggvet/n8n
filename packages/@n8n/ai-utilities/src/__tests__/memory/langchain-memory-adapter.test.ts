@@ -44,7 +44,7 @@ describe('LangchainMemoryAdapter', () => {
 
 			expect(result.chat_history).toHaveLength(1);
 			expect(result.chat_history[0]).toBeInstanceOf(HumanMessage);
-			expect(result.chat_history[0].content).toBe('Hello');
+			expect(result.chat_history[0].content).toEqual([{ type: 'text', text: 'Hello' }]);
 		});
 
 		it('should convert AI messages to AIMessage', async () => {
@@ -55,7 +55,7 @@ describe('LangchainMemoryAdapter', () => {
 
 			expect(result.chat_history).toHaveLength(1);
 			expect(result.chat_history[0]).toBeInstanceOf(AIMessage);
-			expect(result.chat_history[0].content).toBe('Hi there!');
+			expect(result.chat_history[0].content).toEqual([{ type: 'text', text: 'Hi there!' }]);
 		});
 
 		it('should convert system messages to SystemMessage', async () => {
@@ -66,7 +66,9 @@ describe('LangchainMemoryAdapter', () => {
 
 			expect(result.chat_history).toHaveLength(1);
 			expect(result.chat_history[0]).toBeInstanceOf(SystemMessage);
-			expect(result.chat_history[0].content).toBe('You are a helpful assistant');
+			expect(result.chat_history[0].content).toEqual([
+				{ type: 'text', text: 'You are a helpful assistant' },
+			]);
 		});
 
 		it('should convert multiple messages in order', async () => {
