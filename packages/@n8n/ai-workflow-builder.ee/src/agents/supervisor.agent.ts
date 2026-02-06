@@ -5,17 +5,17 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { RunnableConfig } from '@langchain/core/runnables';
 import { z } from 'zod';
 
+import { buildSupervisorPrompt } from '@/prompts';
+
 import type { CoordinationLogEntry } from '../types/coordination';
 import type { SimpleWorkflow } from '../types/workflow';
 import {
-	buildWorkflowSummary,
-	buildSimplifiedExecutionContext,
 	buildSelectedNodesSummary,
+	buildSimplifiedExecutionContext,
+	buildWorkflowSummary,
 } from '../utils/context-builders';
 import { summarizeCoordinationLog } from '../utils/coordination-log';
 import type { ChatPayload } from '../workflow-builder-agent';
-
-import { buildSupervisorPrompt } from '@/prompts';
 
 const systemPrompt = ChatPromptTemplate.fromMessages([
 	[

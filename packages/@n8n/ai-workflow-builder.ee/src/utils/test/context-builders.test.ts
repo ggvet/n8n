@@ -747,9 +747,7 @@ describe('buildSelectedNodesContextBlock', () => {
 		});
 		expect(result).toContain('<issues>');
 		expect(result).toContain('<issue parameter="url">URL is required</issue>');
-		expect(result).toContain(
-			'<issue parameter="credential:httpAuth">Creds missing</issue>',
-		);
+		expect(result).toContain('<issue parameter="credential:httpAuth">Creds missing</issue>');
 		expect(result).toContain('</issues>');
 	});
 
@@ -863,9 +861,7 @@ describe('buildSelectedNodesSummary', () => {
 
 	it('should not note issues when none present', () => {
 		const result = buildSelectedNodesSummary({
-			selectedNodes: [
-				{ name: 'HTTP Request', incomingConnections: [], outgoingConnections: [] },
-			],
+			selectedNodes: [{ name: 'HTTP Request', incomingConnections: [], outgoingConnections: [] }],
 		});
 		expect(result).not.toContain('configuration issues');
 	});

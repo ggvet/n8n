@@ -4,6 +4,14 @@ import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { RunnableConfig } from '@langchain/core/runnables';
 
+import {
+	buildDataTableCreationGuidance,
+	buildGeneralErrorGuidance,
+	buildRecursionErrorNoWorkflowGuidance,
+	buildRecursionErrorWithWorkflowGuidance,
+	buildResponderPrompt,
+} from '@/prompts';
+
 import type { CoordinationLogEntry } from '../types/coordination';
 import type { DiscoveryContext } from '../types/discovery-types';
 import { isAIMessage } from '../types/langchain';
@@ -20,13 +28,6 @@ import {
 } from '../utils/coordination-log';
 import { extractDataTableInfo } from '../utils/data-table-helpers';
 import type { ChatPayload } from '../workflow-builder-agent';
-import {
-	buildDataTableCreationGuidance,
-	buildGeneralErrorGuidance,
-	buildRecursionErrorNoWorkflowGuidance,
-	buildRecursionErrorWithWorkflowGuidance,
-	buildResponderPrompt,
-} from '@/prompts';
 const systemPrompt = ChatPromptTemplate.fromMessages([
 	[
 		'system',
