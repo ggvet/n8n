@@ -170,6 +170,7 @@ export function useNodeMention(options: UseNodeMentionOptions = {}): UseNodeMent
 			case 'Enter':
 				if (filteredNodes.value.length > 0) {
 					event.preventDefault();
+					event.stopPropagation();
 					selectNode(filteredNodes.value[highlightedIndex.value]);
 					return true;
 				}
@@ -181,6 +182,11 @@ export function useNodeMention(options: UseNodeMentionOptions = {}): UseNodeMent
 				return true;
 
 			case 'Tab':
+				if (filteredNodes.value.length > 0) {
+					event.preventDefault();
+					selectNode(filteredNodes.value[highlightedIndex.value]);
+					return true;
+				}
 				closeDropdown();
 				return false;
 
