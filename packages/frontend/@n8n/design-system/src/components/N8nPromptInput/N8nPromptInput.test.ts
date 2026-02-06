@@ -17,7 +17,7 @@ describe('N8nPromptInput', () => {
 				global: {
 					stubs: {
 						N8nCallout: true,
-						N8nScrollArea: true,
+						N8nScrollArea: { template: '<div><slot /></div>' },
 						N8nSendStopButton: false,
 						N8nTooltip: {
 							template: '<slot />',
@@ -49,7 +49,7 @@ describe('N8nPromptInput', () => {
 				global: {
 					stubs: {
 						N8nCallout: true,
-						N8nScrollArea: true,
+						N8nScrollArea: { template: '<div><slot /></div>' },
 						N8nSendStopButton: false,
 						N8nTooltip: {
 							template: '<slot />',
@@ -65,17 +65,16 @@ describe('N8nPromptInput', () => {
 	});
 
 	describe('mode switching', () => {
-		it('should start in single-line mode', () => {
+		it('should always use scroll area layout', () => {
 			const { container } = renderComponent({
 				global: {
 					stubs: ['N8nCallout', 'N8nScrollArea', 'N8nSendStopButton'],
 				},
 			});
-			expect(container.querySelector('.singleLineWrapper')).toBeTruthy();
-			expect(container.querySelector('.multilineTextarea')).toBeFalsy();
+			expect(container.querySelector('.scrollAreaWrapper')).toBeTruthy();
 		});
 
-		it('should switch to multiline mode when text contains newlines', async () => {
+		it('should switch to multiline when text contains newlines', async () => {
 			// Store original descriptor
 			const originalDescriptor = Object.getOwnPropertyDescriptor(
 				HTMLTextAreaElement.prototype,
@@ -83,11 +82,9 @@ describe('N8nPromptInput', () => {
 			);
 
 			// Mock scrollHeight to simulate text that needs multiple lines
-			// The component checks if scrollHeight > 24 (single line height)
 			Object.defineProperty(HTMLTextAreaElement.prototype, 'scrollHeight', {
 				configurable: true,
 				get(this: HTMLTextAreaElement) {
-					// Return larger height when text contains newlines
 					return this.value?.includes('\n') ? 72 : 24;
 				},
 			});
@@ -102,10 +99,6 @@ describe('N8nPromptInput', () => {
 					},
 				});
 
-				// Initially should be single-line
-				expect(container.querySelector('.singleLineWrapper')).toBeTruthy();
-				expect(container.querySelector('.multilineTextarea')).toBeFalsy();
-
 				const textarea = container.querySelector('textarea') as HTMLTextAreaElement;
 
 				// Update the textarea value with newlines
@@ -116,20 +109,15 @@ describe('N8nPromptInput', () => {
 
 				// Wait for Vue to update the DOM
 				await vi.waitFor(() => {
-					// After adjustHeight runs, should be in multiline mode
 					return container.querySelector('.multilineTextarea');
 				});
 
-				// Verify we're now in multiline mode
+				// Verify multiline textarea is rendered
 				expect(container.querySelector('.multilineTextarea')).toBeTruthy();
-				expect(container.querySelector('.singleLineWrapper')).toBeFalsy();
 			} finally {
-				// Always restore original descriptor or delete the mock
 				if (originalDescriptor) {
 					Object.defineProperty(HTMLTextAreaElement.prototype, 'scrollHeight', originalDescriptor);
 				} else {
-					// If there was no original descriptor, delete the mocked property
-					// Use Reflect.deleteProperty for type-safe deletion
 					Reflect.deleteProperty(HTMLTextAreaElement.prototype, 'scrollHeight');
 				}
 			}
@@ -155,8 +143,8 @@ describe('N8nPromptInput', () => {
 
 			// Should have empty value
 			expect(textarea).toHaveValue('');
-			// Should always have single line wrapper when empty
-			expect(render.container.querySelector('.singleLineWrapper')).toBeTruthy();
+			// Should still have scroll area wrapper
+			expect(render.container.querySelector('.scrollAreaWrapper')).toBeTruthy();
 		});
 	});
 
@@ -488,7 +476,11 @@ describe('N8nPromptInput', () => {
 					modelValue: 'test',
 				},
 				global: {
-					stubs: ['N8nCallout', 'N8nScrollArea', 'N8nSendStopButton'],
+					stubs: {
+						N8nCallout: true,
+						N8nScrollArea: { template: '<div><slot /></div>' },
+						N8nSendStopButton: true,
+					},
 				},
 			});
 
@@ -628,7 +620,7 @@ describe('N8nPromptInput', () => {
 				global: {
 					stubs: {
 						N8nCallout: true,
-						N8nScrollArea: true,
+						N8nScrollArea: { template: '<div><slot /></div>' },
 						N8nSendStopButton: {
 							props: ['disabled', 'streaming'],
 							template: '<button :disabled="disabled"></button>',
@@ -790,7 +782,6 @@ describe('N8nPromptInput', () => {
 
 			// Should be in multiline mode from the start
 			expect(container.querySelector('.multilineTextarea')).toBeTruthy();
-			expect(container.querySelector('.singleLineWrapper')).toBeFalsy();
 		});
 
 		it('should maintain minimum height based on minLines', () => {
@@ -844,7 +835,11 @@ describe('N8nPromptInput', () => {
 					refocusAfterSend: true,
 				},
 				global: {
-					stubs: ['N8nCallout', 'N8nScrollArea', 'N8nSendStopButton'],
+					stubs: {
+						N8nCallout: true,
+						N8nScrollArea: { template: '<div><slot /></div>' },
+						N8nSendStopButton: true,
+					},
 				},
 				attachTo: document.body,
 			});
@@ -870,7 +865,11 @@ describe('N8nPromptInput', () => {
 					refocusAfterSend: false,
 				},
 				global: {
-					stubs: ['N8nCallout', 'N8nScrollArea', 'N8nSendStopButton'],
+					stubs: {
+						N8nCallout: true,
+						N8nScrollArea: { template: '<div><slot /></div>' },
+						N8nSendStopButton: true,
+					},
 				},
 			});
 
@@ -897,7 +896,7 @@ describe('N8nPromptInput', () => {
 				global: {
 					stubs: {
 						N8nCallout: true,
-						N8nScrollArea: true,
+						N8nScrollArea: { template: '<div><slot /></div>' },
 						N8nSendStopButton: {
 							props: ['disabled', 'streaming'],
 							template: '<button @click="$emit(\'stop\')">Stop</button>',
@@ -934,7 +933,7 @@ describe('N8nPromptInput', () => {
 				global: {
 					stubs: {
 						N8nCallout: true,
-						N8nScrollArea: true,
+						N8nScrollArea: { template: '<div><slot /></div>' },
 						N8nSendStopButton: {
 							props: ['disabled', 'streaming'],
 							template: '<button :disabled="disabled"></button>',
@@ -1017,7 +1016,11 @@ describe('N8nPromptInput', () => {
 						modelValue: 'Line 1\nLine 2\nLine 3\nLine 4',
 					},
 					global: {
-						stubs: ['N8nCallout', 'N8nScrollArea', 'N8nSendStopButton'],
+						stubs: {
+							N8nCallout: true,
+							N8nScrollArea: { template: '<div><slot /></div>' },
+							N8nSendStopButton: true,
+						},
 					},
 				});
 

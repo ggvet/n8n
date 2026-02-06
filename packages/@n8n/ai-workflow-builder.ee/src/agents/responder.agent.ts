@@ -4,28 +4,29 @@ import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { ChatPromptTemplate } from '@langchain/core/prompts';
 import type { RunnableConfig } from '@langchain/core/runnables';
 
-import {
-	buildResponderPrompt,
-	buildRecursionErrorWithWorkflowGuidance,
-	buildRecursionErrorNoWorkflowGuidance,
-	buildGeneralErrorGuidance,
-	buildDataTableCreationGuidance,
-} from '@/prompts';
-
 import type { CoordinationLogEntry } from '../types/coordination';
 import type { DiscoveryContext } from '../types/discovery-types';
 import { isAIMessage } from '../types/langchain';
 import type { SimpleWorkflow } from '../types/workflow';
-import { buildSimplifiedExecutionContext, buildWorkflowOverview } from '../utils/context-builders';
 import {
-	getErrorEntry,
+	buildSelectedNodesContextBlock,
+	buildSimplifiedExecutionContext,
+	buildWorkflowOverview,
+} from '../utils/context-builders';
+import {
 	getBuilderOutput,
+	getErrorEntry,
 	hasRecursionErrorsCleared,
 } from '../utils/coordination-log';
-import { buildSelectedNodesContextBlock } from '../utils/context-builders';
 import { extractDataTableInfo } from '../utils/data-table-helpers';
 import type { ChatPayload } from '../workflow-builder-agent';
-
+import {
+	buildDataTableCreationGuidance,
+	buildGeneralErrorGuidance,
+	buildRecursionErrorNoWorkflowGuidance,
+	buildRecursionErrorWithWorkflowGuidance,
+	buildResponderPrompt,
+} from '@/prompts';
 const systemPrompt = ChatPromptTemplate.fromMessages([
 	[
 		'system',
