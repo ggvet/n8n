@@ -35,7 +35,7 @@ describe('QuickConnectService', () => {
 	const createMockOption = (overrides: Partial<QuickConnectOption> = {}): QuickConnectOption => ({
 		packageName: '@n8n/test-package',
 		credentialType: 'testCredentialType',
-		text: 'Test Quick Connect',
+		text: 'Test Quick connect',
 		quickConnectType: 'backend',
 		serviceName: 'Test Service',
 		backendFlowConfig: {
@@ -82,7 +82,7 @@ describe('QuickConnectService', () => {
 			// eslint-disable-next-line @typescript-eslint/unbound-method
 			expect(credentialsService.createUnmanagedCredential).toHaveBeenCalledWith(
 				{
-					name: 'Test Service (Quick Connect)',
+					name: 'Test Service (Quick connect)',
 					type: 'testCredentialType',
 					data: { token: 'test-token' },
 					projectId: undefined,
@@ -115,7 +115,7 @@ describe('QuickConnectService', () => {
 				NotFoundError,
 			);
 			await expect(service.createCredential('unknownType', mockUser)).rejects.toThrow(
-				'Quick Connect is not available for credential type: unknownType',
+				'Quick connect is not available for credential type: unknownType',
 			);
 		});
 
@@ -130,7 +130,7 @@ describe('QuickConnectService', () => {
 				ConflictError,
 			);
 			await expect(service.createCredential('testCredentialType', mockUser)).rejects.toThrow(
-				'A credential of type "testCredentialType" already exists. Quick Connect only allows one credential per type.',
+				'A credential of type "testCredentialType" already exists. Quick connect only allows one credential per type.',
 			);
 		});
 
@@ -145,7 +145,7 @@ describe('QuickConnectService', () => {
 				BadRequestError,
 			);
 			await expect(service.createCredential('testCredentialType', mockUser)).rejects.toThrow(
-				'Quick Connect is not configured for credential type: testCredentialType',
+				'Quick connect is not configured for credential type: testCredentialType',
 			);
 		});
 
@@ -158,7 +158,7 @@ describe('QuickConnectService', () => {
 				NotFoundError,
 			);
 			await expect(service.createCredential('testCredentialType', mockUser)).rejects.toThrow(
-				'Quick Connect handler not found for: testCredentialType',
+				'Quick connect handler not found for: testCredentialType',
 			);
 		});
 
@@ -174,7 +174,7 @@ describe('QuickConnectService', () => {
 				BadRequestError,
 			);
 			await expect(service.createCredential('testCredentialType', mockUser)).rejects.toThrow(
-				'Quick Connect flow for credential type testCredentialType is not backend-based',
+				'Quick connect flow for credential type testCredentialType is not backend-based',
 			);
 		});
 

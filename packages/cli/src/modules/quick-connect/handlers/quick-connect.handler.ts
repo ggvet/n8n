@@ -15,8 +15,8 @@ export interface IQuickConnectHandler {
 
 	/**
 	 * Fetches credential data from the third-party service.
-	 * Used only for backend-based Quick Connect flows.
-	 * @param config - Configuration for this particular Quick Connect option
+	 * Used only for backend-based Quick connect flows.
+	 * @param config - Configuration for this particular Quick connect option
 	 * @returns The credential data to be saved
 	 */
 	getCredentialData?(config: QuickConnectOption): Promise<ICredentialDataDecryptedObject>;

@@ -33,7 +33,7 @@ export class QuickConnectService {
 		const option = this.config.options.find((opt) => opt.credentialType === credentialType);
 		if (!option) {
 			throw new NotFoundError(
-				`Quick Connect is not available for credential type: ${credentialType}`,
+				`Quick connect is not available for credential type: ${credentialType}`,
 			);
 		}
 
@@ -43,24 +43,24 @@ export class QuickConnectService {
 		const hasExisting = existingCredentials.some((cred) => cred.type === credentialType);
 		if (hasExisting) {
 			throw new ConflictError(
-				`A credential of type "${credentialType}" already exists. Quick Connect only allows one credential per type.`,
+				`A credential of type "${credentialType}" already exists. Quick connect only allows one credential per type.`,
 			);
 		}
 
 		if (!option.backendFlowConfig?.secret) {
 			throw new BadRequestError(
-				`Quick Connect is not configured for credential type: ${credentialType}`,
+				`Quick connect is not configured for credential type: ${credentialType}`,
 			);
 		}
 
 		const handler = this.handlerRegistry.get(credentialType);
 		if (!handler) {
-			throw new NotFoundError(`Quick Connect handler not found for: ${credentialType}`);
+			throw new NotFoundError(`Quick connect handler not found for: ${credentialType}`);
 		}
 
 		if (!handler.getCredentialData) {
 			throw new BadRequestError(
-				`Quick Connect flow for credential type ${credentialType} is not backend-based`,
+				`Quick connect flow for credential type ${credentialType} is not backend-based`,
 			);
 		}
 
@@ -81,7 +81,7 @@ export class QuickConnectService {
 
 		const credential = await this.credentialsService.createUnmanagedCredential(
 			{
-				name: `${option.serviceName} (Quick Connect)`,
+				name: `${option.serviceName} (Quick connect)`,
 				type: credentialType,
 				data: credentialData,
 				projectId,
@@ -89,7 +89,7 @@ export class QuickConnectService {
 			user,
 		);
 
-		this.logger.info('Quick Connect credential created', {
+		this.logger.info('Quick connect credential created', {
 			credentialId: credential.id,
 			credentialType,
 		});
