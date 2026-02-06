@@ -31,6 +31,7 @@ import shuffle from 'lodash/shuffle';
 import AISettingsButton from '@/features/ai/assistant/components/Chat/AISettingsButton.vue';
 import { useAssistantStore } from '@/features/ai/assistant/assistant.store';
 import { useSettingsStore } from '@/app/stores/settings.store';
+import { useFocusedNodesStore } from '@/features/ai/assistant/focusedNodes.store';
 
 import { N8nAskAssistantChat, N8nText } from '@n8n/design-system';
 
@@ -49,6 +50,7 @@ const telemetry = useTelemetry();
 const slots = useSlots();
 const workflowsStore = useWorkflowsStore();
 const assistantStore = useAssistantStore();
+const focusedNodesStore = useFocusedNodesStore();
 const router = useRouter();
 const i18n = useI18n();
 const route = useRoute();
@@ -195,6 +197,7 @@ async function onCustomInputSubmit() {
 	if (!inputText.value.trim()) return;
 	const content = inputText.value;
 	inputText.value = '';
+	focusedNodesStore.clearAll();
 	await onUserMessage(content);
 }
 
