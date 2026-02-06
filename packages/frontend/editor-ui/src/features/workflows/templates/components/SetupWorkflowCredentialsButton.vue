@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, watch } from 'vue';
+import { computed, nextTick, onMounted, watch } from 'vue';
 import { useI18n } from '@n8n/i18n';
-import { SETUP_CREDENTIALS_MODAL_KEY, TEMPLATE_SETUP_EXPERIENCE } from '@/app/constants';
+import { TEMPLATE_SETUP_EXPERIENCE } from '@/app/constants';
 import { useNodeTypesStore } from '@/app/stores/nodeTypes.store';
-import { useUIStore } from '@/app/stores/ui.store';
+import { useFocusPanelStore } from '@/app/stores/focusPanel.store';
 import { useWorkflowsStore } from '@/app/stores/workflows.store';
 import { doesNodeHaveAllCredentialsFilled } from '@/app/utils/nodes/nodeTransforms';
 
@@ -18,7 +18,7 @@ const readyToRunStore = useReadyToRunStore();
 const workflowState = injectWorkflowState();
 const nodeTypesStore = useNodeTypesStore();
 const posthogStore = usePostHog();
-const uiStore = useUIStore();
+const focusPanelStore = useFocusPanelStore();
 const i18n = useI18n();
 const route = useRoute();
 
@@ -44,12 +44,7 @@ const allCredentialsFilled = computed(() => {
 });
 
 const showButton = computed(() => {
-	const isCreatedFromTemplate = !!workflowsStore.workflow?.meta?.templateId;
-	if (!isCreatedFromTemplate || isTemplateSetupCompleted.value) {
-		return false;
-	}
-
-	return !allCredentialsFilled.value;
+	return !!workflowsStore.workflow?.meta?.templateId;
 });
 
 const isNewTemplatesSetupEnabled = computed(() => {
@@ -68,13 +63,10 @@ const unsubscribe = watch(allCredentialsFilled, (newValue) => {
 	}
 });
 
-const openSetupModal = () => {
-	uiStore.openModal(SETUP_CREDENTIALS_MODAL_KEY);
+const openSetupPanel = () => {
+	focusPanelStore.setSelectedTab('setup');
+	focusPanelStore.openFocusPanel();
 };
-
-onBeforeUnmount(() => {
-	uiStore.closeModal(SETUP_CREDENTIALS_MODAL_KEY);
-});
 
 onMounted(async () => {
 	// Wait for all reactive updates to settle before checking conditions
@@ -90,7 +82,7 @@ onMounted(async () => {
 		!isReadyToRunWorkflow &&
 		isTemplateImportRoute.value
 	) {
-		openSetupModal();
+		openSetupPanel();
 	}
 });
 </script>
@@ -103,6 +95,6 @@ onMounted(async () => {
 		size="large"
 		icon="package-open"
 		type="secondary"
-		@click="openSetupModal()"
+		@click="openSetupPanel()"
 	/>
 </template>
