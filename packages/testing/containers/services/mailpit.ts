@@ -114,11 +114,13 @@ export const mailpit: Service<MailpitResult> = {
 		}
 	},
 
-	env(): Record<string, string> {
+	env(result: MailpitResult, external?: boolean): Record<string, string> {
 		return {
 			N8N_EMAIL_MODE: 'smtp',
-			N8N_SMTP_HOST: HOSTNAME,
-			N8N_SMTP_PORT: String(SMTP_PORT),
+			N8N_SMTP_HOST: external ? result.container.getHost() : HOSTNAME,
+			N8N_SMTP_PORT: external
+				? String(result.container.getMappedPort(SMTP_PORT))
+				: String(SMTP_PORT),
 			N8N_SMTP_SSL: 'false',
 			N8N_SMTP_SENDER: 'test@n8n.local',
 		};

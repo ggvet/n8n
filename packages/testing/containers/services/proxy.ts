@@ -18,10 +18,13 @@ export type ProxyResult = ServiceResult<ProxyMeta>;
 export const proxy: Service<ProxyResult> = {
 	description: 'HTTP proxy server',
 
-	extraEnv(result): Record<string, string> {
+	extraEnv(result: ProxyResult, external?: boolean): Record<string, string> {
+		const url = external
+			? `http://${result.container.getHost()}:${result.container.getMappedPort(PORT)}`
+			: result.meta.internalUrl;
 		return {
-			HTTP_PROXY: result.meta.internalUrl,
-			HTTPS_PROXY: result.meta.internalUrl,
+			HTTP_PROXY: url,
+			HTTPS_PROXY: url,
 			NODE_TLS_REJECT_UNAUTHORIZED: '0',
 		};
 	},
@@ -57,10 +60,12 @@ export const proxy: Service<ProxyResult> = {
 		}
 	},
 
-	env(result): Record<string, string> {
+	env(result: ProxyResult, external?: boolean): Record<string, string> {
 		return {
-			N8N_PROXY_HOST: result.meta.host,
-			N8N_PROXY_PORT: String(result.meta.port),
+			N8N_PROXY_HOST: external ? result.container.getHost() : result.meta.host,
+			N8N_PROXY_PORT: external
+				? String(result.container.getMappedPort(PORT))
+				: String(result.meta.port),
 		};
 	},
 };
