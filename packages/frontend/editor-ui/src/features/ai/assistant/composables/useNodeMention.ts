@@ -1,4 +1,4 @@
-import { ref, computed, type Ref } from 'vue';
+import { ref, computed, watch, type Ref } from 'vue';
 import type { INodeUi } from '@/Interface';
 import { useFocusedNodesStore } from '../focusedNodes.store';
 import { useWorkflowsStore } from '@/app/stores/workflows.store';
@@ -60,6 +60,16 @@ export function useNodeMention(options: UseNodeMentionOptions = {}): UseNodeMent
 
 		return result.slice(0, maxResults);
 	});
+
+	// Close dropdown when workflow nodes change (e.g. paste, import) to ensure fresh data
+	watch(
+		() => workflowsStore.allNodes.length,
+		() => {
+			if (showDropdown.value) {
+				closeDropdown();
+			}
+		},
+	);
 
 	function calculateDropdownPosition(inputElement: HTMLElement, options: OpenDropdownOptions = {}) {
 		const rect = inputElement.getBoundingClientRect();
