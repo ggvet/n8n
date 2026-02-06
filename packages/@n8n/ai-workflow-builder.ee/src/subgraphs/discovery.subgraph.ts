@@ -674,7 +674,7 @@ export class DiscoverySubgraph extends BaseSubgraph<
 
 	transformOutput(
 		subgraphOutput: typeof DiscoverySubgraphState.State,
-		parentState: typeof ParentGraphState.State,
+		_parentState: typeof ParentGraphState.State,
 	) {
 		const nodesFound = subgraphOutput.nodesFound || [];
 		const templateIds = subgraphOutput.templateIds || [];
@@ -708,10 +708,6 @@ export class DiscoverySubgraph extends BaseSubgraph<
 			planFeedback: subgraphOutput.planFeedback,
 			planPrevious: subgraphOutput.planPrevious,
 			...(subgraphOutput.mode ? { mode: subgraphOutput.mode } : {}),
-			// Preserve parent messages (including Command.update messages from resume)
-			// so they persist in the checkpoint for session replay.
-			// messagesStateReducer deduplicates by ID, so this is safe.
-			messages: parentState.messages,
 		};
 	}
 }

@@ -5,7 +5,7 @@ import { Service } from '@n8n/di';
 import type { INodeTypeDescription } from 'n8n-workflow';
 
 import { getBuilderToolsForDisplay } from '@/tools/builder-tools';
-import type { HITLInterruptValue } from '@/types/planning';
+import type { HITLInterruptValue, QuestionsInterruptValue } from '@/types/planning';
 import { isLangchainMessagesArray, LangchainMessage, Session } from '@/types/sessions';
 import { formatMessages } from '@/utils/stream-processor';
 
@@ -20,6 +20,12 @@ export class SessionManagerService {
 	private pendingHitlByThreadId = new Map<
 		string,
 		{ value: HITLInterruptValue; expiresAt: number }
+	>();
+
+	/** Stores answered questions for session replay (not persisted in LangGraph checkpoint) */
+	private answeredQuestionsByThreadId = new Map<
+		string,
+		Array<{ questions: QuestionsInterruptValue; answers: unknown }>
 	>();
 
 	constructor(
@@ -89,6 +95,22 @@ export class SessionManagerService {
 		return entry.value;
 	}
 
+	/**
+	 * Store answered questions for session replay.
+	 * Called when a questions interrupt is resumed with answers.
+	 */
+	addAnsweredQuestions(threadId: string, questions: QuestionsInterruptValue, answers: unknown) {
+		const existing = this.answeredQuestionsByThreadId.get(threadId) ?? [];
+		existing.push({ questions, answers });
+		this.answeredQuestionsByThreadId.set(threadId, existing);
+	}
+
+	getAnsweredQuestions(
+		threadId: string,
+	): Array<{ questions: QuestionsInterruptValue; answers: unknown }> {
+		return this.answeredQuestionsByThreadId.get(threadId) ?? [];
+	}
+
 	private evictExpiredHitl() {
 		const now = Date.now();
 		for (const [id, entry] of this.pendingHitlByThreadId) {
@@ -134,6 +156,23 @@ export class SessionManagerService {
 							nodeTypes: this.nodeTypes,
 						}),
 					);
+
+					// Inject answered questions that aren't in the checkpoint
+					// (Command.update messages don't persist across subgraph interrupts)
+					const answeredQuestions = this.getAnsweredQuestions(threadId);
+					for (const { questions, answers } of answeredQuestions) {
+						formattedMessages.push({
+							role: 'assistant',
+							type: 'questions',
+							questions: questions.questions,
+							...(questions.introMessage ? { introMessage: questions.introMessage } : {}),
+						});
+						formattedMessages.push({
+							role: 'user',
+							type: 'user_answers',
+							answers,
+						});
+					}
 
 					const pendingHitl = this.getPendingHitl(threadId);
 					if (pendingHitl) {

@@ -247,6 +247,11 @@ export class AiWorkflowBuilderService {
 			? this.sessionManager.getAndClearPendingHitl(threadId)
 			: undefined;
 
+		// Store answered questions for session replay (checkpoint doesn't preserve these)
+		if (resumeInterrupt?.type === 'questions' && payload.resumeData) {
+			this.sessionManager.addAnsweredQuestions(threadId, resumeInterrupt, payload.resumeData);
+		}
+
 		const agentPayload = resumeInterrupt ? { ...payload, resumeInterrupt } : payload;
 
 		for await (const output of agent.chat(agentPayload, userId, abortSignal)) {
