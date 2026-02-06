@@ -9,7 +9,7 @@ import { useCredentialsStore } from '@/features/credentials/credentials.store';
 import { createTestingPinia } from '@pinia/testing';
 import CanvasNodeSettingsIcons from './CanvasNodeSettingsIcons.vue';
 import type { INode } from 'n8n-workflow';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 
 vi.mock('@/features/resolvers/composables/useDynamicCredentials', () => ({
 	useDynamicCredentials: vi.fn(),
