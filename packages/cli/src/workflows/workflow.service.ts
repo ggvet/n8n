@@ -470,10 +470,6 @@ export class WorkflowService {
 		return updatedWorkflow;
 	}
 
-	/**
-	 * Private helper to add a workflow to the active workflow manager
-	 * @param rollBackOptions - Optional rollback options
-	 */
 	private async _addToActiveWorkflowManager(
 		user: User,
 		workflowId: string,
@@ -502,13 +498,14 @@ export class WorkflowService {
 
 			if (!workflow.activeVersionId) {
 				// Emit deactivation event since activation failed
+				assert(previouslyActiveId !== null);
 				this.eventService.emit('workflow-deactivated', {
 					user,
 					workflowId,
 					workflow,
 					publicApi,
+					deactivatedVersionId: previouslyActiveId,
 				});
-				assert(previouslyActiveId !== null);
 				await this.workflowPublishHistoryRepository.addRecord({
 					workflowId,
 					versionId: previouslyActiveId,
@@ -748,9 +745,11 @@ export class WorkflowService {
 			updatedAt: workflow.updatedAt,
 		});
 
+		const deactivatedVersionId = workflow.activeVersionId;
+
 		await this.workflowPublishHistoryRepository.addRecord({
 			workflowId,
-			versionId: workflow.activeVersionId,
+			versionId: deactivatedVersionId,
 			event: 'deactivated',
 			userId: user.id,
 		});
@@ -765,6 +764,7 @@ export class WorkflowService {
 			workflowId,
 			workflow,
 			publicApi: options?.publicApi ?? false,
+			deactivatedVersionId,
 		});
 
 		return workflow;

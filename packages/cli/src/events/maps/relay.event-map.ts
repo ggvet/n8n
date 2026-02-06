@@ -112,6 +112,7 @@ export type RelayEventMap = {
 		workflowId: string;
 		workflow: IWorkflowDb;
 		publicApi: boolean;
+		deactivatedVersionId: string | null;
 	};
 
 	'workflow-pre-execute': {

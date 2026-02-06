@@ -158,9 +158,10 @@ describe('LogStreamingEventRelay', () => {
 				workflow: mock<IWorkflowDb>({
 					id: 'wf789',
 					name: 'Deactivated Workflow',
-					activeVersionId: 'version-xyz-789',
+					activeVersionId: null,
 				}),
 				publicApi: false,
+				deactivatedVersionId: 'version-xyz-789',
 			};
 
 			eventService.emit('workflow-deactivated', event);
@@ -175,7 +176,7 @@ describe('LogStreamingEventRelay', () => {
 					globalRole: 'user',
 					workflowId: 'wf789',
 					workflowName: 'Deactivated Workflow',
-					activeVersionId: 'version-xyz-789',
+					deactivatedVersionId: 'version-xyz-789',
 				},
 			});
 		});

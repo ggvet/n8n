@@ -150,6 +150,7 @@ export class LogStreamingEventRelay extends EventRelay {
 		user,
 		workflowId,
 		workflow,
+		deactivatedVersionId,
 	}: RelayEventMap['workflow-deactivated']) {
 		void this.eventBus.sendAuditEvent({
 			eventName: 'n8n.audit.workflow.deactivated',
@@ -157,7 +158,7 @@ export class LogStreamingEventRelay extends EventRelay {
 				...user,
 				workflowId,
 				workflowName: workflow.name,
-				activeVersionId: workflow.activeVersionId,
+				deactivatedVersionId,
 			},
 		});
 	}
