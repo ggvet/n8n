@@ -51,18 +51,7 @@ export { BaseChatHistory } from './memory/base-chat-history';
 export { BaseChatMemory } from './memory/base-chat-memory';
 
 // Memory implementations
-export { InMemoryChatHistory } from './memory/in-memory-chat-history';
 export { WindowedChatMemory, type WindowedChatMemoryConfig } from './memory/windowed-chat-memory';
-
-// Storage backends (wrapping LangChain implementations)
-export {
-	RedisChatHistory,
-	type RedisChatHistoryConfig,
-	PostgresChatHistory,
-	type PostgresChatHistoryConfig,
-	MongoDBChatHistory,
-	type MongoDBChatHistoryConfig,
-} from './storage';
 
 // Memory supplier
 export { supplyMemory, type SupplyMemoryOptions } from './suppliers/supplyMemory';

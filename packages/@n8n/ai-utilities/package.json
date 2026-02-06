@@ -35,8 +35,6 @@
 		"@langchain/core": "catalog:",
 		"@langchain/classic": "1.0.5",
 		"@langchain/community": "catalog:",
-		"@langchain/redis": "1.0.1",
-		"@langchain/mongodb": "1.0.1",
 		"@langchain/textsplitters": "1.0.1",
 		"@langchain/openai": "catalog:",
 		"langchain": "catalog:",
