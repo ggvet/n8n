@@ -13,7 +13,7 @@ const props = defineProps<{
 	state: NodeSetupState;
 }>();
 
-const expanded = defineModel<boolean>('expanded', { default: true });
+const expanded = defineModel<boolean>('expanded', { default: false });
 
 const emit = defineEmits<{
 	credentialSelected: [payload: { credentialType: string; credentialId: string }];
