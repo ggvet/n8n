@@ -28,6 +28,9 @@ const emit = defineEmits<{
 // Current question index (0-based)
 const currentIndex = ref(0);
 
+// Prevent double-submit
+const isSubmitted = ref(false);
+
 // Store answers for each question
 const answers = ref<Map<string, PlanMode.QuestionResponse>>(new Map());
 
@@ -55,20 +58,31 @@ function ensureAnswer(q: PlanMode.PlannerQuestion): PlanMode.QuestionResponse {
 	return answers.value.get(q.id)!;
 }
 
-// Initialize first question's answer immediately
-ensureAnswer(currentQuestion.value);
+// Initialize first question's answer immediately (guard against empty questions)
+if (currentQuestion.value) {
+	ensureAnswer(currentQuestion.value);
+}
 
 // Initialize answer when navigating to a new question
-watch(currentIndex, () => ensureAnswer(currentQuestion.value));
+watch(currentIndex, () => {
+	if (currentQuestion.value) {
+		ensureAnswer(currentQuestion.value);
+	}
+});
 
 // Get answer for current question (pure computed - no side effects)
-const currentAnswer = computed(() => answers.value.get(currentQuestion.value.id)!);
+const currentAnswer = computed(() => {
+	const q = currentQuestion.value;
+	if (!q) return undefined;
+	return answers.value.get(q.id);
+});
 
 // Check if current question has a valid answer
 const hasValidAnswer = computed(() => {
 	const answer = currentAnswer.value;
+	if (!answer) return false;
 	if (answer.skipped) return true;
-	if (currentQuestion.value.type === 'text') {
+	if (currentQuestion.value?.type === 'text') {
 		return !!answer.customText?.trim();
 	}
 	return answer.selectedOptions.length > 0 || !!answer.customText?.trim();
@@ -100,6 +114,9 @@ function onCustomTextChange(text: string) {
 }
 
 function submitAnswers() {
+	if (isSubmitted.value) return;
+	isSubmitted.value = true;
+
 	const allAnswers = props.questions.map((q) => {
 		const answer = answers.value.get(q.id);
 		return (
@@ -137,7 +154,7 @@ function goToNext() {
 			{{ introMessage }}
 		</N8nText>
 
-		<div :class="$style.container">
+		<div v-if="currentQuestion && currentAnswer" :class="$style.container">
 			<!-- Question -->
 			<div :class="$style.question">
 				<N8nText tag="p" :bold="true" :class="$style.questionText">
@@ -249,7 +266,7 @@ function goToNext() {
 					<N8nButton
 						type="primary"
 						size="small"
-						:disabled="disabled || !hasValidAnswer"
+						:disabled="disabled || !hasValidAnswer || isSubmitted"
 						data-test-id="plan-mode-questions-next"
 						@click="goToNext"
 					>
@@ -317,8 +334,8 @@ function goToNext() {
 }
 
 .radioInput {
-	width: 16px;
-	height: 16px;
+	width: var(--spacing--sm);
+	height: var(--spacing--sm);
 	accent-color: var(--color--primary);
 	cursor: pointer;
 	margin: 0;

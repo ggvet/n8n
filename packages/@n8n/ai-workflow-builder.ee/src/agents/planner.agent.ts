@@ -105,7 +105,10 @@ export interface PlannerNodeResult {
 
 export function parsePlanDecision(value: unknown): { action: PlanDecision; feedback?: string } {
 	if (typeof value !== 'object' || value === null) {
-		return { action: 'reject', feedback: 'Invalid response: expected an object.' };
+		return {
+			action: 'reject',
+			feedback: `Invalid response: expected an object, got ${typeof value}.`,
+		};
 	}
 
 	const obj = value as Record<string, unknown>;
@@ -113,7 +116,7 @@ export function parsePlanDecision(value: unknown): { action: PlanDecision; feedb
 	if (action !== 'approve' && action !== 'reject' && action !== 'modify') {
 		return {
 			action: 'reject',
-			feedback: 'Invalid response: expected action to be approve/reject/modify.',
+			feedback: `Invalid response: expected action to be approve/reject/modify, got '${String(action)}'.`,
 		};
 	}
 

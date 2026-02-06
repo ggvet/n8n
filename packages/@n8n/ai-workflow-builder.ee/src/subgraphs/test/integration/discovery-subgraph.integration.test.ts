@@ -333,11 +333,9 @@ describe('Discovery Subgraph - Integration Tests', () => {
 		// The bestPractices functionality is now handled via get_documentation tool
 		// which updates state directly. The test validated internal subgraph state
 		// which is no longer exposed in the same way.
-		it('should include categorization and best practices in internal state', async () => {
-			// Test skipped during migration - bestPractices no longer exposed in wrapper API
-			// The feature still works, but is handled internally by the get_documentation tool
-			expect(true).toBe(true);
-		});
+		// Skipped during migration - bestPractices no longer exposed in wrapper API.
+		// The feature still works, but is handled internally by the get_documentation tool.
+		it.todo('should include categorization and best practices in internal state');
 	});
 
 	describe('Complex Workflows', () => {
@@ -469,11 +467,9 @@ describe('Discovery Subgraph - Integration Tests', () => {
 		// Note: This test was skipped during migration to LangChain v1 createAgent API.
 		// The technique categorization is now handled internally via the get_documentation tool.
 		// The test validated internal subgraph messages which are no longer exposed in the same way.
-		it('should select correct techniques via get_best_practices for all test prompts', async () => {
-			// Test skipped during migration - messages property no longer exposed in wrapper API
-			// The feature still works, but technique extraction from messages is internal
-			expect(true).toBe(true);
-		});
+		// Skipped during migration - messages property no longer exposed in wrapper API.
+		// The feature still works, but technique extraction from messages is internal.
+		it.todo('should select correct techniques via get_best_practices for all test prompts');
 
 		// Keeping the old test code commented out for reference in case we need to restore it
 		// with the proper API changes later

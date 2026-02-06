@@ -741,12 +741,13 @@ export const useBuilderStore = defineStore(STORES.BUILDER, () => {
 		const feedback = decision.feedback?.trim();
 
 		if (decision.action === 'approve') {
-			builderMode.value = 'build';
 			await sendChatMessage({
 				text: locale.baseText('aiAssistant.builder.planMode.actions.implement'),
 				resumeData: decision,
 				mode: 'build',
 			});
+			// Only switch mode after the message is sent successfully
+			builderMode.value = 'build';
 			return;
 		}
 

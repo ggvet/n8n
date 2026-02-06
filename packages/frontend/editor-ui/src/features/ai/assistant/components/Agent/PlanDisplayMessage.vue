@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 import { N8nButton, N8nText } from '@n8n/design-system';
 import { useI18n } from '@n8n/i18n';
@@ -23,9 +23,14 @@ const emit = defineEmits<{
 
 const i18n = useI18n();
 
+// Prevent double-click
+const isSubmitted = ref(false);
+
 const plan = computed(() => props.message.data.plan);
 
 function approve() {
+	if (isSubmitted.value) return;
+	isSubmitted.value = true;
 	emit('decision', { action: 'approve' });
 }
 </script>
@@ -68,7 +73,7 @@ function approve() {
 			<div v-if="showActions" :class="$style.actions">
 				<N8nButton
 					type="primary"
-					:disabled="disabled"
+					:disabled="disabled || isSubmitted"
 					data-test-id="plan-mode-plan-approve"
 					@click="approve"
 				>
