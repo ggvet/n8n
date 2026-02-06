@@ -85,6 +85,7 @@ interface WorkflowBuilderJourneyPayload extends ITelemetryTrackProperties {
 interface EndOfStreamingTrackingPayload {
 	userMessageId: string;
 	startWorkflowJson: string;
+	revertVersion?: { id: string; createdAt: string };
 }
 
 interface UserSubmittedBuilderMessageTrackingPayload
@@ -394,9 +395,18 @@ export const useBuilderStore = defineStore(STORES.BUILDER, () => {
 
 		trackEndBuilderResponse(payload);
 
-		// Capture userMessageId before clearing currentStreamingMessage
+		// Capture state before clearing currentStreamingMessage
 		const userMessageId = currentStreamingMessage.value?.userMessageId;
+		const { revertVersion } = currentStreamingMessage.value ?? {};
 		currentStreamingMessage.value = undefined;
+
+		// Only show "Restore version" on user messages that triggered a workflow modification.
+		// During planning or question phases no workflow changes happen, so skip it.
+		if (userMessageId && revertVersion && hasWorkflowUpdateInCurrentBatch(userMessageId)) {
+			chatMessages.value = chatMessages.value.map((msg) =>
+				msg.id === userMessageId ? { ...msg, revertVersion } : msg,
+			);
+		}
 
 		const wasAborted = payload && 'aborted' in payload && payload.aborted;
 
@@ -657,6 +667,7 @@ export const useBuilderStore = defineStore(STORES.BUILDER, () => {
 		currentStreamingMessage.value = {
 			userMessageId,
 			startWorkflowJson: currentWorkflowJson,
+			revertVersion,
 		};
 
 		trackUserSubmittedBuilderMessage({
@@ -672,7 +683,7 @@ export const useBuilderStore = defineStore(STORES.BUILDER, () => {
 
 		resetManualExecutionStats();
 
-		prepareForStreaming(text, userMessageId, revertVersion, options.planAnswers);
+		prepareForStreaming(text, userMessageId, undefined, options.planAnswers);
 
 		const executionResult = workflowsStore.workflowExecutionData?.data?.resultData;
 		const modeForPayload =

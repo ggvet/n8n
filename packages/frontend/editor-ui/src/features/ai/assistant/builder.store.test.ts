@@ -2414,6 +2414,110 @@ describe('AI Builder store', () => {
 		});
 	});
 
+	describe('revertVersion on user messages', () => {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		let capturedOnMessageCallback: ((data: any) => void) | null = null;
+		let capturedDoneCallback: (() => void) | null = null;
+
+		beforeEach(() => {
+			capturedOnMessageCallback = null;
+			capturedDoneCallback = null;
+
+			apiSpy.mockImplementation((_context, _options, onMessage, onDone) => {
+				capturedOnMessageCallback = onMessage;
+				capturedDoneCallback = onDone;
+			});
+		});
+
+		it('should not show revertVersion on user message during streaming', async () => {
+			const builderStore = useBuilderStore();
+			workflowsStore.workflowId = 'test-workflow-123';
+			workflowsStore.isNewWorkflow = false;
+			workflowsStore.workflowVersionId = 'version-1';
+
+			await builderStore.sendChatMessage({ text: 'Build a workflow' });
+
+			// While streaming, user message should NOT have revertVersion
+			const userMessage = builderStore.chatMessages[0] as ChatUI.TextMessage;
+			expect(userMessage.role).toBe('user');
+			expect(userMessage.revertVersion).toBeUndefined();
+		});
+
+		it('should add revertVersion to user message after streaming when workflow was modified', async () => {
+			const builderStore = useBuilderStore();
+			workflowsStore.workflowId = 'test-workflow-123';
+			workflowsStore.isNewWorkflow = false;
+			workflowsStore.workflowVersionId = 'version-1';
+			workflowsStore.workflow.updatedAt = '2024-01-01T00:00:00Z';
+
+			await builderStore.sendChatMessage({ text: 'Build a workflow' });
+
+			// Simulate a workflow-updated message
+			if (capturedOnMessageCallback) {
+				capturedOnMessageCallback({
+					messages: [
+						{
+							type: 'workflow-updated',
+							role: 'assistant',
+							codeSnippet: '{"nodes":[],"connections":{}}',
+						},
+					],
+					sessionId: 'test-session',
+				});
+			}
+
+			// Complete streaming
+			if (capturedDoneCallback) {
+				capturedDoneCallback();
+			}
+
+			await vi.waitFor(() => expect(builderStore.streaming).toBe(false));
+
+			// User message should now have revertVersion
+			const userMessage = builderStore.chatMessages[0] as ChatUI.TextMessage;
+			expect(userMessage.role).toBe('user');
+			expect(userMessage.revertVersion).toEqual({
+				id: 'version-1',
+				createdAt: '2024-01-01T00:00:00Z',
+			});
+		});
+
+		it('should not add revertVersion to user message after streaming when workflow was not modified', async () => {
+			const builderStore = useBuilderStore();
+			workflowsStore.workflowId = 'test-workflow-123';
+			workflowsStore.isNewWorkflow = false;
+			workflowsStore.workflowVersionId = 'version-1';
+
+			await builderStore.sendChatMessage({ text: 'What can you help me with?' });
+
+			// Simulate a text response without workflow-updated
+			if (capturedOnMessageCallback) {
+				capturedOnMessageCallback({
+					messages: [
+						{
+							type: 'message',
+							role: 'assistant',
+							text: 'Here is a plan for your workflow.',
+						},
+					],
+					sessionId: 'test-session',
+				});
+			}
+
+			// Complete streaming
+			if (capturedDoneCallback) {
+				capturedDoneCallback();
+			}
+
+			await vi.waitFor(() => expect(builderStore.streaming).toBe(false));
+
+			// User message should NOT have revertVersion
+			const userMessage = builderStore.chatMessages[0] as ChatUI.TextMessage;
+			expect(userMessage.role).toBe('user');
+			expect(userMessage.revertVersion).toBeUndefined();
+		});
+	});
+
 	describe('Browser notifications', () => {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let capturedOnMessageCallback: ((data: any) => void) | null = null;
